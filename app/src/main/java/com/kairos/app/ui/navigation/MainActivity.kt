@@ -1,4 +1,4 @@
-package com.kairos.app
+package com.kairos.app.ui.navigation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
-import com.kairos.app.ui.navigation.KairosDestination
 import com.kairos.app.ui.screens.achievements.AchievementsScreen
 import com.kairos.app.ui.screens.ai.AiHelperScreen
 import com.kairos.app.ui.screens.calendar.CalendarScreen
