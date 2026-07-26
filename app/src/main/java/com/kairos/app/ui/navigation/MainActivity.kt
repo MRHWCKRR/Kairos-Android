@@ -4,8 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -58,17 +56,6 @@ fun KairosApp() {
 
 @Composable
 fun KairosBottomNav(navController: androidx.navigation.NavHostController) {
-    val icons = mapOf(
-        KairosDestination.Dashboard to Icons.Default.Home,
-        KairosDestination.AiHelper to Icons.Default.AutoAwesome,
-        KairosDestination.Tasks to Icons.Default.CheckCircle,
-        KairosDestination.Schedule to Icons.Default.Schedule,
-        KairosDestination.Calendar to Icons.Default.CalendarMonth,
-        KairosDestination.Achievements to Icons.Default.EmojiEvents,
-        KairosDestination.Statistics to Icons.Default.BarChart,
-        KairosDestination.Settings to Icons.Default.Settings
-    )
-
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
@@ -78,7 +65,7 @@ fun KairosBottomNav(navController: androidx.navigation.NavHostController) {
     NavigationBar {
         KairosDestination.all.forEach { dest ->
             NavigationBarItem(
-                icon = { Icon(icons[dest]!!, contentDescription = dest.label) },
+                icon = { Icon(dest.icon, contentDescription = dest.label) },
                 label = { Text(dest.label, maxLines = 1) },
                 selected = currentDestination?.hierarchy?.any { it.route == dest.route } == true,
                 onClick = {

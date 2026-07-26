@@ -4,7 +4,7 @@
     - [x] Update package in `MainActivity.kt`
     - [x] Remove redundant `KairosDestination` import
 - [x] Verify build with `./gradlew :app:assembleDebug`
-- [ ] Fix Runtime Crash (NPE in BottomNav)
-    - [ ] Update `KairosDestination` with icons in `KairosNavGraph.kt`
-    - [ ] Update `KairosBottomNav` in `MainActivity.kt` to use `dest.icon`
-- [ ] Verify build with `./gradlew :app:assembleDebug`
+- [x] Fix Runtime Crash (NPE in BottomNav)
+    - [x] Update `KairosDestination` with icons in `KairosNavGraph.kt`
+    - [x] Update `KairosBottomNav` in `MainActivity.kt` to use `dest.icon`
+- [x] Verify build with `./gradlew :app:assembleDebug`
