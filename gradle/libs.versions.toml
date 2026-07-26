@@ -1,6 +1,6 @@
 [versions]
-agp = "8.5.0"
-kotlin = "1.9.24"
+agp = "8.9.0"
+kotlin = "2.0.20"
 firebaseBom = "33.1.2"
 composeBom = "2024.06.00"
 activityCompose = "1.9.0"
@@ -29,4 +29,5 @@ coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-co
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServicesPlugin" }
