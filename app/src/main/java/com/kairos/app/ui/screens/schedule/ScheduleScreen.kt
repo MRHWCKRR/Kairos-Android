@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -33,7 +32,7 @@ private val CategoryColors = mapOf(
 )
 
 private val DayLabels = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
-private const val HourHeightDp = 48
+private const val HourHeightDp = 64 // Slightly taller for better readability
 
 @Composable
 fun ScheduleScreen(viewModel: MainViewModel = viewModel()) {
@@ -47,28 +46,65 @@ fun ScheduleScreen(viewModel: MainViewModel = viewModel()) {
         Column(modifier = Modifier.fillMaxSize()) {
             ScheduleLegend()
             
-            Box(modifier = Modifier.fillMaxSize()) {
-                val verticalScrollState = rememberScrollState()
-                val horizontalScrollState = rememberScrollState()
+            val verticalScrollState = rememberScrollState()
+            val horizontalScrollState = rememberScrollState()
 
-                // Default scroll to 6 AM
-                val density = LocalDensity.current
-                val scrollPos = remember { with(density) { (6 * HourHeightDp).dp.toPx().toInt() } }
-                
-                LaunchedEffect(Unit) {
-                    verticalScrollState.scrollTo(scrollPos)
+            // Default scroll to 7 AM
+            val density = LocalDensity.current
+            val scrollPos = with(density) { (7 * HourHeightDp).dp.toPx().toInt() }
+            
+            LaunchedEffect(Unit) {
+                verticalScrollState.scrollTo(scrollPos)
+            }
+
+            Row(modifier = Modifier.fillMaxSize()) {
+                // Fixed Time Column (Vertically scrollable only)
+                Column(
+                    modifier = Modifier
+                        .width(56.dp)
+                        .verticalScroll(verticalScrollState)
+                        .padding(top = 40.dp) // Header offset
+                ) {
+                    repeat(24) { hour ->
+                        Box(
+                            modifier = Modifier
+                                .height(HourHeightDp.dp)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Text(
+                                text = formatHour(hour),
+                                fontSize = 10.sp,
+                                color = TextMuted
+                            )
+                        }
+                    }
                 }
 
-                Row(
+                // Scrollable Days Grid (Both vertically and horizontally scrollable)
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .horizontalScroll(horizontalScrollState)
+                        .verticalScroll(verticalScrollState)
                 ) {
-                    // Time Column (Fixed)
-                    TimeColumn(verticalScrollState)
+                    Row {
+                        DayLabels.forEachIndexed { dayIndex, label ->
+                            val eventsForDay = events.filter { it.day == dayIndex }
+                            val prevDay = (dayIndex + 6) % 7
+                            val overflowEvents = events.filter { 
+                                val start = scheduleTimeToMinutes(it.start)
+                                val end = scheduleTimeToMinutes(it.end)
+                                it.day == prevDay && end < start 
+                            }
 
-                    // Days Grid
-                    DayGrid(events, verticalScrollState)
+                            DayColumn(
+                                label = label,
+                                primaryEvents = eventsForDay,
+                                overflowEvents = overflowEvents
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -80,21 +116,17 @@ fun ScheduleLegend() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         CategoryColors.forEach { (id, color) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(color, CircleShape)
-                )
+                Box(modifier = Modifier.size(8.dp).background(color, CircleShape))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = id.replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = TextMuted
                 )
             }
@@ -103,86 +135,53 @@ fun ScheduleLegend() {
 }
 
 @Composable
-fun TimeColumn(scrollState: ScrollState) {
-    Column(
-        modifier = Modifier
-            .width(60.dp)
-            .verticalScroll(scrollState)
-            .padding(top = 40.dp) // Offset for day header
-    ) {
-        (0..23).forEach { hour ->
-            Box(
-                modifier = Modifier
-                    .height(HourHeightDp.dp)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                Text(
-                    text = formatHour(hour),
-                    fontSize = 10.sp,
-                    color = TextMuted,
-                    textAlign = TextAlign.Center
-                )
-            }
+fun DayColumn(
+    label: String,
+    primaryEvents: List<KairosScheduleEvent>,
+    overflowEvents: List<KairosScheduleEvent>
+) {
+    val columnWidth = 120.dp
+    val totalHeight = (24 * HourHeightDp).dp
+
+    Column(modifier = Modifier.width(columnWidth)) {
+        // Day Header
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
-    }
-}
 
-@Composable
-fun DayGrid(events: List<KairosScheduleEvent>, scrollState: ScrollState) {
-    val density = LocalDensity.current
-    val hourHeightPx = with(density) { HourHeightDp.dp.toPx() }
-
-    Row {
-        DayLabels.forEachIndexed { index, label ->
-            Column(
-                modifier = Modifier
-                    .width(100.dp)
-            ) {
-                // Day Header
-                Text(
-                    text = label,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .padding(bottom = 8.dp),
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                // Time Rows for this Day
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height((24 * HourHeightDp).dp)
-                        .verticalScroll(scrollState)
-                        .drawBehind {
-                            // Hour lines
-                            for (i in 0..24) {
-                                val y = i * hourHeightPx
-                                drawLine(
-                                    color = Color.White.copy(alpha = 0.05f),
-                                    start = Offset(0f, y),
-                                    end = Offset(size.width, y),
-                                    strokeWidth = 1f
-                                )
-                            }
-                        }
-                ) {
-                    val eventsForDay = events.filter { it.day == index }
-                    val prevDay = (index + 6) % 7
-                    val overflowEvents = events.filter { 
-                        it.day == prevDay && scheduleTimeToMinutes(it.end) < scheduleTimeToMinutes(it.start) 
+        // Day Body
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(totalHeight)
+                .drawBehind {
+                    // Draw grid lines
+                    for (i in 0..24) {
+                        val y = i * HourHeightDp.dp.toPx()
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.1f),
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = 1f
+                        )
                     }
-
-                    ScheduleEventLayout(
-                        primaryEvents = eventsForDay,
-                        overflowEvents = overflowEvents
-                    )
                 }
-            }
+        ) {
+            ScheduleEventLayout(
+                primaryEvents = primaryEvents,
+                overflowEvents = overflowEvents,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
@@ -190,7 +189,8 @@ fun DayGrid(events: List<KairosScheduleEvent>, scrollState: ScrollState) {
 @Composable
 fun ScheduleEventLayout(
     primaryEvents: List<KairosScheduleEvent>,
-    overflowEvents: List<KairosScheduleEvent>
+    overflowEvents: List<KairosScheduleEvent>,
+    modifier: Modifier = Modifier
 ) {
     data class LaidOutEvent(
         val event: KairosScheduleEvent,
@@ -214,7 +214,7 @@ fun ScheduleEventLayout(
         }
         list.sortBy { it.startMin }
 
-        // Multi-column logic
+        // Multi-column overlap logic
         val columnEnds = mutableListOf<Int>()
         list.forEach { item ->
             var placed = false
@@ -231,7 +231,8 @@ fun ScheduleEventLayout(
                 columnEnds.add(item.endMin)
             }
         }
-        list.forEach { it.colCount = columnEnds.size }
+        val finalColCount = if (columnEnds.isEmpty()) 1 else columnEnds.size
+        list.forEach { it.colCount = finalColCount }
         list
     }
 
@@ -240,15 +241,17 @@ fun ScheduleEventLayout(
             items.forEach { item ->
                 EventBlock(item.event, item.isOverflow)
             }
-        }
+        },
+        modifier = modifier
     ) { measurables, constraints ->
         val placeables = measurables.mapIndexed { index, measurable ->
             val item = items[index]
             val width = (constraints.maxWidth / item.colCount) - 4
-            measurable.measure(Constraints.fixed(width, ((item.endMin - item.startMin) * HourHeightDp / 60).dp.roundToPx()))
+            val height = ((item.endMin - item.startMin) * HourHeightDp / 60).dp.roundToPx()
+            measurable.measure(Constraints.fixed(width.coerceAtLeast(0), height.coerceAtLeast(0)))
         }
 
-        layout(constraints.maxWidth, constraints.maxHeight) {
+        layout(constraints.maxWidth, (24 * HourHeightDp).dp.roundToPx()) {
             placeables.forEachIndexed { index, placeable ->
                 val item = items[index]
                 val x = (item.col * constraints.maxWidth / item.colCount) + 2
@@ -264,7 +267,7 @@ fun EventBlock(event: KairosScheduleEvent, isOverflow: Boolean) {
     val color = CategoryColors[event.category] ?: CategoryColors["other"]!!
     Card(
         shape = RoundedCornerShape(4.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.9f)),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.85f)),
         modifier = Modifier.padding(1.dp)
     ) {
         Column(
@@ -274,18 +277,18 @@ fun EventBlock(event: KairosScheduleEvent, isOverflow: Boolean) {
         ) {
             Text(
                 text = if (isOverflow) "${event.title} ⤴" else event.title,
-                fontSize = 10.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                lineHeight = 11.sp
+                lineHeight = 10.sp
             )
             if (!isOverflow) {
                 Text(
-                    text = "${event.start} - ${event.end}",
-                    fontSize = 8.sp,
-                    color = Color.White.copy(alpha = 0.8f),
+                    text = "${event.start}-${event.end}",
+                    fontSize = 7.sp,
+                    color = Color.White.copy(alpha = 0.9f),
                     maxLines = 1
                 )
             }
