@@ -53,6 +53,38 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Toggles a task's completion status and syncs with Firestore.
+     * Implements optimistic UI updates.
+     */
+    fun toggleTask(taskId: String, completed: Boolean) {
+        val currentPlan = _plan.value ?: return
+        val userId = _user.value?.uid ?: return
+
+        // Create an updated plan structure
+        val updatedBoards = currentPlan.boards.map { board ->
+            board.copy(sections = board.sections.map { section ->
+                section.copy(tasks = section.tasks.map { task ->
+                    if (task.id == taskId) task.copy(completed = completed) else task
+                })
+            })
+        }
+        
+        val updatedPlan = currentPlan.copy(boards = updatedBoards)
+        
+        // Update local state immediately for responsiveness
+        _plan.value = updatedPlan
+        
+        viewModelScope.launch {
+            try {
+                firebaseRepository.updatePlan(userId, updatedPlan)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to sync task toggle", e)
+                errorMessage = "Sync failed: ${e.localizedMessage}"
+            }
+        }
+    }
+
     fun signOut() {
         authRepository.signOut()
     }
