@@ -97,6 +97,15 @@ class AiRepository {
 
         return AiResponse(sections, recurringEvents)
     }
+
+    suspend fun generateText(prompt: String, apiKey: String): String {
+        val generativeModel = GenerativeModel(
+            modelName = "gemini-1.5-flash",
+            apiKey = apiKey
+        )
+        val response = generativeModel.generateContent(prompt)
+        return response.text ?: throw Exception("Empty AI response")
+    }
 }
 
 data class AiResponse(

@@ -167,6 +167,13 @@ class MainViewModel @JvmOverloads constructor(
         updatePlanInternal(updatedPlan)
     }
 
+    fun updateDayInsight(dateKey: String, insight: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedInsights = currentPlan.dayInsights.toMutableMap()
+        updatedInsights[dateKey] = insight
+        updatePlanInternal(currentPlan.copy(dayInsights = updatedInsights))
+    }
+
     private fun updatePlanInternal(updatedPlan: KairosPlan) {
         val userId = _user.value?.uid ?: return
         _plan.value = updatedPlan
