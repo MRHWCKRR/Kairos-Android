@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kairos.app.data.models.KairosPlan
+import com.kairos.app.data.models.*
 import com.kairos.app.data.repository.AuthRepository
 import com.kairos.app.data.repository.FirebaseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +35,6 @@ class MainViewModel @JvmOverloads constructor(
             authRepository.getAuthState().collectLatest { firebaseUser ->
                 _user.value = firebaseUser
                 if (firebaseUser != null) {
-                    // Start listening to the plan for this user
                     firebaseRepository.getLatestPlan(firebaseUser.uid)
                         .catch { e ->
                             Log.e("MainViewModel", "Plan stream error", e)
@@ -43,7 +42,7 @@ class MainViewModel @JvmOverloads constructor(
                         }
                         .collect { latestPlan ->
                             _plan.value = latestPlan
-                            errorMessage = null // Clear error if we get data
+                            errorMessage = null
                         }
                 } else {
                     _plan.value = null
@@ -53,15 +52,8 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    /**
-     * Toggles a task's completion status and syncs with Firestore.
-     * Implements optimistic UI updates.
-     */
     fun toggleTask(taskId: String, completed: Boolean) {
         val currentPlan = _plan.value ?: return
-        val userId = _user.value?.uid ?: return
-
-        // Create an updated plan structure
         val updatedBoards = currentPlan.boards.map { board ->
             board.copy(sections = board.sections.map { section ->
                 section.copy(tasks = section.tasks.map { task ->
@@ -69,17 +61,120 @@ class MainViewModel @JvmOverloads constructor(
                 })
             })
         }
-        
-        val updatedPlan = currentPlan.copy(boards = updatedBoards)
-        
-        // Update local state immediately for responsiveness
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun addBoard(title: String) {
+        val currentPlan = _plan.value ?: KairosPlan(userID = _user.value?.uid ?: "")
+        val newBoard = KairosBoard(
+            id = "board-${System.currentTimeMillis()}",
+            title = title
+        )
+        updatePlanInternal(currentPlan.copy(boards = currentPlan.boards + newBoard))
+    }
+
+    fun renameBoard(boardId: String, newTitle: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map {
+            if (it.id == boardId) it.copy(title = newTitle) else it
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun archiveBoard(boardId: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map {
+            if (it.id == boardId) it.copy(archived = true) else it
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun addSection(boardId: String, title: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            if (board.id == boardId) {
+                val newSection = KairosSection(
+                    id = "sec-${System.currentTimeMillis()}",
+                    title = title
+                )
+                board.copy(sections = board.sections + newSection)
+            } else board
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun renameSection(sectionId: String, newTitle: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            board.copy(sections = board.sections.map { section ->
+                if (section.id == sectionId) section.copy(title = newTitle) else section
+            })
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun archiveSection(sectionId: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            board.copy(sections = board.sections.map { section ->
+                if (section.id == sectionId) section.copy(archived = true) else section
+            })
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun addTask(sectionId: String, title: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            board.copy(sections = board.sections.map { section ->
+                if (section.id == sectionId) {
+                    val newTask = KairosTask(
+                        id = "task-${System.currentTimeMillis()}",
+                        title = title
+                    )
+                    section.copy(tasks = section.tasks + newTask)
+                } else section
+            })
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun renameTask(taskId: String, newTitle: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            board.copy(sections = board.sections.map { section ->
+                section.copy(tasks = section.tasks.map { task ->
+                    if (task.id == taskId) task.copy(title = newTitle) else task
+                })
+            })
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun archiveTask(taskId: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            board.copy(sections = board.sections.map { section ->
+                section.copy(tasks = section.tasks.map { task ->
+                    if (task.id == taskId) task.copy(archived = true) else task
+                })
+            })
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun updatePlan(updatedPlan: KairosPlan) {
+        updatePlanInternal(updatedPlan)
+    }
+
+    private fun updatePlanInternal(updatedPlan: KairosPlan) {
+        val userId = _user.value?.uid ?: return
         _plan.value = updatedPlan
-        
         viewModelScope.launch {
             try {
                 firebaseRepository.updatePlan(userId, updatedPlan)
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to sync task toggle", e)
+                Log.e("MainViewModel", "Failed to update plan", e)
                 errorMessage = "Sync failed: ${e.localizedMessage}"
             }
         }
@@ -88,7 +183,7 @@ class MainViewModel @JvmOverloads constructor(
     fun signOut() {
         authRepository.signOut()
     }
-    
+
     fun clearError() {
         errorMessage = null
     }

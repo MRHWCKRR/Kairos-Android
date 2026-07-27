@@ -8,6 +8,7 @@ class PreferenceManager(context: Context) {
 
     companion object {
         private const val KEY_REMEMBERED_EMAIL = "remembered_email"
+        private const val KEY_GEMINI_API_KEY = "gemini_api_key"
     }
 
     fun saveEmail(email: String) {
@@ -20,5 +21,13 @@ class PreferenceManager(context: Context) {
 
     fun clearEmail() {
         prefs.edit().remove(KEY_REMEMBERED_EMAIL).apply()
+    }
+
+    fun saveGeminiKey(key: String) {
+        prefs.edit().putString(KEY_GEMINI_API_KEY, key).apply()
+    }
+
+    fun getGeminiKey(): String? {
+        return prefs.getString(KEY_GEMINI_API_KEY, null)
     }
 }

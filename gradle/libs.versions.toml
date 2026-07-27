@@ -9,9 +9,13 @@ lifecycleViewmodelCompose = "2.8.2"
 coroutinesPlayServices = "1.8.1"
 googleServicesPlugin = "4.4.2"
 playServicesAuth = "21.2.0"
+generativeAi = "0.9.0"
+kotlinxSerializationJson = "1.6.3"
 # ...plus any other original entries (junit, espresso, etc.) — keep those too
 
 [libraries]
+generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeAi" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
