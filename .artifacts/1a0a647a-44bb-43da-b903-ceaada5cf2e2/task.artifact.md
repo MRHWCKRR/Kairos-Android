@@ -2,8 +2,14 @@
 - [x] Phase 2: Authentication (Login/Sign-up)
 - [x] Phase 3: Login Screen Redesign
 - [x] Phase 4: Logo Integration & Google Sign-In
-    - [x] Add `play-services-auth` dependency
-    - [x] Add `signInWithGoogle` to `AuthRepository`
-    - [x] Update `LoginViewModel` with Google sign-in logic
-    - [x] Update `LoginScreen` with PNG logo and Google button launcher
-- [x] Verify build and Google Sign-In
+- [x] Phase 5: Stability Fixes (Post-Login Crash)
+- [x] Phase 6: Bottom Navigation & Remember Me
+- [x] Phase 7: App Responsiveness & Interactive Errors
+- [x] Phase 8: Final Stability Pass (Permissions & Theme)
+- [x] Phase 9: Emergency Startup Isolation
+- [/] Phase 10: Step-by-Step Restoration
+    - [/] Step 1: Restore Authentication Routing (Login Screen)
+    - [ ] Step 2: Restore Scaffold & Sign Out
+    - [ ] Step 3: Restore Bottom Navigation
+    - [ ] Step 4: Restore NavHost (The potential culprit)
+- [ ] Verify each step without crashes

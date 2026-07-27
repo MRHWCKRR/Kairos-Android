@@ -1,35 +1,27 @@
-# Walkthrough - Phase 4: Logo Integration & Google Sign-In
+# Walkthrough - Phase 9: Emergency Startup Isolation
 
-I have successfully integrated your custom PNG logo and implemented the Google Sign-In flow, bringing the Android app closer to the web app's feature set.
+I have temporarily simplified the app to a "Hello World" state to isolate the cause of the immediate startup crash.
 
 ## Changes Made
 
-### 1. Logo Replacement
-- Replaced the text-based `// Kairos` header with your custom [ic_kairos_logo.png](file:///C:/Dev/Kairos-Android/app/src/main/res/drawable/ic_kairos_logo.png).
-- The logo is now displayed at a size of 64dp at the top of the Login Screen.
+### 1. Startup Isolation
+- **[MainActivity.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainActivity.kt)**:
+    - Simplified the entire file to only show a basic `Text` label: **"Kairos: Isolate Mode (Hello World)"**.
+    - This removes all dependencies on ViewModels, Navigation, and complex UI during startup.
+    - Added **BREADCRUMB** logs. Look for these in your **Logcat** to see exactly how far the app gets before it crashes.
+    - Added explicit Firebase initialization as a safety measure.
 
-### 2. Google Sign-In Integration
-- **Dependencies**: Added `com.google.android.gms:play-services-auth` to the project to enable Google authentication.
-- **Repository**: Updated [AuthRepository.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/repository/AuthRepository.kt) with a `signInWithGoogle` method that converts a Google ID Token into Firebase credentials.
-- **ViewModel**: Updated [LoginViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginViewModel.kt) to handle the Google Sign-In result and update the loading/error states.
-- **UI**: Added a functional Google Sign-In launcher to [LoginScreen.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginScreen.kt).
+### 2. ViewModel Stability
+- **[MainViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainViewModel.kt)**: Added `@JvmOverloads` to the constructor. This ensures the Android framework can always find a valid way to create the ViewModel, even if the dependency injection fails.
 
-### 3. Build & Package Stability
-- Fixed a package declaration issue in `AuthRepository.kt` that was causing compilation errors.
-- Verified that all components correctly reference the shared models and repositories.
+### 3. Theme Compatibility
+- **[themes.xml](file:///C:/Dev/Kairos-Android/app/src/main/res/values/themes.xml)**: Reverted the parent theme to `android:Theme.Material.NoActionBar`. This is a highly compatible base theme that rules out any modern theme conflicts as the cause of the system-level unresponsiveness.
 
-## Verification Results
+## Debugging Instructions
 
-### Automated Tests
-- Successfully ran `./gradlew :app:assembleDebug`. All dependencies are correctly resolved and synced.
+1.  **Run the app.**
+2.  **Open Logcat** and filter by `BREADCRUMB`.
+3.  **Outcome A**: If the app opens and you see "Kairos: Isolate Mode", the project foundation is healthy. The crash was in our specific UI/Navigation logic. We will then re-enable components one by one.
+4.  **Outcome B**: If it *still* crashes, the issue is likely in the `AndroidManifest.xml` (e.g., an activity name mismatch) or a critical dependency conflict.
 
-### Manual Verification
-- **Visuals**: Launch the app and you should see your custom logo on the Login Screen.
-- **Auth**: Tapping "Continue with Google" will now launch the Google account picker.
-    > [!IMPORTANT]
-    > Remember to register your SHA-1 in the Firebase Console for Google Sign-In to work. If you see a generic error, it's likely the fingerprint mismatch.
-
-### What's Next?
-Now that the entry flow is polished and functional, we can:
-1.  **Phase 5: The Dashboard**: Display your actual Firestore routine boards in a native Compose list.
-2.  **Phase 6: The Weekly Schedule**: Implement the time-grid view for recurring commitments.
+Please let me know which outcome you see!

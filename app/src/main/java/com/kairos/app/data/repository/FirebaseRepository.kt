@@ -1,5 +1,6 @@
 package com.kairos.app.data.repository
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.kairos.app.data.models.KairosPlan
@@ -17,27 +18,40 @@ class FirebaseRepository {
      * Matches the web app's logic of sorting by createdAt descending.
      */
     fun getLatestPlan(userId: String): Flow<KairosPlan?> = callbackFlow {
-        val query = plansCollection
-            .whereEqualTo("userID", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(1)
+        Log.d("FirebaseRepository", "Starting snapshot listener for user: $userId")
+        
+        val query = try {
+            plansCollection
+                .whereEqualTo("userID", userId)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(1)
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error building query", e)
+            close(e)
+            return@callbackFlow
+        }
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
+                Log.e("FirebaseRepository", "Firestore listener error: ${error.message}", error)
+                // If this is an index error, the message will contain a link to create it.
                 close(error)
                 return@addSnapshotListener
             }
 
-            val plan = snapshot?.documents?.firstOrNull()?.let { doc ->
-                doc.toObject(KairosPlan::class.java)?.copy(
-                    // We can store the document ID if needed, but the web app
-                    // doesn't seem to store it inside the boards data itself.
-                )
+            try {
+                val plan = snapshot?.documents?.firstOrNull()?.toObject(KairosPlan::class.java)
+                Log.d("FirebaseRepository", "Plan received: ${plan != null}")
+                trySend(plan)
+            } catch (e: Exception) {
+                Log.e("FirebaseRepository", "Error parsing plan object", e)
             }
-            trySend(plan)
         }
 
-        awaitClose { subscription.remove() }
+        awaitClose { 
+            Log.d("FirebaseRepository", "Closing snapshot listener")
+            subscription.remove() 
+        }
     }
 
     /**

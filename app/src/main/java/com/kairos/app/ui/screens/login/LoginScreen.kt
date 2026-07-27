@@ -104,9 +104,19 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 onClick = { launcher.launch(googleSignInClient.signInIntent) }
             )
             Spacer(modifier = Modifier.height(12.dp))
-            SocialLoginButton(text = "Continue with GitHub", onClick = { /* TODO */ })
+            SocialLoginButton(
+                text = "Continue with GitHub", 
+                onClick = { 
+                    android.widget.Toast.makeText(context, "GitHub Sign-In coming soon! Use Email for now.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            )
             Spacer(modifier = Modifier.height(12.dp))
-            SocialLoginButton(text = "Continue with Microsoft", onClick = { /* TODO */ })
+            SocialLoginButton(
+                text = "Continue with Microsoft", 
+                onClick = { 
+                    android.widget.Toast.makeText(context, "Microsoft Sign-In coming soon! Use Email for now.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 

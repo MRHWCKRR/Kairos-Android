@@ -1,84 +1,37 @@
 package com.kairos.app.ui.navigation
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.*
-import com.kairos.app.ui.screens.achievements.AchievementsScreen
-import com.kairos.app.ui.screens.ai.AiHelperScreen
-import com.kairos.app.ui.screens.calendar.CalendarScreen
-import com.kairos.app.ui.screens.dashboard.DashboardScreen
-import com.kairos.app.ui.screens.schedule.ScheduleScreen
-import com.kairos.app.ui.screens.settings.SettingsScreen
-import com.kairos.app.ui.screens.statistics.StatisticsScreen
-import com.kairos.app.ui.screens.tasks.TasksScreen
-import com.kairos.app.ui.screens.login.LoginScreen
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import com.kairos.app.ui.theme.KairosTheme
+import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            KairosTheme {
-                KairosApp()
-            }
-        }
-    }
-}
-
-@Composable
-fun KairosApp(viewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
-    val navController = rememberNavController()
-    val user by viewModel.user.collectAsState()
-
-    if (user == null) {
-        LoginScreen()
-    } else {
-        Scaffold(
-            bottomBar = { KairosBottomNav(navController) }
-        ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = KairosDestination.Dashboard.route,
-                modifier = androidx.compose.ui.Modifier.padding(innerPadding)
-            ) {
-                composable(KairosDestination.Dashboard.route) { DashboardScreen() }
-                composable(KairosDestination.AiHelper.route) { AiHelperScreen() }
-                composable(KairosDestination.Tasks.route) { TasksScreen() }
-                composable(KairosDestination.Schedule.route) { ScheduleScreen() }
-                composable(KairosDestination.Calendar.route) { CalendarScreen() }
-                composable(KairosDestination.Achievements.route) { AchievementsScreen() }
-                composable(KairosDestination.Statistics.route) { StatisticsScreen() }
-                composable(KairosDestination.Settings.route) { SettingsScreen() }
-            }
-        }
-    }
-}
-
-@Composable
-fun KairosBottomNav(navController: androidx.navigation.NavHostController) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-
-    NavigationBar {
-        KairosDestination.all.forEach { dest ->
-            NavigationBarItem(
-                icon = { Icon(dest.icon, contentDescription = dest.label) },
-                label = { Text(dest.label, maxLines = 1) },
-                selected = currentDestination?.hierarchy?.any { it.route == dest.route } == true,
-                onClick = {
-                    navController.navigate(dest.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+        Log.d("BREADCRUMB", "1: onCreate started")
+        
+        try {
+            Log.d("BREADCRUMB", "2: Initializing Firebase explicitly")
+            FirebaseApp.initializeApp(this)
+            
+            Log.d("BREADCRUMB", "3: Setting content")
+            setContent {
+                KairosTheme {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(text = "Kairos: Isolate Mode (Hello World)")
                     }
                 }
-            )
+            }
+            Log.d("BREADCRUMB", "4: setContent finished")
+        } catch (e: Exception) {
+            Log.e("BREADCRUMB", "FATAL CRASH in onCreate", e)
         }
     }
 }
