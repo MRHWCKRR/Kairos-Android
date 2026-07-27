@@ -10,7 +10,7 @@ import com.kairos.app.data.local.PreferenceManager
 import com.kairos.app.data.repository.AuthRepository
 import kotlinx.coroutines.launch
 
-class LoginViewModel(
+class LoginViewModel @JvmOverloads constructor(
     application: Application,
     private val authRepository: AuthRepository = AuthRepository()
 ) : AndroidViewModel(application) {
