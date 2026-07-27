@@ -1,9 +1,9 @@
 - [x] Phase 1: Foundation & Data Sync
 - [x] Phase 2: Authentication (Login/Sign-up)
 - [x] Phase 3: Login Screen Redesign
-    - [x] Update `LoginViewModel` with `rememberMe` state
-    - [x] Implement `// Kairos` logo and header in `LoginScreen`
-    - [x] Add Social Login button placeholders
-    - [x] Restyle Email/Password fields and separator
-    - [x] Style primary Action Button and Checkbox
-- [x] Verify UI parity and build
+- [ ] Phase 4: Logo Integration & Google Sign-In
+    - [ ] Add `play-services-auth` dependency
+    - [ ] Add `signInWithGoogle` to `AuthRepository`
+    - [ ] Update `LoginViewModel` with Google sign-in logic
+    - [ ] Update `LoginScreen` with PNG logo and Google button launcher
+- [ ] Verify build and Google Sign-In

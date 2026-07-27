@@ -8,9 +8,11 @@ navigationCompose = "2.7.7"
 lifecycleViewmodelCompose = "2.8.2"
 coroutinesPlayServices = "1.8.1"
 googleServicesPlugin = "4.4.2"
+playServicesAuth = "21.2.0"
 # ...plus any other original entries (junit, espresso, etc.) — keep those too
 
 [libraries]
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
