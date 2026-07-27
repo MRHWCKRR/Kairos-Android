@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun KairosApp() {
+fun KairosApp(viewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val navController = rememberNavController()
 
     Scaffold(
@@ -59,9 +59,6 @@ fun KairosBottomNav(navController: androidx.navigation.NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // 8 tabs is too many for a bottom bar to breathe — this uses a scrollable
-    // NavigationBar so nothing gets cramped; swap for a NavigationDrawer
-    // (closer to your web sidebar) later if you'd rather match that exactly.
     NavigationBar {
         KairosDestination.all.forEach { dest ->
             NavigationBarItem(

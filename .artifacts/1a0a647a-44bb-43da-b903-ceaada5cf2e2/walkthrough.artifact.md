@@ -1,26 +1,30 @@
-# Walkthrough - Resolved Compilation and Runtime Issues in Kairos-Android
+# Walkthrough - Phase 1: Foundation & Data Sync
 
-I have completed the fixes for the compilation errors and the runtime crashes that were preventing the app from staying open.
+I have established the core data layer for the Kairos Android port, ensuring full compatibility with your existing web app's Firestore schema.
 
 ## Changes Made
 
-### 1. Fixed Screen Files (Compilation Fix)
-Updated all placeholder screen files in `com.kairos.app.ui.screens` to resolve conflicting function names, fix package declarations, and add missing `dp` imports.
+### 1. Kotlin Data Models
+Created [KairosModels.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/models/KairosModels.kt) with structures that exactly match your web app's Firestore documents:
+- `KairosTask`, `KairosSection`, `KairosBoard`: Hierarchical structure for Routines.
+- `KairosScheduleEvent`: Matches the recurring weekly commitments logic.
+- `KairosPlan`: The root document for `study_plans`.
 
-### 2. Fixed Package Mismatch (Runtime Fix)
-Corrected a mismatch where `MainActivity.kt` was in the wrong package according to `AndroidManifest.xml`.
-- Updated [MainActivity.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainActivity.kt) to `package com.kairos.app.ui.navigation`.
+### 2. Firebase Repositories
+- **[FirebaseRepository.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/repository/FirebaseRepository.kt)**: Implements `getLatestPlan()` which uses a Firestore Snapshot Listener to keep the app in sync with the cloud in real-time, just like the web app.
+- **[AuthRepository.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/repository/AuthRepository.kt)**: Manages the Firebase Auth state.
 
-### 3. Fixed BottomNav NullPointerException (Runtime Fix)
-Resolved a `NullPointerException` occurring in the bottom navigation bar during initialization.
-- **Issue**: A map lookup in `KairosBottomNav` was failing, likely due to a mismatch in object instances.
-- **Fix**: Refactored [KairosNavGraph.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/KairosNavGraph.kt) to include the `icon: ImageVector` directly in the `KairosDestination` class.
-- **Optimization**: Updated [MainActivity.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainActivity.kt) to use `dest.icon` directly, simplifying the UI code and removing unused icon imports.
+### 3. State Management
+- **[MainViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainViewModel.kt)**: Bridges the data layer and the UI. It automatically starts listening for the latest Firestore plan as soon as a user is authenticated.
+- Integrated the ViewModel into [MainActivity.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainActivity.kt).
 
 ## Verification Results
 
 ### Automated Tests
-- Successfully ran `./gradlew :app:assembleDebug`. The build status is "Build finished successfully."
+- Successfully ran `./gradlew :app:assembleDebug`. The project compiles with the new Firebase dependencies and data models.
 
-### Manual Verification Required
-- Please run the app. It should now open to the Dashboard and allow you to navigate through all tabs using the bottom navigation bar without any crashes.
+### What's Next?
+Now that the data layer is ready, we can:
+1.  **Implement the Login/Sign-up UI**: To allow you to sign in with your web credentials.
+2.  **Populate the Dashboard**: Pull the "My Routine" boards from Firestore and display them in the app.
+3.  **Port the Time-Grid**: Start building the `ScheduleScreen` using the `scheduleEvents` data.

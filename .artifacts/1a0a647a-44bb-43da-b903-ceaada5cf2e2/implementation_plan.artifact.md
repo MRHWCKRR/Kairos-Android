@@ -1,28 +1,46 @@
-# Implementation Plan - Fix Runtime Crash (Immediate Shutdown)
+# Implementation Plan - Phase 2: Authentication (Login/Sign-up)
 
-The app builds and installs but crashes immediately upon opening. This is likely due to a package name mismatch in `MainActivity.kt`.
+I will implement the authentication flow for the Android app, matching the web app's capability to sign in via email and password. This will allow the app to fetch the correct user data from Firestore.
 
-## Analysis
+## User Review Required
 
-- **Manifest**: Specifies the activity as `.ui.navigation.MainActivity`. Given the namespace `com.kairos.app`, this resolves to `com.kairos.app.ui.navigation.MainActivity`.
-- **File Location**: `C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainActivity.kt`.
-- **Code Content**: The file currently declares `package com.kairos.app`.
-- **Result**: The Android system cannot find the class `com.kairos.app.ui.navigation.MainActivity` because the class actually compiled as `com.kairos.app.MainActivity`. This causes a `ClassNotFoundException` at runtime.
+> [!NOTE]
+> I will be implementing a simple, clean Login UI. For now, I'll focus on **Email/Password** authentication. Google Sign-In requires additional configuration (SHA-1 keys in Firebase Console) which I recommend we tackle in a follow-up step.
 
 ## Proposed Changes
 
-### UI Navigation
+### 1. Data Layer (Repository)
+
+#### [MODIFY] [AuthRepository.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/repository/AuthRepository.kt)
+- Add `signIn(email, password)` method using `auth.signInWithEmailAndPassword`.
+- Add `signUp(email, password)` method using `auth.createUserWithEmailAndPassword`.
+
+### 2. UI Layer (ViewModels & Screens)
+
+#### [NEW] [LoginViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginViewModel.kt)
+- Manage email/password input states.
+- Handle loading and error states during authentication.
+- Provide `login()` and `register()` actions.
+
+#### [NEW] [LoginScreen.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginScreen.kt)
+- Implement a modern Compose UI for signing in and switching to "Create Account".
+- Use `TextField` for inputs and a primary action button.
+
+### 3. App Integration
 
 #### [MODIFY] [MainActivity.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainActivity.kt)
-- Update package declaration from `package com.kairos.app` to `package com.kairos.app.ui.navigation`.
-- Remove the redundant import: `import com.kairos.app.ui.navigation.KairosDestination` (since it will now be in the same package).
-- Ensure all other imports (like `KairosTheme` and screens) are still correct.
+- Observe the `user` state from `MainViewModel`.
+- **Conditional Layout**:
+    - If `user == null`: Render the `LoginScreen`.
+    - If `user != null`: Render the main `KairosApp` content (Scaffold + NavHost).
+- This ensures the user is forced to authenticate before seeing their routine data.
 
 ## Verification Plan
 
 ### Automated Tests
-- Run `./gradlew :app:assembleDebug` to ensure it still compiles.
+- Run `./gradlew :app:assembleDebug` to ensure compilation.
 
 ### Manual Verification
-- Ask the user to run the app again and verify it stays open.
-- (Self-Correction/Note): Since I cannot directly see the crash log without `adb` in path, fixing this obvious manifest mismatch is the priority.
+- Launch the app and verify the Login screen appears.
+- Test signing in with your existing web credentials.
+- Verify that once logged in, the app automatically switches to the Dashboard.

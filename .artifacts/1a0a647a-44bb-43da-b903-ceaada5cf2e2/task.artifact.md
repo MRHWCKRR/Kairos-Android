@@ -1,10 +1,11 @@
-- [x] Fix Screen file packages, function names and imports
-- [x] Verify build with `./gradlew :app:assembleDebug`
-- [x] Fix Runtime Crash (Package Mismatch)
-    - [x] Update package in `MainActivity.kt`
-    - [x] Remove redundant `KairosDestination` import
-- [x] Verify build with `./gradlew :app:assembleDebug`
-- [x] Fix Runtime Crash (NPE in BottomNav)
-    - [x] Update `KairosDestination` with icons in `KairosNavGraph.kt`
-    - [x] Update `KairosBottomNav` in `MainActivity.kt` to use `dest.icon`
-- [x] Verify build with `./gradlew :app:assembleDebug`
+- [x] Phase 1: Foundation & Data Sync
+    - [x] Create Kotlin Data Models (`KairosTask`, `KairosSection`, `KairosBoard`, `KairosScheduleEvent`, `KairosPlan`)
+    - [x] Create `FirebaseRepository` for Firestore sync
+    - [x] Implement `AuthRepository` and `AuthViewModel` (MainViewModel) for session management
+    - [x] Verify build and model parsing
+- [ ] Phase 2: Authentication (Login/Sign-up)
+    - [ ] Update `AuthRepository` with sign-in/up logic
+    - [ ] Create `LoginViewModel`
+    - [ ] Create `LoginScreen` UI
+    - [ ] Update `MainActivity` with conditional auth routing
+- [ ] Verify build and login flow
