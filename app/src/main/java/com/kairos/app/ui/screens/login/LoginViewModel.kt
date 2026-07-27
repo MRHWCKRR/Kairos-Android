@@ -43,6 +43,21 @@ class LoginViewModel(
         }
     }
 
+    fun onGoogleSignInResult(idToken: String) {
+        isLoading = true
+        errorMessage = null
+
+        viewModelScope.launch {
+            try {
+                authRepository.signInWithGoogle(idToken)
+            } catch (e: Exception) {
+                errorMessage = e.localizedMessage ?: "Google Sign-In failed."
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     fun toggleMode() {
         isSignUpMode = !isSignUpMode
         errorMessage = null

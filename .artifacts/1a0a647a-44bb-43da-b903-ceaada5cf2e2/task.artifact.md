@@ -1,9 +1,9 @@
 - [x] Phase 1: Foundation & Data Sync
 - [x] Phase 2: Authentication (Login/Sign-up)
 - [x] Phase 3: Login Screen Redesign
-- [ ] Phase 4: Logo Integration & Google Sign-In
-    - [ ] Add `play-services-auth` dependency
-    - [ ] Add `signInWithGoogle` to `AuthRepository`
-    - [ ] Update `LoginViewModel` with Google sign-in logic
-    - [ ] Update `LoginScreen` with PNG logo and Google button launcher
-- [ ] Verify build and Google Sign-In
+- [x] Phase 4: Logo Integration & Google Sign-In
+    - [x] Add `play-services-auth` dependency
+    - [x] Add `signInWithGoogle` to `AuthRepository`
+    - [x] Update `LoginViewModel` with Google sign-in logic
+    - [x] Update `LoginScreen` with PNG logo and Google button launcher
+- [x] Verify build and Google Sign-In

@@ -1,27 +1,63 @@
 package com.kairos.app.ui.screens.login
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.kairos.app.R
 import com.kairos.app.ui.theme.BgCard
 import com.kairos.app.ui.theme.TextMuted
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    
+    // Google Sign-In Setup
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("63554361-j4c5s5oi67pjnjir7bvt8i9imkt48kps.apps.googleusercontent.com")
+            .requestEmail()
+            .build()
+    }
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
+    
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account?.idToken
+            if (idToken != null) {
+                viewModel.onGoogleSignInResult(idToken)
+            } else {
+                viewModel.errorMessage = "Google Sign-In failed: No ID Token."
+            }
+        } catch (e: ApiException) {
+            viewModel.errorMessage = "Google Sign-In failed: ${e.message}"
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -36,22 +72,12 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
         ) {
             Spacer(modifier = Modifier.height(60.dp))
 
-            // Logo: // Kairos
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "//",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Kairos",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            // Logo: PNG Image
+            Image(
+                painter = painterResource(id = R.drawable.ic_kairos_logo),
+                contentDescription = "Kairos Logo",
+                modifier = Modifier.size(64.dp)
+            )
 
             Spacer(modifier = Modifier.height(40.dp))
 
@@ -73,7 +99,10 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
             Spacer(modifier = Modifier.height(40.dp))
 
             // Social Logins
-            SocialLoginButton(text = "Continue with Google", onClick = { /* TODO */ })
+            SocialLoginButton(
+                text = "Continue with Google", 
+                onClick = { launcher.launch(googleSignInClient.signInIntent) }
+            )
             Spacer(modifier = Modifier.height(12.dp))
             SocialLoginButton(text = "Continue with GitHub", onClick = { /* TODO */ })
             Spacer(modifier = Modifier.height(12.dp))

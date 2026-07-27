@@ -1,37 +1,35 @@
-# Walkthrough - Phase 3: Login Screen Redesign
+# Walkthrough - Phase 4: Logo Integration & Google Sign-In
 
-I have redesigned the **Login Screen** to match the target UI provided in the reference image. The interface now features a sleek, dark aesthetic consistent with the Kairos brand.
+I have successfully integrated your custom PNG logo and implemented the Google Sign-In flow, bringing the Android app closer to the web app's feature set.
 
 ## Changes Made
 
-### 1. Logo & Branding
-- Implemented the `// Kairos` logo at the top using the "Accent Glow" purple color.
-- Updated typography for "Welcome back" and subtitles to match the design's font hierarchy.
+### 1. Logo Replacement
+- Replaced the text-based `// Kairos` header with your custom [ic_kairos_logo.png](file:///C:/Dev/Kairos-Android/app/src/main/res/drawable/ic_kairos_logo.png).
+- The logo is now displayed at a size of 64dp at the top of the Login Screen.
 
-### 2. Social Authentication Layout
-- Added styled button placeholders for **Google**, **GitHub**, and **Microsoft**.
-- These buttons use the dark background color and bold text as seen in the reference.
+### 2. Google Sign-In Integration
+- **Dependencies**: Added `com.google.android.gms:play-services-auth` to the project to enable Google authentication.
+- **Repository**: Updated [AuthRepository.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/repository/AuthRepository.kt) with a `signInWithGoogle` method that converts a Google ID Token into Firebase credentials.
+- **ViewModel**: Updated [LoginViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginViewModel.kt) to handle the Google Sign-In result and update the loading/error states.
+- **UI**: Added a functional Google Sign-In launcher to [LoginScreen.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginScreen.kt).
 
-### 3. Secured Email Form
-- **Form Labels**: Added labels ("Email Address", "Password") positioned above the text fields.
-- **Custom Text Fields**: Created a `CustomTextField` component with:
-    - `BgCard` background.
-    - No focus indicators (transparent).
-    - Minimal rounded corners (8dp).
-    - Custom placeholder colors.
-- **Separator**: Added the "OR SECURELY WITH EMAIL" text divider.
-
-### 4. Interactions & Actions
-- **Remember Me**: Added a checkbox with the primary theme color.
-- **Primary Button**: Styled the "Sign In" button to be wide, purple, and have 12dp rounded corners.
-- **State Management**: Updated `LoginViewModel` to track the `rememberMe` state.
-- **Scrollable Support**: Wrapped the layout in a `verticalScroll` to ensure accessibility on smaller devices.
+### 3. Build & Package Stability
+- Fixed a package declaration issue in `AuthRepository.kt` that was causing compilation errors.
+- Verified that all components correctly reference the shared models and repositories.
 
 ## Verification Results
 
 ### Automated Tests
-- Successfully ran `./gradlew :app:assembleDebug`.
+- Successfully ran `./gradlew :app:assembleDebug`. All dependencies are correctly resolved and synced.
 
 ### Manual Verification
-- Visual audit confirms matching logo, button styles, form layout, and spacing from the reference image.
-- Functional check: Email/Password sign-in logic is preserved and works within the new UI.
+- **Visuals**: Launch the app and you should see your custom logo on the Login Screen.
+- **Auth**: Tapping "Continue with Google" will now launch the Google account picker.
+    > [!IMPORTANT]
+    > Remember to register your SHA-1 in the Firebase Console for Google Sign-In to work. If you see a generic error, it's likely the fingerprint mismatch.
+
+### What's Next?
+Now that the entry flow is polished and functional, we can:
+1.  **Phase 5: The Dashboard**: Display your actual Firestore routine boards in a native Compose list.
+2.  **Phase 6: The Weekly Schedule**: Implement the time-grid view for recurring commitments.
