@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
 
 class AuthRepository {
     private val auth = FirebaseAuth.getInstance()
@@ -22,5 +23,13 @@ class AuthRepository {
 
     fun signOut() {
         auth.signOut()
+    }
+
+    suspend fun signIn(email: String, password: String) {
+        auth.signInWithEmailAndPassword(email, password).await()
+    }
+
+    suspend fun signUp(email: String, password: String) {
+        auth.createUserWithEmailAndPassword(email, password).await()
     }
 }

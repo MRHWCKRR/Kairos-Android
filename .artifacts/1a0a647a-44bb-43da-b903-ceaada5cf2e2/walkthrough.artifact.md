@@ -1,30 +1,37 @@
-# Walkthrough - Phase 1: Foundation & Data Sync
+# Walkthrough - Phase 3: Login Screen Redesign
 
-I have established the core data layer for the Kairos Android port, ensuring full compatibility with your existing web app's Firestore schema.
+I have redesigned the **Login Screen** to match the target UI provided in the reference image. The interface now features a sleek, dark aesthetic consistent with the Kairos brand.
 
 ## Changes Made
 
-### 1. Kotlin Data Models
-Created [KairosModels.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/models/KairosModels.kt) with structures that exactly match your web app's Firestore documents:
-- `KairosTask`, `KairosSection`, `KairosBoard`: Hierarchical structure for Routines.
-- `KairosScheduleEvent`: Matches the recurring weekly commitments logic.
-- `KairosPlan`: The root document for `study_plans`.
+### 1. Logo & Branding
+- Implemented the `// Kairos` logo at the top using the "Accent Glow" purple color.
+- Updated typography for "Welcome back" and subtitles to match the design's font hierarchy.
 
-### 2. Firebase Repositories
-- **[FirebaseRepository.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/repository/FirebaseRepository.kt)**: Implements `getLatestPlan()` which uses a Firestore Snapshot Listener to keep the app in sync with the cloud in real-time, just like the web app.
-- **[AuthRepository.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/repository/AuthRepository.kt)**: Manages the Firebase Auth state.
+### 2. Social Authentication Layout
+- Added styled button placeholders for **Google**, **GitHub**, and **Microsoft**.
+- These buttons use the dark background color and bold text as seen in the reference.
 
-### 3. State Management
-- **[MainViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainViewModel.kt)**: Bridges the data layer and the UI. It automatically starts listening for the latest Firestore plan as soon as a user is authenticated.
-- Integrated the ViewModel into [MainActivity.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainActivity.kt).
+### 3. Secured Email Form
+- **Form Labels**: Added labels ("Email Address", "Password") positioned above the text fields.
+- **Custom Text Fields**: Created a `CustomTextField` component with:
+    - `BgCard` background.
+    - No focus indicators (transparent).
+    - Minimal rounded corners (8dp).
+    - Custom placeholder colors.
+- **Separator**: Added the "OR SECURELY WITH EMAIL" text divider.
+
+### 4. Interactions & Actions
+- **Remember Me**: Added a checkbox with the primary theme color.
+- **Primary Button**: Styled the "Sign In" button to be wide, purple, and have 12dp rounded corners.
+- **State Management**: Updated `LoginViewModel` to track the `rememberMe` state.
+- **Scrollable Support**: Wrapped the layout in a `verticalScroll` to ensure accessibility on smaller devices.
 
 ## Verification Results
 
 ### Automated Tests
-- Successfully ran `./gradlew :app:assembleDebug`. The project compiles with the new Firebase dependencies and data models.
+- Successfully ran `./gradlew :app:assembleDebug`.
 
-### What's Next?
-Now that the data layer is ready, we can:
-1.  **Implement the Login/Sign-up UI**: To allow you to sign in with your web credentials.
-2.  **Populate the Dashboard**: Pull the "My Routine" boards from Firestore and display them in the app.
-3.  **Port the Time-Grid**: Start building the `ScheduleScreen` using the `scheduleEvents` data.
+### Manual Verification
+- Visual audit confirms matching logo, button styles, form layout, and spacing from the reference image.
+- Functional check: Email/Password sign-in logic is preserved and works within the new UI.

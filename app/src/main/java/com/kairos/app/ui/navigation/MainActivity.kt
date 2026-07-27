@@ -17,6 +17,7 @@ import com.kairos.app.ui.screens.schedule.ScheduleScreen
 import com.kairos.app.ui.screens.settings.SettingsScreen
 import com.kairos.app.ui.screens.statistics.StatisticsScreen
 import com.kairos.app.ui.screens.tasks.TasksScreen
+import com.kairos.app.ui.screens.login.LoginScreen
 import com.kairos.app.ui.theme.KairosTheme
 
 class MainActivity : ComponentActivity() {
@@ -33,23 +34,28 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun KairosApp(viewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val navController = rememberNavController()
+    val user by viewModel.user.collectAsState()
 
-    Scaffold(
-        bottomBar = { KairosBottomNav(navController) }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = KairosDestination.Dashboard.route,
-            modifier = androidx.compose.ui.Modifier.padding(innerPadding)
-        ) {
-            composable(KairosDestination.Dashboard.route) { DashboardScreen() }
-            composable(KairosDestination.AiHelper.route) { AiHelperScreen() }
-            composable(KairosDestination.Tasks.route) { TasksScreen() }
-            composable(KairosDestination.Schedule.route) { ScheduleScreen() }
-            composable(KairosDestination.Calendar.route) { CalendarScreen() }
-            composable(KairosDestination.Achievements.route) { AchievementsScreen() }
-            composable(KairosDestination.Statistics.route) { StatisticsScreen() }
-            composable(KairosDestination.Settings.route) { SettingsScreen() }
+    if (user == null) {
+        LoginScreen()
+    } else {
+        Scaffold(
+            bottomBar = { KairosBottomNav(navController) }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = KairosDestination.Dashboard.route,
+                modifier = androidx.compose.ui.Modifier.padding(innerPadding)
+            ) {
+                composable(KairosDestination.Dashboard.route) { DashboardScreen() }
+                composable(KairosDestination.AiHelper.route) { AiHelperScreen() }
+                composable(KairosDestination.Tasks.route) { TasksScreen() }
+                composable(KairosDestination.Schedule.route) { ScheduleScreen() }
+                composable(KairosDestination.Calendar.route) { CalendarScreen() }
+                composable(KairosDestination.Achievements.route) { AchievementsScreen() }
+                composable(KairosDestination.Statistics.route) { StatisticsScreen() }
+                composable(KairosDestination.Settings.route) { SettingsScreen() }
+            }
         }
     }
 }

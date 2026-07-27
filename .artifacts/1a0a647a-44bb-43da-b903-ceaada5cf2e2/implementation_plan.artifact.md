@@ -1,46 +1,46 @@
-# Implementation Plan - Phase 2: Authentication (Login/Sign-up)
+# Implementation Plan - Phase 4: Logo Integration & Google Sign-In
 
-I will implement the authentication flow for the Android app, matching the web app's capability to sign in via email and password. This will allow the app to fetch the correct user data from Firestore.
+I will replace the text-based logo with the PNG provided and implement the Google Sign-In feature to match the web app's functionality.
 
 ## User Review Required
 
-> [!NOTE]
-> I will be implementing a simple, clean Login UI. For now, I'll focus on **Email/Password** authentication. Google Sign-In requires additional configuration (SHA-1 keys in Firebase Console) which I recommend we tackle in a follow-up step.
+> [!IMPORTANT]
+> **Logo Image**: Please save the logo PNG you provided as `app/src/main/res/drawable/ic_kairos_logo.png` in your project directory. I cannot "save" the image from the chat directly into your source code.
+>
+> **Google Sign-In**: To make Google Sign-In work, you will need to:
+> 1. Add your Android app's **SHA-1 fingerprint** to your Firebase project settings in the Firebase Console.
+> 2. Download the updated `google-services.json` and replace the existing one in the `app` folder.
 
 ## Proposed Changes
 
-### 1. Data Layer (Repository)
+### 1. Project Configuration
+
+#### [MODIFY] [libs.versions.toml](file:///C:/Dev/Kairos-Android/gradle/libs.versions.toml)
+- Add `play-services-auth` library definition.
+
+#### [MODIFY] [app/build.gradle.kts](file:///C:/Dev/Kairos-Android/app/build.gradle.kts)
+- Add `play-services-auth` dependency.
+
+### 2. Data Layer (Auth)
 
 #### [MODIFY] [AuthRepository.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/repository/AuthRepository.kt)
-- Add `signIn(email, password)` method using `auth.signInWithEmailAndPassword`.
-- Add `signUp(email, password)` method using `auth.createUserWithEmailAndPassword`.
+- Add `signInWithGoogle(idToken)` method using `GoogleAuthProvider.getCredential`.
 
-### 2. UI Layer (ViewModels & Screens)
+### 3. UI Layer (Login)
 
-#### [NEW] [LoginViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginViewModel.kt)
-- Manage email/password input states.
-- Handle loading and error states during authentication.
-- Provide `login()` and `register()` actions.
+#### [MODIFY] [LoginViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginViewModel.kt)
+- Add `onGoogleSignInResult(idToken)` logic.
+- Handle state for Google Sign-In process.
 
-#### [NEW] [LoginScreen.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginScreen.kt)
-- Implement a modern Compose UI for signing in and switching to "Create Account".
-- Use `TextField` for inputs and a primary action button.
-
-### 3. App Integration
-
-#### [MODIFY] [MainActivity.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainActivity.kt)
-- Observe the `user` state from `MainViewModel`.
-- **Conditional Layout**:
-    - If `user == null`: Render the `LoginScreen`.
-    - If `user != null`: Render the main `KairosApp` content (Scaffold + NavHost).
-- This ensures the user is forced to authenticate before seeing their routine data.
+#### [MODIFY] [LoginScreen.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginScreen.kt)
+- **Logo**: Replace the `//` Text with an `Image` component using `painterResource(id = R.drawable.ic_kairos_logo)`.
+- **Google Button**: Implement the actual Google Sign-In launcher using `rememberLauncherForActivityResult`.
 
 ## Verification Plan
 
 ### Automated Tests
-- Run `./gradlew :app:assembleDebug` to ensure compilation.
+- Run `./gradlew :app:assembleDebug` to verify compilation with new dependencies.
 
 ### Manual Verification
-- Launch the app and verify the Login screen appears.
-- Test signing in with your existing web credentials.
-- Verify that once logged in, the app automatically switches to the Dashboard.
+- Verify the logo displays correctly on the Login screen.
+- Test the Google Sign-In button (requires SHA-1 configuration in Firebase).

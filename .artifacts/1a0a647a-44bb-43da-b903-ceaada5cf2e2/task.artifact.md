@@ -1,11 +1,9 @@
 - [x] Phase 1: Foundation & Data Sync
-    - [x] Create Kotlin Data Models (`KairosTask`, `KairosSection`, `KairosBoard`, `KairosScheduleEvent`, `KairosPlan`)
-    - [x] Create `FirebaseRepository` for Firestore sync
-    - [x] Implement `AuthRepository` and `AuthViewModel` (MainViewModel) for session management
-    - [x] Verify build and model parsing
-- [ ] Phase 2: Authentication (Login/Sign-up)
-    - [ ] Update `AuthRepository` with sign-in/up logic
-    - [ ] Create `LoginViewModel`
-    - [ ] Create `LoginScreen` UI
-    - [ ] Update `MainActivity` with conditional auth routing
-- [ ] Verify build and login flow
+- [x] Phase 2: Authentication (Login/Sign-up)
+- [x] Phase 3: Login Screen Redesign
+    - [x] Update `LoginViewModel` with `rememberMe` state
+    - [x] Implement `// Kairos` logo and header in `LoginScreen`
+    - [x] Add Social Login button placeholders
+    - [x] Restyle Email/Password fields and separator
+    - [x] Style primary Action Button and Checkbox
+- [x] Verify UI parity and build
