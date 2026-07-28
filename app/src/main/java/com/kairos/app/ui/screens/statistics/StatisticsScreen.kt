@@ -82,7 +82,8 @@ fun StatisticsScreen(
             // Focus Time Chart
             ChartCard(
                 title = "Focus Time",
-                data = viewModel.getChartData(profile.focusData, isFocusTime = true)
+                data = viewModel.getChartData(profile.focusData, isFocusTime = true),
+                valueFormatter = { formatSecondsToHMS(it.toLong()) }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -90,7 +91,8 @@ fun StatisticsScreen(
             // Tasks Completed Chart
             ChartCard(
                 title = "Tasks Completed",
-                data = viewModel.getChartData(profile.focusData, isFocusTime = false)
+                data = viewModel.getChartData(profile.focusData, isFocusTime = false),
+                valueFormatter = { "${it.toInt()} tasks" }
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -113,7 +115,8 @@ fun StatisticsScreen(
 @Composable
 fun ChartCard(
     title: String,
-    data: List<StatisticsViewModel.ChartDataPoint>
+    data: List<StatisticsViewModel.ChartDataPoint>,
+    valueFormatter: (Float) -> String
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -124,55 +127,95 @@ fun ChartCard(
             Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(modifier = Modifier.height(24.dp))
             
-            BarChart(data = data)
+            BarChart(data = data, valueFormatter = valueFormatter)
         }
     }
 }
 
 @Composable
 fun BarChart(
-    data: List<StatisticsViewModel.ChartDataPoint>
+    data: List<StatisticsViewModel.ChartDataPoint>,
+    valueFormatter: (Float) -> String
 ) {
     val maxVal = remember(data) { data.maxOfOrNull { it.value }?.coerceAtLeast(1f) ?: 1f }
+    var selectedIndex by remember(data) { mutableStateOf(-1) }
     
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp), // Increased height to accommodate labels
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        data.forEach { point ->
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Bottom
-            ) {
-                // The Bar Container
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp), // Fixed height for the bar area
-                    contentAlignment = Alignment.BottomCenter
+    Column {
+        // Tooltip area
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (selectedIndex != -1) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(4.dp)
                 ) {
+                    Text(
+                        text = valueFormatter(data[selectedIndex].value),
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            } else {
+                Text(
+                    text = "Tap a bar to see details",
+                    color = TextMuted,
+                    fontSize = 10.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            data.forEachIndexed { index, point ->
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedIndex = if (selectedIndex == index) -1 else index },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom
+                ) {
+                    // The Bar Container
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .fillMaxHeight((point.value / maxVal).coerceAtLeast(0.05f))
-                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+                            .height(140.dp),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight((point.value / maxVal).coerceAtLeast(0.05f))
+                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                .background(
+                                    if (selectedIndex == index) MaterialTheme.colorScheme.secondary 
+                                    else MaterialTheme.colorScheme.primary
+                                )
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Text(
+                        text = point.label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (selectedIndex == index) MaterialTheme.colorScheme.primary else TextMuted,
+                        maxLines = 1
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                Text(
-                    text = point.label,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = TextMuted,
-                    maxLines = 1
-                )
             }
         }
     }
@@ -193,9 +236,9 @@ fun SummaryCard(label: String, value: String) {
                 text = label, 
                 style = MaterialTheme.typography.bodyMedium, 
                 color = TextMuted,
-                modifier = Modifier.weight(1f) // Push value to the right
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.width(16.dp)) // Minimum gap
+            Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = value, 
                 style = MaterialTheme.typography.titleMedium, 
