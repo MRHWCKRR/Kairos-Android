@@ -64,8 +64,55 @@ data class KairosFocusData(
 )
 
 @IgnoreExtraProperties
+data class ProfileSettings(
+    val displayName: String = "",
+    val avatarURL: String = "",
+    val birthday: String = "",
+    val timezone: String = "UTC"
+)
+
+@IgnoreExtraProperties
+data class AccessibilitySettings(
+    val density: String = "default", // compact, default, spacious
+    val timeFormat: String = "12", // 12, 24
+    val reduceMotion: Boolean = false,
+    val language: String = "en"
+)
+
+@IgnoreExtraProperties
+data class AppearanceSettings(
+    val mode: String = "dark", // dark, light
+    val theme: String = "default", // default, fairyfloss, poseidon, peacefulplains
+    val textColor: String = "default",
+    val font: String = "sans", // sans, round, mono
+    val background: String = "none",
+    val customBackground: String? = null,
+    val cursor: String = "default",
+    val ambientSound: String = "none",
+    val ambientVolume: Int = 35,
+    val customAmbientYoutubeUrl: String = "",
+    val confetti: Boolean = true
+)
+
+@IgnoreExtraProperties
+data class NotificationSettings(
+    val enabled: Boolean = true,
+    val boardCompletion: Boolean = true,
+    val bedtimeReminders: Boolean = true,
+    val browserPush: Boolean = false
+)
+
+@IgnoreExtraProperties
+data class KairosSettings(
+    val profile: ProfileSettings = ProfileSettings(),
+    val accessibility: AccessibilitySettings = AccessibilitySettings(),
+    val appearance: AppearanceSettings = AppearanceSettings(),
+    val notifications: NotificationSettings = NotificationSettings()
+)
+
+@IgnoreExtraProperties
 data class KairosUserProfile(
-    val settings: Map<String, Any> = emptyMap(), // We'll detail settings later
+    val settings: KairosSettings = KairosSettings(),
     val notifications: List<Map<String, Any>> = emptyList(),
     val achievements: KairosAchievementsData = KairosAchievementsData(),
     val focusData: KairosFocusData = KairosFocusData()

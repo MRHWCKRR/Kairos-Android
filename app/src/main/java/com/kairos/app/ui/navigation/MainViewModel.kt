@@ -299,6 +299,11 @@ class MainViewModel @JvmOverloads constructor(
         updatePlanInternal(currentPlan.copy(dayInsights = updatedInsights))
     }
 
+    fun updateSettings(newSettings: KairosSettings) {
+        _profile.value = _profile.value.copy(settings = newSettings)
+        updateProfileInternal(mapOf("settings" to newSettings))
+    }
+
     fun signOut() {
         authRepository.signOut()
     }
