@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.coroutines.play.services)
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     debugImplementation(libs.compose.ui.tooling)
 

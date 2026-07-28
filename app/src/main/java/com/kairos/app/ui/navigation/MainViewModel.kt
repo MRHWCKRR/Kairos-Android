@@ -435,6 +435,14 @@ class MainViewModel @JvmOverloads constructor(
         updateProfileInternal(mapOf("settings" to newSettings))
     }
 
+    fun toggleAppearanceMode() {
+        val currentSettings = _profile.value.settings
+        val newMode = if (currentSettings.appearance.mode == "dark") "light" else "dark"
+        updateSettings(currentSettings.copy(
+            appearance = currentSettings.appearance.copy(mode = newMode)
+        ))
+    }
+
     fun signOut() {
         authRepository.signOut()
     }

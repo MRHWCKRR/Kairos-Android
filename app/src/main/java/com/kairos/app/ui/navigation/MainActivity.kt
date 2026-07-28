@@ -20,11 +20,14 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -35,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import coil.compose.AsyncImage
 import com.kairos.app.data.models.KairosNotification
 import com.kairos.app.ui.screens.achievements.AchievementsScreen
 import com.kairos.app.ui.screens.ai.AiHelperScreen
@@ -124,8 +128,127 @@ fun KairosApp(viewModel: MainViewModel) {
                                 Icon(Icons.Default.Notifications, contentDescription = "Notifications")
                             }
                         }
-                        IconButton(onClick = { viewModel.signOut() }) {
-                            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Sign Out")
+                        
+                        var showProfileMenu by remember { mutableStateOf(false) }
+                        val userName = profile.settings.profile.displayName.ifBlank { user?.displayName ?: "User" }
+                        val userPhoto = profile.settings.profile.avatarURL.ifBlank { user?.photoUrl?.toString() ?: "" }
+
+                        Box {
+                            IconButton(onClick = { showProfileMenu = true }) {
+                                if (userPhoto.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = userPhoto,
+                                        contentDescription = "Profile",
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Surface(
+                                        modifier = Modifier.size(32.dp),
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primary
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = userName.take(1).uppercase(),
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = showProfileMenu,
+                                onDismissRequest = { showProfileMenu = false },
+                                modifier = Modifier.background(BgCard)
+                            ) {
+                                // Header
+                                Row(
+                                    modifier = Modifier
+                                        .padding(16.dp)
+                                        .width(200.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (userPhoto.isNotEmpty()) {
+                                        AsyncImage(
+                                            model = userPhoto,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Surface(
+                                            modifier = Modifier.size(40.dp),
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.primary
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Text(
+                                                    text = userName.take(1).uppercase(),
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Column(modifier = Modifier.padding(start = 12.dp)) {
+                                        Text(text = userName, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(text = user?.email ?: "", style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                                DropdownMenuItem(
+                                    text = { Text("Settings", color = Color.White) },
+                                    leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null, tint = TextMuted) },
+                                    onClick = {
+                                        showProfileMenu = false
+                                        navController.navigate(KairosDestination.Settings.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                )
+
+                                DropdownMenuItem(
+                                    text = { 
+                                        val isDark = profile.settings.appearance.mode == "dark"
+                                        Text(if (isDark) "Switch to Light Mode" else "Switch to Dark Mode", color = Color.White) 
+                                    },
+                                    leadingIcon = { 
+                                        val isDark = profile.settings.appearance.mode == "dark"
+                                        Icon(
+                                            imageVector = if (isDark) Icons.Default.Info else Icons.Default.Info, // Use Info as placeholder until I verify LightMode/DarkMode
+                                            contentDescription = null,
+                                            tint = TextMuted
+                                        ) 
+                                    },
+                                    onClick = {
+                                        showProfileMenu = false
+                                        viewModel.toggleAppearanceMode()
+                                    }
+                                )
+
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                                DropdownMenuItem(
+                                    text = { Text("Sign Out", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                                    onClick = {
+                                        showProfileMenu = false
+                                        viewModel.signOut()
+                                    }
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
