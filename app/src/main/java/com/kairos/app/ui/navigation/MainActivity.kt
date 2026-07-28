@@ -1,29 +1,41 @@
 package com.kairos.app.ui.navigation
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import com.kairos.app.data.models.KairosNotification
 import com.kairos.app.ui.screens.achievements.AchievementsScreen
 import com.kairos.app.ui.screens.ai.AiHelperScreen
 import com.kairos.app.ui.screens.calendar.CalendarScreen
@@ -33,17 +45,43 @@ import com.kairos.app.ui.screens.settings.SettingsScreen
 import com.kairos.app.ui.screens.statistics.StatisticsScreen
 import com.kairos.app.ui.screens.tasks.TasksScreen
 import com.kairos.app.ui.screens.login.LoginScreen
-import com.kairos.app.ui.theme.KairosTheme
+import com.kairos.app.ui.theme.*
+import com.kairos.app.utils.NotificationHelper
+import kotlinx.coroutines.flow.collectLatest
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val viewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-            val profile by viewModel.profile.collectAsState()
+            val mainViewModel: MainViewModel = viewModel()
+            val profile by mainViewModel.profile.collectAsState()
+            val context = LocalContext.current
+            val notificationHelper = remember { NotificationHelper(context) }
+
+            // Handle System Notifications
+            LaunchedEffect(Unit) {
+                mainViewModel.notificationEvents.collectLatest { (title, message) ->
+                    notificationHelper.showNotification(title, message)
+                }
+            }
+
+            // Permission Request for Android 13+
+            val launcher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { isGranted ->
+                if (!isGranted) {
+                    android.util.Log.w("MainActivity", "Notification permission denied")
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
             
             KairosTheme(appearance = profile.settings.appearance) {
-                KairosApp(viewModel)
+                KairosApp(mainViewModel)
             }
         }
     }
@@ -54,7 +92,13 @@ class MainActivity : ComponentActivity() {
 fun KairosApp(viewModel: MainViewModel) {
     val navController = rememberNavController()
     val user by viewModel.user.collectAsState()
+    val profile by viewModel.profile.collectAsState()
     val errorMessage = viewModel.errorMessage
+    
+    var showNotifPanel by remember { mutableStateOf(false) }
+    val unreadCount = remember(profile.notifications) { 
+        profile.notifications.count { !it.read } 
+    }
 
     if (user == null) {
         LoginScreen()
@@ -64,6 +108,22 @@ fun KairosApp(viewModel: MainViewModel) {
                 CenterAlignedTopAppBar(
                     title = { Text("Kairos", fontWeight = FontWeight.Bold) },
                     actions = {
+                        IconButton(onClick = { 
+                            showNotifPanel = true 
+                            viewModel.markNotificationsRead()
+                        }) {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadCount > 0) {
+                                        Badge {
+                                            Text(text = if (unreadCount > 9) "9+" else unreadCount.toString())
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                            }
+                        }
                         IconButton(onClick = { viewModel.signOut() }) {
                             Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Sign Out")
                         }
@@ -94,11 +154,109 @@ fun KairosApp(viewModel: MainViewModel) {
                     composable(KairosDestination.Calendar.route) { CalendarScreen(viewModel) }
                     composable(KairosDestination.Achievements.route) { AchievementsScreen(viewModel) }
                     composable(KairosDestination.Statistics.route) { StatisticsScreen(viewModel) }
-                    composable(KairosDestination.Settings.route) { SettingsScreen() }
+                    composable(KairosDestination.Settings.route) { SettingsScreen(viewModel) }
                 }
             }
         }
     }
+
+    if (showNotifPanel) {
+        ModalBottomSheet(
+            onDismissRequest = { showNotifPanel = false },
+            containerColor = BgCard
+        ) {
+            NotificationPanel(
+                notifications = profile.notifications,
+                onDelete = { viewModel.deleteNotification(it) }
+            )
+        }
+    }
+}
+
+@Composable
+fun NotificationPanel(
+    notifications: List<KairosNotification>,
+    onDelete: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 32.dp)
+    ) {
+        Text(
+            text = "Notifications",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier.padding(24.dp)
+        )
+        
+        if (notifications.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "No notifications yet.", color = TextMuted)
+            }
+        } else {
+            LazyColumn {
+                items(notifications) { notif ->
+                    NotificationItem(notif = notif, onDelete = { onDelete(notif.id) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NotificationItem(
+    notif: KairosNotification,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(if (notif.read) Color.Transparent else MaterialTheme.colorScheme.primary, CircleShape)
+        )
+        
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 16.dp)
+        ) {
+            Text(text = notif.title, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
+            Text(text = notif.message, color = TextMuted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = formatTimeAgo(notif.time), 
+                color = TextMuted.copy(alpha = 0.6f), 
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+        
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextMuted, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+fun formatTimeAgo(timestamp: Long): String {
+    val diff = System.currentTimeMillis() - timestamp
+    val mins = diff / 60000
+    if (mins < 1) return "Just now"
+    if (mins < 60) return "${mins}m ago"
+    val hrs = mins / 60
+    if (hrs < 24) return "${hrs}h ago"
+    val days = hrs / 24
+    return "${days}d ago"
 }
 
 @Composable

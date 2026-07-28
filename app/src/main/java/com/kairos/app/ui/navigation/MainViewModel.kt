@@ -11,8 +11,11 @@ import com.kairos.app.data.repository.AuthRepository
 import com.kairos.app.data.repository.FirebaseRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
@@ -38,6 +41,10 @@ class MainViewModel @JvmOverloads constructor(
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
+    // Events for system notifications
+    private val _notificationEvents = MutableSharedFlow<Pair<String, String>>()
+    val notificationEvents: SharedFlow<Pair<String, String>> = _notificationEvents.asSharedFlow()
+
     // Focus Timer State
     var focusTimerRunning by mutableStateOf(false)
         private set
@@ -62,6 +69,12 @@ class MainViewModel @JvmOverloads constructor(
                         firebaseRepository.getUserProfile(firebaseUser.uid)
                             .catch { e -> Log.e("MainViewModel", "Profile sync error", e) }
                             .collect { if (it != null) _profile.value = it }
+                    }
+                    launch {
+                        while (true) {
+                            checkBedtimeReminders()
+                            delay(60000L)
+                        }
                     }
                 } else {
                     _plan.value = null
@@ -173,8 +186,66 @@ class MainViewModel @JvmOverloads constructor(
         
         newlyUnlockedAchievement = def
         
+        pushNotification("🎉 Achievement Unlocked!", "You earned the ${def.name} badge.")
+        
         viewModelScope.launch {
             firebaseRepository.updateUserProfile(userId, mapOf("achievements.unlocked" to updatedUnlocked))
+        }
+    }
+
+    // --- Notifications ---
+
+    fun pushNotification(title: String, message: String) {
+        val userId = _user.value?.uid ?: return
+        val newNotif = KairosNotification(
+            id = "notif-${System.currentTimeMillis()}",
+            title = title,
+            message = message,
+            time = System.currentTimeMillis(),
+            read = false
+        )
+        val updatedNotifications = (listOf(newNotif) + _profile.value.notifications).take(50)
+        updateProfileInternal(mapOf("notifications" to updatedNotifications))
+        
+        // Trigger system notification event
+        viewModelScope.launch {
+            _notificationEvents.emit(title to message)
+        }
+    }
+
+    fun markNotificationsRead() {
+        val updatedNotifications = _profile.value.notifications.map { it.copy(read = true) }
+        updateProfileInternal(mapOf("notifications" to updatedNotifications))
+    }
+
+    fun deleteNotification(id: String) {
+        val updatedNotifications = _profile.value.notifications.filter { it.id != id }
+        updateProfileInternal(mapOf("notifications" to updatedNotifications))
+    }
+
+    private var lastBedtimeFiredDate = ""
+
+    private fun checkBedtimeReminders() {
+        if (!_profile.value.settings.notifications.enabled || !_profile.value.settings.notifications.bedtimeReminders) return
+        
+        val schedule = _plan.value?.scheduleEvents ?: return
+        val now = java.time.LocalTime.now()
+        val today = LocalDate.now().dayOfWeek.value % 7 // 0=Sun, 1=Mon...
+        val dateKey = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+        schedule.filter { it.category == "sleep" && it.day == today }.forEach { ev ->
+            try {
+                val startParts = ev.start.split(":")
+                val sleepTime = java.time.LocalTime.of(startParts[0].toInt(), startParts[1].toInt())
+                val reminderTime = sleepTime.minusMinutes(15)
+                
+                // If current time is within the reminder minute and hasn't fired today
+                if (now.hour == reminderTime.hour && now.minute == reminderTime.minute && lastBedtimeFiredDate != dateKey) {
+                    pushNotification("🛌 Bedtime coming up", "\"${ev.title}\" starts in 15 minutes — start winding down.")
+                    lastBedtimeFiredDate = dateKey
+                    // This will also be caught by MainActivity to show a system notif
+                }
+            } catch (e: Exception) {}
         }
     }
 
@@ -258,6 +329,66 @@ class MainViewModel @JvmOverloads constructor(
                 section.copy(tasks = section.tasks.map { task ->
                     if (task.id == taskId) task.copy(archived = true) else task
                 })
+            })
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    // --- Archive Management ---
+
+    fun restoreBoard(boardId: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map {
+            if (it.id == boardId) it.copy(archived = false) else it
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun deleteBoardForever(boardId: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.filter { it.id != boardId }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun restoreSection(sectionId: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            board.copy(sections = board.sections.map { section ->
+                if (section.id == sectionId) section.copy(archived = false) else section
+            })
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun deleteSectionForever(boardId: String, sectionId: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            if (board.id == boardId) {
+                board.copy(sections = board.sections.filter { it.id != sectionId })
+            } else board
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun restoreTask(taskId: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            board.copy(sections = board.sections.map { section ->
+                section.copy(tasks = section.tasks.map { task ->
+                    if (task.id == taskId) task.copy(archived = false) else task
+                })
+            })
+        }
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
+    }
+
+    fun deleteTaskForever(sectionId: String, taskId: String) {
+        val currentPlan = _plan.value ?: return
+        val updatedBoards = currentPlan.boards.map { board ->
+            board.copy(sections = board.sections.map { section ->
+                if (section.id == sectionId) {
+                    section.copy(tasks = section.tasks.filter { it.id != taskId })
+                } else section
             })
         }
         updatePlanInternal(currentPlan.copy(boards = updatedBoards))

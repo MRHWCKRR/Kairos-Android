@@ -1,13 +1,18 @@
 package com.kairos.app.ui.screens.tasks
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -51,7 +57,7 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        if (boards.isEmpty()) {
+        if (boards.isEmpty() && (plan?.boards?.none { it.archived } == true)) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text(text = "No boards yet — create one to get started.", color = TextMuted)
             }
@@ -89,6 +95,10 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
                         onTaskArchive = { viewModel.archiveTask(it.id) }
                     )
                     Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                item {
+                    ArchiveSection(plan = plan, viewModel = viewModel)
                 }
             }
         }
@@ -162,6 +172,151 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
                 taskToRename = null
             }
         )
+    }
+}
+
+@Composable
+fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: MainViewModel) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    val archivedBoards = plan?.boards?.filter { it.archived } ?: emptyList()
+    val archivedSections = mutableListOf<Pair<KairosBoard, KairosSection>>()
+    val archivedTasks = mutableListOf<Triple<KairosBoard, KairosSection, KairosTask>>()
+    
+    plan?.boards?.forEach { board ->
+        board.sections.forEach { section ->
+            if (section.archived && !board.archived) {
+                archivedSections.add(board to section)
+            }
+            section.tasks.forEach { task ->
+                if (task.archived && !section.archived && !board.archived) {
+                    archivedTasks.add(Triple(board, section, task))
+                }
+            }
+        }
+    }
+
+    val totalCount = archivedBoards.size + archivedSections.size + archivedTasks.size
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Archive",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                if (totalCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(text = totalCount.toString(), fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Icon(
+                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = TextMuted
+            )
+        }
+
+        if (expanded) {
+            if (totalCount == 0) {
+                Text(
+                    text = "Nothing archived yet. Deleted routines show up here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+            } else {
+                Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                    if (archivedBoards.isNotEmpty()) {
+                        Text(text = "Archived Boards", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                        archivedBoards.forEach { board ->
+                            ArchiveItemRow(
+                                title = board.title,
+                                onRestore = { viewModel.restoreBoard(board.id) },
+                                onDelete = { viewModel.deleteBoardForever(board.id) }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    if (archivedSections.isNotEmpty()) {
+                        Text(text = "Archived Sections", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                        archivedSections.forEach { (board, section) ->
+                            ArchiveItemRow(
+                                title = section.title,
+                                subtitle = "— ${board.title}",
+                                onRestore = { viewModel.restoreSection(section.id) },
+                                onDelete = { viewModel.deleteSectionForever(board.id, section.id) }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    if (archivedTasks.isNotEmpty()) {
+                        Text(text = "Archived Tasks", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                        archivedTasks.forEach { (board, section, task) ->
+                            ArchiveItemRow(
+                                title = task.title,
+                                subtitle = "— ${board.title} / ${section.title}",
+                                onRestore = { viewModel.restoreTask(task.id) },
+                                onDelete = { viewModel.deleteTaskForever(section.id, task.id) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ArchiveItemRow(
+    title: String,
+    subtitle: String = "",
+    onRestore: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Text(text = title, style = MaterialTheme.typography.bodyMedium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (subtitle.isNotEmpty()) {
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
+            }
+        }
+        
+        Row {
+            TextButton(onClick = onRestore, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                Text("Restore", fontSize = 12.sp)
+            }
+            TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                Text("Delete Forever", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+            }
+        }
     }
 }
 

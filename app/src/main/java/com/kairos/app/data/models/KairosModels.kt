@@ -111,9 +111,18 @@ data class KairosSettings(
 )
 
 @IgnoreExtraProperties
+data class KairosNotification(
+    val id: String = "",
+    val title: String = "",
+    val message: String = "",
+    val time: Long = 0,
+    val read: Boolean = false
+)
+
+@IgnoreExtraProperties
 data class KairosUserProfile(
     val settings: KairosSettings = KairosSettings(),
-    val notifications: List<Map<String, Any>> = emptyList(),
+    val notifications: List<KairosNotification> = emptyList(),
     val achievements: KairosAchievementsData = KairosAchievementsData(),
     val focusData: KairosFocusData = KairosFocusData()
 )
