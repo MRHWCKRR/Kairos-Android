@@ -138,7 +138,7 @@ fun BarChart(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp),
+            .height(180.dp), // Increased height to accommodate labels
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.Bottom
     ) {
@@ -148,17 +148,28 @@ fun BarChart(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom
             ) {
+                // The Bar Container
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight((point.value / maxVal).coerceIn(0.05f, 1f))
-                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                        .background(MaterialTheme.colorScheme.primary)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                        .height(140.dp), // Fixed height for the bar area
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight((point.value / maxVal).coerceAtLeast(0.05f))
+                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
                 Text(
                     text = point.label,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
                     color = TextMuted,
                     maxLines = 1
                 )
@@ -175,12 +186,22 @@ fun SummaryCard(label: String, value: String) {
         colors = CardDefaults.cardColors(containerColor = BgCard)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = label, style = MaterialTheme.typography.bodyMedium, color = TextMuted)
-            Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+            Text(
+                text = label, 
+                style = MaterialTheme.typography.bodyMedium, 
+                color = TextMuted,
+                modifier = Modifier.weight(1f) // Push value to the right
+            )
+            Spacer(modifier = Modifier.width(16.dp)) // Minimum gap
+            Text(
+                text = value, 
+                style = MaterialTheme.typography.titleMedium, 
+                fontWeight = FontWeight.Black, 
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
