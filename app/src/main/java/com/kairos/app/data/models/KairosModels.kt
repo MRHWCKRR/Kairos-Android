@@ -46,3 +46,74 @@ data class KairosPlan(
     val userID: String = "",
     val createdAt: Timestamp? = null
 )
+
+@IgnoreExtraProperties
+data class KairosAchievementsData(
+    val unlocked: Map<String, Long> = emptyMap(), // id to timestamp
+    val countedTaskIds: List<String> = emptyList(),
+    val lifetimeTasksCompleted: Int = 0,
+    val goals: List<String?> = listOf(null, null, null)
+)
+
+@IgnoreExtraProperties
+data class KairosFocusData(
+    val totalSeconds: Long = 0,
+    val longestSessionSeconds: Long = 0,
+    val dailyFocusLog: Map<String, Long> = emptyMap(),
+    val dailyTasksLog: Map<String, Int> = emptyMap()
+)
+
+@IgnoreExtraProperties
+data class KairosUserProfile(
+    val settings: Map<String, Any> = emptyMap(), // We'll detail settings later
+    val notifications: List<Map<String, Any>> = emptyList(),
+    val achievements: KairosAchievementsData = KairosAchievementsData(),
+    val focusData: KairosFocusData = KairosFocusData()
+)
+
+data class AchievementDef(
+    val id: String,
+    val category: String,
+    val name: String,
+    val desc: String,
+    val icon: String,
+    val type: String, // 'focus_seconds', 'tasks_completed', 'event'
+    val threshold: Long = 0,
+    val event: String? = null,
+    val limitedAvailability: Boolean = false
+)
+
+val KAIROS_ACHIEVEMENTS = listOf(
+    // Focus time achievements
+    AchievementDef("focus_25m", "focus", "Novice", "Log 25 minutes of focus time", "🔥", "focus_seconds", 25 * 60L),
+    AchievementDef("focus_1h", "focus", "Apprentice", "Log 1 hour of focus time", "⚡", "focus_seconds", 3600L),
+    AchievementDef("focus_2h", "focus", "Adept", "Log 2 hours of focus time", "🌀", "focus_seconds", 2 * 3600L),
+    AchievementDef("focus_5h", "focus", "Specialist", "Log 5 hours of focus time", "🎯", "focus_seconds", 5 * 3600L),
+    AchievementDef("focus_10h", "focus", "Expert", "Log 10 hours of focus time", "🛡️", "focus_seconds", 10 * 3600L),
+    AchievementDef("focus_20h", "focus", "Veteran", "Log 20 hours of focus time", "🏅", "focus_seconds", 20 * 3600L),
+    AchievementDef("focus_50h", "focus", "Master", "Log 50 hours of focus time", "👑", "focus_seconds", 50 * 3600L),
+    AchievementDef("focus_100h", "focus", "Grandmaster", "Log 100 hours of focus time", "💎", "focus_seconds", 100 * 3600L),
+    AchievementDef("focus_300h", "focus", "Legend", "Log 300 hours of focus time", "⭐", "focus_seconds", 300 * 3600L),
+    AchievementDef("focus_500h", "focus", "Mythic", "Log 500 hours of focus time", "🌟", "focus_seconds", 500 * 3600L),
+    AchievementDef("focus_1000h", "focus", "DEVELOPER???", "Log 1000 hours of focus time", "🧠", "focus_seconds", 1000 * 3600L),
+    
+    // Tasks achievements
+    AchievementDef("tasks_5", "tasks", "Getting Started", "Complete 5 tasks", "📝", "tasks_completed", 5),
+    AchievementDef("tasks_15", "tasks", "Warming Up", "Complete 15 tasks", "📋", "tasks_completed", 15),
+    AchievementDef("tasks_30", "tasks", "Task Tackler", "Complete 30 tasks", "✅", "tasks_completed", 30),
+    AchievementDef("tasks_50", "tasks", "On A Roll", "Complete 50 tasks", "🎲", "tasks_completed", 50),
+    AchievementDef("tasks_100", "tasks", "Centurion of Checkboxes", "Complete 100 tasks", "🏆", "tasks_completed", 100),
+    AchievementDef("tasks_200", "tasks", "Double Century", "Complete 200 tasks", "🎖️", "tasks_completed", 200),
+    AchievementDef("tasks_500", "tasks", "Half-K Hero", "Complete 500 tasks", "🚀", "tasks_completed", 500),
+    AchievementDef("tasks_800", "tasks", "Almost There...", "Complete 800 tasks", "🔟", "tasks_completed", 800),
+    AchievementDef("tasks_1000", "tasks", "Kilo-Tasker", "Complete 1,000 tasks", "🗻", "tasks_completed", 1000),
+    AchievementDef("tasks_20000", "tasks", "Task Titan", "Complete 20,000 tasks", "🗿", "tasks_completed", 20000),
+    AchievementDef("tasks_50000", "tasks", "CHECKLIST MASTER", "Complete 50,000 tasks", "👑", "tasks_completed", 50000),
+    
+    // Milestones
+    AchievementDef("misc_welcome", "misc", "Welcome to Kairos", "Join Kairos", "👋", "event", event = "signup"),
+    AchievementDef("misc_og", "misc", "OG", "One of the original Kairos users", "🥇", "event", event = "og", limitedAvailability = true),
+    AchievementDef("misc_lofi", "misc", "LOFIIII", "Turn on the Lo-fi ambient sound", "🎧", "event", event = "lofi"),
+    AchievementDef("misc_light", "misc", "Come To the Light", "Switch to Light mode", "☀️", "event", event = "light_mode"),
+    AchievementDef("misc_busy", "misc", "Real Busy", "Schedule more than 10 tasks on a single day", "📅", "event", event = "busy_day")
+)

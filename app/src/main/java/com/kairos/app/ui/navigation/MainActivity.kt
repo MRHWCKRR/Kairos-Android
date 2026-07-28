@@ -89,7 +89,7 @@ fun KairosApp(viewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.vi
                     composable(KairosDestination.Tasks.route) { TasksScreen(viewModel) }
                     composable(KairosDestination.Schedule.route) { ScheduleScreen(viewModel) }
                     composable(KairosDestination.Calendar.route) { CalendarScreen(viewModel) }
-                    composable(KairosDestination.Achievements.route) { AchievementsScreen() }
+                    composable(KairosDestination.Achievements.route) { AchievementsScreen(viewModel) }
                     composable(KairosDestination.Statistics.route) { StatisticsScreen() }
                     composable(KairosDestination.Settings.route) { SettingsScreen() }
                 }

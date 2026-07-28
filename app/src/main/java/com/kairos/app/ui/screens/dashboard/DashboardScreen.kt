@@ -2,20 +2,20 @@ package com.kairos.app.ui.screens.dashboard
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.kairos.app.data.models.KairosPlan
-import com.kairos.app.data.models.KairosSection
-import com.kairos.app.data.models.KairosTask
+import com.kairos.app.data.models.*
 import com.kairos.app.ui.navigation.MainViewModel
 import com.kairos.app.ui.theme.BgCard
 import com.kairos.app.ui.theme.TextMuted
@@ -23,6 +23,7 @@ import com.kairos.app.ui.theme.TextMuted
 @Composable
 fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
     val plan by viewModel.plan.collectAsState()
+    val profile by viewModel.profile.collectAsState()
     
     val activeSection = remember(plan) {
         plan?.boards?.filter { !it.archived }
@@ -40,6 +41,16 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(24.dp)
         ) {
+            item {
+                FocusTimerWidget(viewModel)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            item {
+                MiniGoalsWidget(profile)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
             item {
                 RoutineStatsCard(plan = plan)
                 Spacer(modifier = Modifier.height(32.dp))
@@ -66,6 +77,99 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
             } else {
                 item {
                     AllCaughtUpView()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FocusTimerWidget(viewModel: MainViewModel) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = BgCard)
+    ) {
+        Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "Focus Timer", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            
+            Text(
+                text = formatHMS(viewModel.focusSecondsActive),
+                fontSize = 48.sp,
+                fontWeight = FontWeight.Black,
+                color = if (viewModel.focusTimerRunning) MaterialTheme.colorScheme.primary else Color.White
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (!viewModel.focusTimerRunning) {
+                    Button(
+                        onClick = { viewModel.startFocusTimer() },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Start")
+                    }
+                } else {
+                    Button(
+                        onClick = { viewModel.pauseFocusTimer() },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Text("Pause")
+                    }
+                }
+                
+                OutlinedButton(
+                    onClick = { viewModel.stopAndLogFocus() },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Stop & Log")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MiniGoalsWidget(profile: KairosUserProfile) {
+    val goalIds = profile.achievements.goals.filterNotNull().take(3)
+    
+    if (goalIds.isEmpty()) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = BgCard)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(text = "Active Goals", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            goalIds.forEach { id ->
+                val def = KAIROS_ACHIEVEMENTS.find { it.id == id }
+                if (def != null) {
+                    val unlocked = profile.achievements.unlocked.containsKey(id)
+                    val progress = when (def.type) {
+                        "focus_seconds" -> profile.focusData.totalSeconds.toFloat() / def.threshold
+                        "tasks_completed" -> profile.achievements.lifetimeTasksCompleted.toFloat() / def.threshold
+                        else -> 0f
+                    }
+                    val pct = if (unlocked) 100 else (progress * 100).toInt().coerceIn(0, 100)
+
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(text = "${def.icon} ${def.name}", fontSize = 12.sp, color = Color.White)
+                            Text(text = "$pct%", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { (pct / 100f) },
+                            modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    }
                 }
             }
         }
@@ -128,7 +232,8 @@ fun RoutineStatsCard(plan: KairosPlan?) {
                 progress = { stats.first / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp),
+                    .height(8.dp)
+                    .clip(CircleShape),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = Color.White.copy(alpha = 0.1f),
                 strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
@@ -226,4 +331,11 @@ fun AllCaughtUpView() {
             color = TextMuted
         )
     }
+}
+
+private fun formatHMS(totalSeconds: Long): String {
+    val h = totalSeconds / 3600
+    val m = (totalSeconds % 3600) / 60
+    val s = totalSeconds % 60
+    return String.format("%02d:%02d:%02d", h, m, s)
 }
