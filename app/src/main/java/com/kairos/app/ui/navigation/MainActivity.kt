@@ -39,8 +39,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            KairosTheme {
-                KairosApp()
+            val viewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+            val profile by viewModel.profile.collectAsState()
+            
+            KairosTheme(appearance = profile.settings.appearance) {
+                KairosApp(viewModel)
             }
         }
     }
@@ -48,7 +51,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KairosApp(viewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
+fun KairosApp(viewModel: MainViewModel) {
     val navController = rememberNavController()
     val user by viewModel.user.collectAsState()
     val errorMessage = viewModel.errorMessage
