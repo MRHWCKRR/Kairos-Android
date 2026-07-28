@@ -4,6 +4,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.kairos.app.data.local.PreferenceManager
 import com.kairos.app.data.models.*
 import com.kairos.app.ui.navigation.MainViewModel
@@ -90,7 +93,53 @@ fun PersonalSettingsTab(settings: KairosSettings, viewModel: MainViewModel) {
             onValueChange = { viewModel.updateSettings(settings.copy(profile = settings.profile.copy(displayName = it))) }
         )
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(text = "Profile Picture", style = MaterialTheme.typography.labelMedium, color = TextMuted)
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (settings.profile.avatarURL.isNotBlank()) {
+                AsyncImage(
+                    model = settings.profile.avatarURL,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Surface(
+                    modifier = Modifier.size(64.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Person, // I need to import Person
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            OutlinedTextField(
+                value = settings.profile.avatarURL,
+                onValueChange = { viewModel.updateAvatar(it) },
+                placeholder = { Text("Enter Image URL", color = TextMuted) },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = BgCard,
+                    focusedContainerColor = BgCard,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary
+                ),
+                singleLine = true
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         SettingsTextField(
             label = "Birthday",

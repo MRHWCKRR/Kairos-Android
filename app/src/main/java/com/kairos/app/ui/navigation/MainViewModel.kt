@@ -435,6 +435,13 @@ class MainViewModel @JvmOverloads constructor(
         updateProfileInternal(mapOf("settings" to newSettings))
     }
 
+    fun updateAvatar(url: String) {
+        val currentSettings = _profile.value.settings
+        updateSettings(currentSettings.copy(
+            profile = currentSettings.profile.copy(avatarURL = url)
+        ))
+    }
+
     fun toggleAppearanceMode() {
         val currentSettings = _profile.value.settings
         val newMode = if (currentSettings.appearance.mode == "dark") "light" else "dark"

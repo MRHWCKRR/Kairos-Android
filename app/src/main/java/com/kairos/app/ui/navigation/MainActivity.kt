@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.outlined.ModeNight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -227,7 +229,7 @@ fun KairosApp(viewModel: MainViewModel) {
                                     leadingIcon = { 
                                         val isDark = profile.settings.appearance.mode == "dark"
                                         Icon(
-                                            imageVector = if (isDark) Icons.Default.Info else Icons.Default.Info, // Use Info as placeholder until I verify LightMode/DarkMode
+                                            imageVector = if (isDark) Icons.Default.WbSunny else Icons.Outlined.ModeNight,
                                             contentDescription = null,
                                             tint = TextMuted
                                         ) 
