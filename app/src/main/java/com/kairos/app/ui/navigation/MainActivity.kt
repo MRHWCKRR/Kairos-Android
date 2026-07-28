@@ -93,7 +93,7 @@ fun KairosApp(viewModel: MainViewModel) {
                     composable(KairosDestination.Schedule.route) { ScheduleScreen(viewModel) }
                     composable(KairosDestination.Calendar.route) { CalendarScreen(viewModel) }
                     composable(KairosDestination.Achievements.route) { AchievementsScreen(viewModel) }
-                    composable(KairosDestination.Statistics.route) { StatisticsScreen() }
+                    composable(KairosDestination.Statistics.route) { StatisticsScreen(viewModel) }
                     composable(KairosDestination.Settings.route) { SettingsScreen() }
                 }
             }
