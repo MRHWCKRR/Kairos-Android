@@ -15,27 +15,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.kairos.app.R
-import com.kairos.app.ui.theme.BgMain
 
 @Composable
 fun SplashScreen() {
     val infiniteTransition = rememberInfiniteTransition(label = "splash")
     
     val scale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
+        initialValue = 0.9f,
+        targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(1000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "scale"
     )
 
     val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
+        initialValue = 0.6f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(1000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "alpha"
@@ -44,7 +43,7 @@ fun SplashScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgMain),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -52,19 +51,19 @@ fun SplashScreen() {
                 painter = painterResource(id = R.drawable.ic_kairos_logo),
                 contentDescription = "Kairos Logo",
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(140.dp)
                     .scale(scale)
                     .alpha(alpha)
             )
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(64.dp))
             
             LinearProgressIndicator(
                 modifier = Modifier
-                    .width(140.dp)
-                    .height(2.dp),
+                    .width(160.dp)
+                    .height(3.dp),
                 color = MaterialTheme.colorScheme.primary,
-                trackColor = Color.White.copy(alpha = 0.1f)
+                trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f)
             )
         }
     }
