@@ -1,9 +1,12 @@
 package com.kairos.app.ui.screens.dashboard
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -11,19 +14,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.*
 import com.kairos.app.ui.navigation.MainViewModel
-import com.kairos.app.ui.theme.BgCard
-import com.kairos.app.ui.theme.TextMuted
+import com.kairos.app.utils.ConfettiCannon
 
 @Composable
 fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
     val plan by viewModel.plan.collectAsState()
     val profile by viewModel.profile.collectAsState()
+    
+    var showConfetti by remember { mutableStateOf(false) }
     
     val activeSection = remember(plan) {
         plan?.boards?.filter { !it.archived }
@@ -33,52 +38,68 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
             }
     }
 
+    // Trigger confetti if Focus Mode was active and now is null (all completed)
+    var wasFocusActive by remember { mutableStateOf(false) }
+    LaunchedEffect(activeSection) {
+        if (activeSection == null && wasFocusActive && profile.settings.appearance.confetti) {
+            showConfetti = true
+        }
+        wasFocusActive = activeSection != null
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(24.dp)
-        ) {
-            item {
-                FocusTimerWidget(viewModel)
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            item {
-                MiniGoalsWidget(profile)
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            item {
-                RoutineStatsCard(plan = plan)
-                Spacer(modifier = Modifier.height(32.dp))
-            }
-
-            if (activeSection != null) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(24.dp)
+            ) {
                 item {
-                    Text(
-                        text = "Focus Mode",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+                    FocusTimerWidget(viewModel)
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
 
                 item {
-                    FocusModeCard(
-                        section = activeSection,
-                        onTaskToggle = { taskId, completed ->
-                            viewModel.toggleTask(taskId, completed)
-                        }
-                    )
+                    MiniGoalsWidget(profile)
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
-            } else {
+
                 item {
-                    AllCaughtUpView()
+                    RoutineStatsCard(plan = plan)
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+
+                if (activeSection != null) {
+                    item {
+                        Text(
+                            text = "Focus Mode",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+
+                    item {
+                        FocusModeCard(
+                            section = activeSection,
+                            onTaskToggle = { taskId, completed ->
+                                viewModel.toggleTask(taskId, completed)
+                            }
+                        )
+                    }
+                } else {
+                    item {
+                        AllCaughtUpView()
+                    }
                 }
             }
+            
+            ConfettiCannon(
+                trigger = showConfetti,
+                onFinished = { showConfetti = false }
+            )
         }
     }
 }
@@ -88,16 +109,20 @@ fun FocusTimerWidget(viewModel: MainViewModel) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BgCard)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "Focus Timer", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            Text(
+                text = "Focus Timer", 
+                style = MaterialTheme.typography.titleMedium, 
+                color = MaterialTheme.colorScheme.onSurface
+            )
             
             Text(
                 text = formatHMS(viewModel.focusSecondsActive),
                 fontSize = 48.sp,
                 fontWeight = FontWeight.Black,
-                color = if (viewModel.focusTimerRunning) MaterialTheme.colorScheme.primary else Color.White
+                color = if (viewModel.focusTimerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -140,10 +165,14 @@ fun MiniGoalsWidget(profile: KairosUserProfile) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BgCard)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(text = "Active Goals", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            Text(
+                text = "Active Goals", 
+                style = MaterialTheme.typography.titleMedium, 
+                color = MaterialTheme.colorScheme.onSurface
+            )
             Spacer(modifier = Modifier.height(16.dp))
             
             goalIds.forEach { id ->
@@ -159,7 +188,7 @@ fun MiniGoalsWidget(profile: KairosUserProfile) {
 
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "${def.icon} ${def.name}", fontSize = 12.sp, color = Color.White)
+                            Text(text = "${def.icon} ${def.name}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                             Text(text = "$pct%", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
@@ -167,7 +196,7 @@ fun MiniGoalsWidget(profile: KairosUserProfile) {
                             progress = { (pct / 100f) },
                             modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
                             color = MaterialTheme.colorScheme.primary,
-                            trackColor = Color.White.copy(alpha = 0.1f)
+                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                         )
                     }
                 }
@@ -196,7 +225,7 @@ fun RoutineStatsCard(plan: KairosPlan?) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BgCard)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -208,7 +237,7 @@ fun RoutineStatsCard(plan: KairosPlan?) {
                     text = "Routine Stats",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "${stats.first}%",
@@ -223,7 +252,7 @@ fun RoutineStatsCard(plan: KairosPlan?) {
             Text(
                 text = "${stats.second} / ${stats.third} tasks completed",
                 style = MaterialTheme.typography.bodySmall,
-                color = TextMuted
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -235,7 +264,7 @@ fun RoutineStatsCard(plan: KairosPlan?) {
                     .height(8.dp)
                     .clip(CircleShape),
                 color = MaterialTheme.colorScheme.primary,
-                trackColor = Color.White.copy(alpha = 0.1f),
+                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                 strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
             )
         }
@@ -250,14 +279,14 @@ fun FocusModeCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BgCard)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = section.title,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -289,7 +318,7 @@ fun RoutineTaskItem(
             onCheckedChange = onToggle,
             colors = CheckboxDefaults.colors(
                 checkedColor = MaterialTheme.colorScheme.primary,
-                uncheckedColor = Color.White.copy(alpha = 0.6f)
+                uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         )
         
@@ -297,7 +326,7 @@ fun RoutineTaskItem(
         
         Text(
             text = task.title,
-            color = if (task.completed) TextMuted else Color.White,
+            color = if (task.completed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodyLarge,
             textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
         )
@@ -314,7 +343,7 @@ fun AllCaughtUpView() {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "🎉",
+            text = "✨",
             fontSize = 64.sp
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -322,14 +351,27 @@ fun AllCaughtUpView() {
             text = "You're all caught up!",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "Take a break or plan your next routine.",
             style = MaterialTheme.typography.bodyMedium,
-            color = TextMuted
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            textAlign = TextAlign.Center
         )
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        OutlinedButton(
+            onClick = { /* Nav to tasks or something */ },
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.height(50.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Create New Board")
+        }
     }
 }
 

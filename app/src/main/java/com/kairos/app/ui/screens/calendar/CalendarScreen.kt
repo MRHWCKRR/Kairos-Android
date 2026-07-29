@@ -25,8 +25,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.KairosPlan
 import com.kairos.app.data.models.KairosTask
 import com.kairos.app.ui.navigation.MainViewModel
-import com.kairos.app.ui.theme.BgCard
-import com.kairos.app.ui.theme.TextMuted
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -57,13 +55,13 @@ fun CalendarScreen(
                 text = "Calendar",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onBackground
             )
             
             Text(
                 text = "Manage your routines and assignment dates.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextMuted,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
             )
 
@@ -77,15 +75,15 @@ fun CalendarScreen(
                     text = "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 
                 Row {
                     IconButton(onClick = { viewModel.onPreviousMonth() }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Prev", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Prev", tint = MaterialTheme.colorScheme.onBackground)
                     }
                     IconButton(onClick = { viewModel.onNextMonth() }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 }
             }
@@ -101,7 +99,7 @@ fun CalendarScreen(
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center,
                         fontSize = 12.sp,
-                        color = TextMuted,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -125,7 +123,7 @@ fun CalendarScreen(
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
             sheetState = sheetState,
-            containerColor = BgCard
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
             DayDetailContent(
                 date = viewModel.selectedDate!!,
@@ -181,7 +179,7 @@ fun CalendarGrid(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = day.toString(),
-                        color = if (isToday) MaterialTheme.colorScheme.primary else Color.White,
+                        color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
                         fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                         fontSize = 14.sp
                     )
@@ -221,7 +219,7 @@ fun DayDetailContent(
             text = date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy")),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onSurface
         )
         
         Spacer(modifier = Modifier.height(24.dp))
@@ -238,7 +236,7 @@ fun DayDetailContent(
             Text(
                 text = "No tasks scheduled for this day.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextMuted,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
@@ -256,7 +254,7 @@ fun DayDetailContent(
                     )
                     Text(
                         text = task.title,
-                        color = if (task.completed) TextMuted else Color.White,
+                        color = if (task.completed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.padding(start = 8.dp)
                     )
@@ -280,17 +278,17 @@ fun DayDetailContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.White.copy(alpha = 0.05f))
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                 .padding(16.dp)
         ) {
             if (viewModel.isGeneratingInsight) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp).align(Alignment.Center))
             } else if (insight != null) {
-                Text(text = insight, color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                Text(text = insight, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
             } else {
                 Text(
                     text = viewModel.insightError ?: "No insight yet.",
-                    color = TextMuted,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }

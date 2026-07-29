@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -28,8 +27,6 @@ import com.kairos.app.data.models.KairosBoard
 import com.kairos.app.data.models.KairosSection
 import com.kairos.app.data.models.KairosTask
 import com.kairos.app.ui.navigation.MainViewModel
-import com.kairos.app.ui.theme.BgCard
-import com.kairos.app.ui.theme.TextMuted
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,7 +56,10 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
     ) { padding ->
         if (boards.isEmpty() && (plan?.boards?.none { it.archived } == true)) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text(text = "No boards yet — create one to get started.", color = TextMuted)
+                Text(
+                    text = "No boards yet — create one to get started.", 
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
             }
         } else {
             LazyColumn(
@@ -71,12 +71,12 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
                         text = "Routines & Tasks",
                         fontSize = 32.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = "Manage your master list. AI plans will populate here.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TextMuted,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                         modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
                     )
                 }
@@ -216,7 +216,7 @@ fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: Main
                     text = "Archive",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 if (totalCount > 0) {
                     Box(
@@ -232,7 +232,7 @@ fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: Main
             Icon(
                 imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
-                tint = TextMuted
+                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
             )
         }
 
@@ -241,13 +241,18 @@ fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: Main
                 Text(
                     text = "Nothing archived yet. Deleted routines show up here.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
                 Column(modifier = Modifier.padding(vertical = 16.dp)) {
                     if (archivedBoards.isNotEmpty()) {
-                        Text(text = "Archived Boards", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                        Text(
+                            text = "Archived Boards", 
+                            fontSize = 12.sp, 
+                            fontWeight = FontWeight.Bold, 
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
                         archivedBoards.forEach { board ->
                             ArchiveItemRow(
                                 title = board.title,
@@ -259,7 +264,12 @@ fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: Main
                     }
 
                     if (archivedSections.isNotEmpty()) {
-                        Text(text = "Archived Sections", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                        Text(
+                            text = "Archived Sections", 
+                            fontSize = 12.sp, 
+                            fontWeight = FontWeight.Bold, 
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
                         archivedSections.forEach { (board, section) ->
                             ArchiveItemRow(
                                 title = section.title,
@@ -272,7 +282,12 @@ fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: Main
                     }
 
                     if (archivedTasks.isNotEmpty()) {
-                        Text(text = "Archived Tasks", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                        Text(
+                            text = "Archived Tasks", 
+                            fontSize = 12.sp, 
+                            fontWeight = FontWeight.Bold, 
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
                         archivedTasks.forEach { (board, section, task) ->
                             ArchiveItemRow(
                                 title = task.title,
@@ -303,9 +318,22 @@ fun ArchiveItemRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-            Text(text = title, style = MaterialTheme.typography.bodyMedium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = title, 
+                style = MaterialTheme.typography.bodyMedium, 
+                color = MaterialTheme.colorScheme.onBackground, 
+                maxLines = 1, 
+                overflow = TextOverflow.Ellipsis
+            )
             if (subtitle.isNotEmpty()) {
-                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
+                Text(
+                    text = subtitle, 
+                    style = MaterialTheme.typography.bodySmall, 
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), 
+                    maxLines = 1, 
+                    overflow = TextOverflow.Ellipsis, 
+                    modifier = Modifier.padding(start = 4.dp)
+                )
             }
         }
         
@@ -336,7 +364,7 @@ fun BoardCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BgCard)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -348,13 +376,13 @@ fun BoardCard(
                     text = board.title,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
                 var showMenu by remember { mutableStateOf(false) }
                 Box {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Board Options", tint = Color.White)
+                        Icon(Icons.Default.MoreVert, contentDescription = "Board Options", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRename() })
@@ -405,13 +433,13 @@ fun SectionBlock(
                 text = section.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
             
             var showMenu by remember { mutableStateOf(false) }
             Box {
                 IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Section Options", tint = TextMuted)
+                    Icon(Icons.Default.MoreVert, contentDescription = "Section Options", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRename() })
@@ -432,7 +460,7 @@ fun SectionBlock(
         }
         
         TextButton(onClick = onAddTask, contentPadding = PaddingValues(0.dp)) {
-            Text("+ Add Task", color = TextMuted, fontSize = 14.sp)
+            Text("+ Add Task", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
         }
     }
 }
@@ -455,19 +483,19 @@ fun TaskItem(
             onCheckedChange = onToggle,
             colors = CheckboxDefaults.colors(
                 checkedColor = MaterialTheme.colorScheme.primary,
-                uncheckedColor = Color.White.copy(alpha = 0.6f)
+                uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         )
         
         Text(
             text = task.title,
             modifier = Modifier.weight(1f).clickable { onRename() },
-            color = if (task.completed) TextMuted else Color.White,
+            color = if (task.completed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodyMedium
         )
         
         IconButton(onClick = onArchive, modifier = Modifier.size(20.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Archive Task", tint = TextMuted, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Close, contentDescription = "Archive Task", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
         }
     }
 }

@@ -13,8 +13,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.ui.navigation.MainViewModel
-import com.kairos.app.ui.theme.BgCard
-import com.kairos.app.ui.theme.TextMuted
 
 @Composable
 fun AiHelperScreen(
@@ -38,29 +36,36 @@ fun AiHelperScreen(
                 text = "AI Helper",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onBackground
             )
             
             Text(
                 text = "Paste your syllabus or assignment guidelines below.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextMuted,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
             )
 
             OutlinedTextField(
                 value = viewModel.userInput,
                 onValueChange = { viewModel.userInput = it },
-                placeholder = { Text("Paste assignment details here...", color = TextMuted) },
+                placeholder = { 
+                    Text(
+                        text = "Paste assignment details here...", 
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    ) 
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 200.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = BgCard,
-                    focusedContainerColor = BgCard,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
                     unfocusedBorderColor = Color.Transparent,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface
                 )
             )
 
@@ -120,7 +125,6 @@ fun AiPlanConfirmationDialog(
         title = { Text("Add AI-generated tasks to:") },
         text = {
             Column {
-                // Radio Options
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(
                         selected = viewModel.targetBoardMode == TargetBoardMode.NEW,
@@ -149,18 +153,16 @@ fun AiPlanConfirmationDialog(
                         modifier = Modifier.clickable(enabled = existingBoards.isNotEmpty()) { 
                             viewModel.targetBoardMode = TargetBoardMode.EXISTING 
                         },
-                        color = if (existingBoards.isEmpty()) TextMuted else Color.Unspecified
+                        color = if (existingBoards.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else Color.Unspecified
                     )
                 }
                 
                 if (viewModel.targetBoardMode == TargetBoardMode.EXISTING) {
-                    // Simple Dropdown placeholder
                     Text(
                         text = "Selected: ${existingBoards.find { it.id == viewModel.selectedExistingBoardId }?.title ?: "Choose a board"}",
                         modifier = Modifier.padding(start = 32.dp).clickable { /* TODO: Show dropdown */ },
                         color = MaterialTheme.colorScheme.primary
                     )
-                    // Auto-select first if none selected
                     LaunchedEffect(Unit) {
                         if (viewModel.selectedExistingBoardId.isEmpty() && existingBoards.isNotEmpty()) {
                             viewModel.selectedExistingBoardId = existingBoards.first().id
@@ -170,18 +172,17 @@ fun AiPlanConfirmationDialog(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Preview summary
                 Text(
                     text = "Summary:",
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
-                    color = TextMuted
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 Text(
                     text = "${viewModel.pendingResponse?.sections?.size ?: 0} sections, " +
                            "${viewModel.pendingResponse?.recurringEvents?.size ?: 0} recurring events",
                     fontSize = 12.sp,
-                    color = TextMuted
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
         },

@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.KairosScheduleEvent
 import com.kairos.app.ui.navigation.MainViewModel
-import com.kairos.app.ui.theme.TextMuted
 
 private val CategoryColors = mapOf(
     "sleep" to Color(0xFF6366F1),
@@ -32,7 +31,7 @@ private val CategoryColors = mapOf(
 )
 
 private val DayLabels = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
-private const val HourHeightDp = 64 // Slightly taller for better readability
+private const val HourHeightDp = 64 
 
 @Composable
 fun ScheduleScreen(viewModel: MainViewModel = viewModel()) {
@@ -49,7 +48,6 @@ fun ScheduleScreen(viewModel: MainViewModel = viewModel()) {
             val verticalScrollState = rememberScrollState()
             val horizontalScrollState = rememberScrollState()
 
-            // Default scroll to 7 AM
             val density = LocalDensity.current
             val scrollPos = with(density) { (7 * HourHeightDp).dp.toPx().toInt() }
             
@@ -58,12 +56,11 @@ fun ScheduleScreen(viewModel: MainViewModel = viewModel()) {
             }
 
             Row(modifier = Modifier.fillMaxSize()) {
-                // Fixed Time Column (Vertically scrollable only)
                 Column(
                     modifier = Modifier
                         .width(56.dp)
                         .verticalScroll(verticalScrollState)
-                        .padding(top = 40.dp) // Header offset
+                        .padding(top = 40.dp) 
                 ) {
                     repeat(24) { hour ->
                         Box(
@@ -75,13 +72,12 @@ fun ScheduleScreen(viewModel: MainViewModel = viewModel()) {
                             Text(
                                 text = formatHour(hour),
                                 fontSize = 10.sp,
-                                color = TextMuted
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )
                         }
                     }
                 }
 
-                // Scrollable Days Grid (Both vertically and horizontally scrollable)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -127,7 +123,7 @@ fun ScheduleLegend() {
                 Text(
                     text = id.replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextMuted
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                 )
             }
         }
@@ -142,9 +138,9 @@ fun DayColumn(
 ) {
     val columnWidth = 120.dp
     val totalHeight = (24 * HourHeightDp).dp
+    val gridColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f)
 
     Column(modifier = Modifier.width(columnWidth)) {
-        // Day Header
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -154,22 +150,20 @@ fun DayColumn(
             Text(
                 text = label,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 style = MaterialTheme.typography.bodySmall
             )
         }
 
-        // Day Body
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(totalHeight)
                 .drawBehind {
-                    // Draw grid lines
                     for (i in 0..24) {
                         val y = i * HourHeightDp.dp.toPx()
                         drawLine(
-                            color = Color.White.copy(alpha = 0.1f),
+                            color = gridColor,
                             start = Offset(0f, y),
                             end = Offset(size.width, y),
                             strokeWidth = 1f
@@ -214,7 +208,6 @@ fun ScheduleEventLayout(
         }
         list.sortBy { it.startMin }
 
-        // Multi-column overlap logic
         val columnEnds = mutableListOf<Int>()
         list.forEach { item ->
             var placed = false

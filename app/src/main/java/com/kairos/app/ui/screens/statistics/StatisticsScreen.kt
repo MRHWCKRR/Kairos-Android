@@ -17,8 +17,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.ui.navigation.MainViewModel
-import com.kairos.app.ui.theme.BgCard
-import com.kairos.app.ui.theme.TextMuted
 
 @Composable
 fun StatisticsScreen(
@@ -42,7 +40,7 @@ fun StatisticsScreen(
                 text = "Statistics",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -52,7 +50,7 @@ fun StatisticsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(BgCard)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -69,7 +67,7 @@ fun StatisticsScreen(
                     ) {
                         Text(
                             text = range.name.lowercase().replaceFirstChar { it.uppercase() },
-                            color = if (selected) Color.White else TextMuted,
+                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             fontSize = 14.sp,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                         )
@@ -98,7 +96,12 @@ fun StatisticsScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Summary Totals
-            Text(text = "Lifetime Totals", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(
+                text = "Lifetime Totals", 
+                style = MaterialTheme.typography.titleLarge, 
+                fontWeight = FontWeight.Bold, 
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(modifier = Modifier.height(16.dp))
             
             SummaryCard(label = "Total Focus Logged", value = formatSecondsToHMS(profile.focusData.totalSeconds))
@@ -121,10 +124,15 @@ fun ChartCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = BgCard)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(
+                text = title, 
+                style = MaterialTheme.typography.titleMedium, 
+                fontWeight = FontWeight.Bold, 
+                color = MaterialTheme.colorScheme.onSurface
+            )
             Spacer(modifier = Modifier.height(24.dp))
             
             BarChart(data = data, valueFormatter = valueFormatter)
@@ -164,7 +172,7 @@ fun BarChart(
             } else {
                 Text(
                     text = "Tap a bar to see details",
-                    color = TextMuted,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     fontSize = 10.sp
                 )
             }
@@ -212,7 +220,7 @@ fun BarChart(
                         text = point.label,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (selectedIndex == index) MaterialTheme.colorScheme.primary else TextMuted,
+                        color = if (selectedIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         maxLines = 1
                     )
                 }
@@ -226,7 +234,7 @@ fun SummaryCard(label: String, value: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = BgCard)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier.padding(20.dp),
@@ -235,7 +243,7 @@ fun SummaryCard(label: String, value: String) {
             Text(
                 text = label, 
                 style = MaterialTheme.typography.bodyMedium, 
-                color = TextMuted,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.weight(1f)
             )
             Spacer(modifier = Modifier.width(16.dp))
