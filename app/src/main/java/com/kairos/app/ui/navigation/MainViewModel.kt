@@ -41,6 +41,9 @@ class MainViewModel @JvmOverloads constructor(
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
+    var isInitializing by mutableStateOf(true)
+        private set
+
     // Events for system notifications
     private val _notificationEvents = MutableSharedFlow<Pair<String, String>>()
     val notificationEvents: SharedFlow<Pair<String, String>> = _notificationEvents.asSharedFlow()
@@ -67,8 +70,14 @@ class MainViewModel @JvmOverloads constructor(
                     }
                     launch {
                         firebaseRepository.getUserProfile(firebaseUser.uid)
-                            .catch { e -> Log.e("MainViewModel", "Profile sync error", e) }
-                            .collect { if (it != null) _profile.value = it }
+                            .catch { e -> 
+                                Log.e("MainViewModel", "Profile sync error", e)
+                                isInitializing = false
+                            }
+                            .collect { 
+                                if (it != null) _profile.value = it 
+                                isInitializing = false
+                            }
                     }
                     launch {
                         while (true) {
@@ -79,6 +88,7 @@ class MainViewModel @JvmOverloads constructor(
                 } else {
                     _plan.value = null
                     _profile.value = KairosUserProfile()
+                    isInitializing = false
                 }
             }
         }

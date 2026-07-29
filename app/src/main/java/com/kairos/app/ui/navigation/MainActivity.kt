@@ -5,11 +5,11 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,11 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.ModeNight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -51,6 +47,7 @@ import com.kairos.app.ui.screens.settings.SettingsScreen
 import com.kairos.app.ui.screens.statistics.StatisticsScreen
 import com.kairos.app.ui.screens.tasks.TasksScreen
 import com.kairos.app.ui.screens.login.LoginScreen
+import com.kairos.app.ui.screens.splash.SplashScreen
 import com.kairos.app.ui.theme.*
 import com.kairos.app.utils.NotificationHelper
 import kotlinx.coroutines.flow.collectLatest
@@ -106,180 +103,186 @@ fun KairosApp(viewModel: MainViewModel) {
         profile.notifications.count { !it.read } 
     }
 
-    if (user == null) {
-        LoginScreen()
-    } else {
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = { Text("Kairos", fontWeight = FontWeight.Bold) },
-                    actions = {
-                        IconButton(onClick = { 
-                            showNotifPanel = true 
-                            viewModel.markNotificationsRead()
-                        }) {
-                            BadgedBox(
-                                badge = {
-                                    if (unreadCount > 0) {
-                                        Badge {
-                                            Text(text = if (unreadCount > 9) "9+" else unreadCount.toString())
+    Crossfade(targetState = viewModel.isInitializing, label = "main_content") { initializing ->
+        if (initializing) {
+            SplashScreen()
+        } else {
+            if (user == null) {
+                LoginScreen()
+            } else {
+                Scaffold(
+                    topBar = {
+                        CenterAlignedTopAppBar(
+                            title = { Text("Kairos", fontWeight = FontWeight.Bold) },
+                            actions = {
+                                IconButton(onClick = { 
+                                    showNotifPanel = true 
+                                    viewModel.markNotificationsRead()
+                                }) {
+                                    BadgedBox(
+                                        badge = {
+                                            if (unreadCount > 0) {
+                                                Badge {
+                                                    Text(text = if (unreadCount > 9) "9+" else unreadCount.toString())
+                                                }
+                                            }
                                         }
-                                    }
-                                }
-                            ) {
-                                Icon(Icons.Default.Notifications, contentDescription = "Notifications")
-                            }
-                        }
-                        
-                        var showProfileMenu by remember { mutableStateOf(false) }
-                        val userName = profile.settings.profile.displayName.ifBlank { user?.displayName ?: "User" }
-                        val userPhoto = profile.settings.profile.avatarURL.ifBlank { user?.photoUrl?.toString() ?: "" }
-
-                        Box {
-                            IconButton(onClick = { showProfileMenu = true }) {
-                                if (userPhoto.isNotEmpty()) {
-                                    AsyncImage(
-                                        model = userPhoto,
-                                        contentDescription = "Profile",
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Surface(
-                                        modifier = Modifier.size(32.dp),
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.primary
                                     ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Text(
-                                                text = userName.take(1).uppercase(),
-                                                color = Color.White,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp
-                                            )
-                                        }
+                                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
                                     }
                                 }
-                            }
+                                
+                                var showProfileMenu by remember { mutableStateOf(false) }
+                                val userName = profile.settings.profile.displayName.ifBlank { user?.displayName ?: "User" }
+                                val userPhoto = profile.settings.profile.avatarURL.ifBlank { user?.photoUrl?.toString() ?: "" }
 
-                            DropdownMenu(
-                                expanded = showProfileMenu,
-                                onDismissRequest = { showProfileMenu = false },
-                                modifier = Modifier.background(BgCard)
-                            ) {
-                                // Header
-                                Row(
-                                    modifier = Modifier
-                                        .padding(16.dp)
-                                        .width(200.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (userPhoto.isNotEmpty()) {
-                                        AsyncImage(
-                                            model = userPhoto,
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .clip(CircleShape),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    } else {
-                                        Surface(
-                                            modifier = Modifier.size(40.dp),
-                                            shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.primary
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = userName.take(1).uppercase(),
-                                                    color = Color.White,
-                                                    fontWeight = FontWeight.Bold
-                                                )
+                                Box {
+                                    IconButton(onClick = { showProfileMenu = true }) {
+                                        if (userPhoto.isNotEmpty()) {
+                                            AsyncImage(
+                                                model = userPhoto,
+                                                contentDescription = "Profile",
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Surface(
+                                                modifier = Modifier.size(32.dp),
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.primary
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text(
+                                                        text = userName.take(1).uppercase(),
+                                                        color = Color.White,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 14.sp
+                                                    )
+                                                }
                                             }
                                         }
                                     }
-                                    Column(modifier = Modifier.padding(start = 12.dp)) {
-                                        Text(text = userName, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(text = user?.email ?: "", style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                                    DropdownMenu(
+                                        expanded = showProfileMenu,
+                                        onDismissRequest = { showProfileMenu = false },
+                                        modifier = Modifier.background(BgCard)
+                                    ) {
+                                        // Header
+                                        Row(
+                                            modifier = Modifier
+                                                .padding(16.dp)
+                                                .width(200.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            if (userPhoto.isNotEmpty()) {
+                                                AsyncImage(
+                                                    model = userPhoto,
+                                                    contentDescription = null,
+                                                    modifier = Modifier
+                                                        .size(40.dp)
+                                                        .clip(CircleShape),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Surface(
+                                                    modifier = Modifier.size(40.dp),
+                                                    shape = CircleShape,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                ) {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Text(
+                                                            text = userName.take(1).uppercase(),
+                                                            color = Color.White,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            Column(modifier = Modifier.padding(start = 12.dp)) {
+                                                Text(text = userName, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Text(text = user?.email ?: "", style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                        }
+
+                                        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                                        DropdownMenuItem(
+                                            text = { Text("Settings", color = Color.White) },
+                                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null, tint = TextMuted) },
+                                            onClick = {
+                                                showProfileMenu = false
+                                                navController.navigate(KairosDestination.Settings.route) {
+                                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
+                                            }
+                                        )
+
+                                        DropdownMenuItem(
+                                            text = { 
+                                                val isDark = profile.settings.appearance.mode == "dark"
+                                                Text(if (isDark) "Switch to Light Mode" else "Switch to Dark Mode", color = Color.White) 
+                                            },
+                                            leadingIcon = { 
+                                                val isDark = profile.settings.appearance.mode == "dark"
+                                                Icon(
+                                                    imageVector = if (isDark) Icons.Default.WbSunny else Icons.Outlined.ModeNight,
+                                                    contentDescription = null,
+                                                    tint = TextMuted
+                                                ) 
+                                            },
+                                            onClick = {
+                                                showProfileMenu = false
+                                                viewModel.toggleAppearanceMode()
+                                            }
+                                        )
+
+                                        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                                        DropdownMenuItem(
+                                            text = { Text("Sign Out", color = MaterialTheme.colorScheme.error) },
+                                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                                            onClick = {
+                                                showProfileMenu = false
+                                                viewModel.signOut()
+                                            }
+                                        )
                                     }
                                 }
-
-                                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-
-                                DropdownMenuItem(
-                                    text = { Text("Settings", color = Color.White) },
-                                    leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null, tint = TextMuted) },
-                                    onClick = {
-                                        showProfileMenu = false
-                                        navController.navigate(KairosDestination.Settings.route) {
-                                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                )
-
-                                DropdownMenuItem(
-                                    text = { 
-                                        val isDark = profile.settings.appearance.mode == "dark"
-                                        Text(if (isDark) "Switch to Light Mode" else "Switch to Dark Mode", color = Color.White) 
-                                    },
-                                    leadingIcon = { 
-                                        val isDark = profile.settings.appearance.mode == "dark"
-                                        Icon(
-                                            imageVector = if (isDark) Icons.Default.WbSunny else Icons.Outlined.ModeNight,
-                                            contentDescription = null,
-                                            tint = TextMuted
-                                        ) 
-                                    },
-                                    onClick = {
-                                        showProfileMenu = false
-                                        viewModel.toggleAppearanceMode()
-                                    }
-                                )
-
-                                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-
-                                DropdownMenuItem(
-                                    text = { Text("Sign Out", color = MaterialTheme.colorScheme.error) },
-                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                                    onClick = {
-                                        showProfileMenu = false
-                                        viewModel.signOut()
-                                    }
-                                )
-                            }
-                        }
+                            },
+                            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.background
+                            )
+                        )
                     },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
-                )
-            },
-            bottomBar = { KairosBottomNav(navController) }
-        ) { innerPadding ->
-            if (errorMessage != null) {
-                SyncErrorScreen(
-                    errorMessage = errorMessage,
-                    modifier = Modifier.padding(innerPadding),
-                    onSignOut = { viewModel.signOut() }
-                )
-            } else {
-                NavHost(
-                    navController = navController,
-                    startDestination = KairosDestination.Dashboard.route,
-                    modifier = Modifier.padding(innerPadding)
-                ) {
-                    composable(KairosDestination.Dashboard.route) { DashboardScreen(viewModel) }
-                    composable(KairosDestination.AiHelper.route) { AiHelperScreen(viewModel) }
-                    composable(KairosDestination.Tasks.route) { TasksScreen(viewModel) }
-                    composable(KairosDestination.Schedule.route) { ScheduleScreen(viewModel) }
-                    composable(KairosDestination.Calendar.route) { CalendarScreen(viewModel) }
-                    composable(KairosDestination.Achievements.route) { AchievementsScreen(viewModel) }
-                    composable(KairosDestination.Statistics.route) { StatisticsScreen(viewModel) }
-                    composable(KairosDestination.Settings.route) { SettingsScreen(viewModel) }
+                    bottomBar = { KairosBottomNav(navController) }
+                ) { innerPadding ->
+                    if (errorMessage != null) {
+                        SyncErrorScreen(
+                            errorMessage = errorMessage,
+                            modifier = Modifier.padding(innerPadding),
+                            onSignOut = { viewModel.signOut() }
+                        )
+                    } else {
+                        NavHost(
+                            navController = navController,
+                            startDestination = KairosDestination.Dashboard.route,
+                            modifier = Modifier.padding(innerPadding)
+                        ) {
+                            composable(KairosDestination.Dashboard.route) { DashboardScreen(viewModel) }
+                            composable(KairosDestination.AiHelper.route) { AiHelperScreen(viewModel) }
+                            composable(KairosDestination.Tasks.route) { TasksScreen(viewModel) }
+                            composable(KairosDestination.Schedule.route) { ScheduleScreen(viewModel) }
+                            composable(KairosDestination.Calendar.route) { CalendarScreen(viewModel) }
+                            composable(KairosDestination.Achievements.route) { AchievementsScreen(viewModel) }
+                            composable(KairosDestination.Statistics.route) { StatisticsScreen(viewModel) }
+                            composable(KairosDestination.Settings.route) { SettingsScreen(viewModel) }
+                        }
+                    }
                 }
             }
         }

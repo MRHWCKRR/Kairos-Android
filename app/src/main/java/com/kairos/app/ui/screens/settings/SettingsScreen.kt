@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -64,7 +65,7 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
                 }
             }
 
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
@@ -76,6 +77,8 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
                     2 -> AppearanceSettingsTab(profile.settings, mainViewModel)
                     3 -> AiEngineSettingsTab(profile.settings, mainViewModel)
                 }
+                
+                Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
@@ -105,7 +108,7 @@ fun PersonalSettingsTab(settings: KairosSettings, viewModel: MainViewModel) {
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    contentScale = ContentScale.Crop
                 )
             } else {
                 Surface(
@@ -115,7 +118,7 @@ fun PersonalSettingsTab(settings: KairosSettings, viewModel: MainViewModel) {
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Default.Person, // I need to import Person
+                            imageVector = Icons.Default.Person,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -133,7 +136,9 @@ fun PersonalSettingsTab(settings: KairosSettings, viewModel: MainViewModel) {
                     unfocusedContainerColor = BgCard,
                     focusedContainerColor = BgCard,
                     unfocusedBorderColor = Color.Transparent,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedTextColor = Color.White,
+                    focusedTextColor = Color.White
                 ),
                 singleLine = true
             )
@@ -279,7 +284,9 @@ fun AiEngineSettingsTab(settings: KairosSettings, viewModel: MainViewModel) {
                 unfocusedContainerColor = BgCard,
                 focusedContainerColor = BgCard,
                 unfocusedBorderColor = Color.Transparent,
-                focusedBorderColor = MaterialTheme.colorScheme.primary
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedTextColor = Color.White,
+                focusedTextColor = Color.White
             )
         )
 
@@ -313,7 +320,9 @@ fun SettingsTextField(label: String, value: String, placeholder: String = "", on
                 unfocusedContainerColor = BgCard,
                 focusedContainerColor = BgCard,
                 unfocusedBorderColor = Color.Transparent,
-                focusedBorderColor = MaterialTheme.colorScheme.primary
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedTextColor = Color.White,
+                focusedTextColor = Color.White
             ),
             singleLine = true
         )
