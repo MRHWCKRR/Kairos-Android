@@ -9,7 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -273,11 +273,7 @@ fun KairosApp(viewModel: MainViewModel) {
                         NavHost(
                             navController = navController,
                             startDestination = KairosDestination.Dashboard.route,
-                            modifier = Modifier.padding(innerPadding),
-                            enterTransition = { fadeIn(animationSpec = tween(300)) + slideInHorizontally(animationSpec = tween(300), initialOffsetX = { it / 10 }) },
-                            exitTransition = { fadeOut(animationSpec = tween(300)) },
-                            popEnterTransition = { fadeIn(animationSpec = tween(300)) },
-                            popExitTransition = { fadeOut(animationSpec = tween(300)) }
+                            modifier = Modifier.padding(innerPadding)
                         ) {
                             composable(KairosDestination.Dashboard.route) { DashboardScreen(viewModel) }
                             composable(KairosDestination.AiHelper.route) { AiHelperScreen(viewModel) }
