@@ -1,11 +1,11 @@
 package com.kairos.app.ui.screens.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,6 +24,7 @@ import com.kairos.app.ui.navigation.MainViewModel
 
 @Composable
 fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
+    val profile by mainViewModel.profile.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Personal", "Accessibility", "Appearance", "AI Engine")
 
@@ -75,7 +78,7 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
             }
         }
 
-        // --- CONTENT AREA (Step 1: Dumb Content) ---
+        // --- CONTENT AREA (Step 2: Add Name Input) ---
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -93,13 +96,50 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
                 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Dummy Input Boxes (Just colored rectangles)
-                repeat(3) {
+                // Interactive Name Input (Draft state)
+                var nameDraft by remember(profile.settings.profile.displayName) { 
+                    mutableStateOf(profile.settings.profile.displayName) 
+                }
+                
+                Text(text = "Display Name", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    BasicTextField(
+                        value = nameDraft,
+                        onValueChange = { nameDraft = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        singleLine = true
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Static Placeholders for the rest
+                repeat(2) {
                     Box(modifier = Modifier.fillMaxWidth().height(56.dp).background(Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(8.dp)))
                     Spacer(modifier = Modifier.height(24.dp))
                 }
                 
-                Box(modifier = Modifier.fillMaxWidth().height(52.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp)))
+                Button(
+                    onClick = {
+                        mainViewModel.updateSettings(profile.settings.copy(
+                            profile = profile.settings.profile.copy(displayName = nameDraft)
+                        ))
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Save Changes")
+                }
             } else {
                 Text(text = "Tab: ${tabs[selectedTab]}", color = MaterialTheme.colorScheme.onBackground)
             }
