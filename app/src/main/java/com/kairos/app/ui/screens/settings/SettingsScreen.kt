@@ -1,12 +1,18 @@
 package com.kairos.app.ui.screens.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -16,7 +22,6 @@ import com.kairos.app.ui.navigation.MainViewModel
 
 @Composable
 fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
-    val profile by mainViewModel.profile.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Personal", "Accessibility", "Appearance", "AI Engine")
 
@@ -36,78 +41,70 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
         
         Spacer(modifier = Modifier.height(24.dp))
 
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.primary,
-            divider = {}
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .padding(horizontal = 16.dp)
         ) {
             tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = { 
-                        Text(
-                            text = title, 
-                            fontSize = 11.sp, 
-                            maxLines = 1,
-                            color = if (selectedTab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                        ) 
-                    }
-                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { selectedTab = index }
+                        .drawBehind {
+                            if (selectedTab == index) {
+                                drawLine(
+                                    color = Color(0xFFA855F7),
+                                    start = Offset(0f, size.height),
+                                    end = Offset(size.width, size.height),
+                                    strokeWidth = 3.dp.toPx()
+                                )
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 11.sp,
+                        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selectedTab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
 
-        // --- CONTENT ---
-        Box(
+        // --- CONTENT AREA (Step 1: Dumb Content) ---
+        Column(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp)
         ) {
             if (selectedTab == 0) {
-                // Phase 2: Add a single input field with local state
-                var nameDraft by remember(profile.settings.profile.displayName) { 
-                    mutableStateOf(profile.settings.profile.displayName) 
+                Text(text = "Profile Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                // Static Avatar Placeholder
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.size(80.dp).background(Color.Gray.copy(alpha = 0.2f), CircleShape))
                 }
                 
-                Column {
-                    Text(
-                        text = "Profile Settings",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Dummy Input Boxes (Just colored rectangles)
+                repeat(3) {
+                    Box(modifier = Modifier.fillMaxWidth().height(56.dp).background(Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(8.dp)))
                     Spacer(modifier = Modifier.height(24.dp))
-                    
-                    OutlinedTextField(
-                        value = nameDraft,
-                        onValueChange = { nameDraft = it },
-                        label = { Text("Display Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    Button(
-                        onClick = {
-                            mainViewModel.updateSettings(profile.settings.copy(
-                                profile = profile.settings.profile.copy(displayName = nameDraft)
-                            ))
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Save Changes")
-                    }
                 }
+                
+                Box(modifier = Modifier.fillMaxWidth().height(52.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp)))
             } else {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Selected: ${tabs[selectedTab]}",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-                    )
-                }
+                Text(text = "Tab: ${tabs[selectedTab]}", color = MaterialTheme.colorScheme.onBackground)
             }
+            
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
