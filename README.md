@@ -24,9 +24,7 @@ A smart, personalised and practical solution to school/work stress and last minu
 
 ## What its Made Of
 
-*   **Structure:** HTML5
-*   **Styling:** CSS3
-*   **Logic Engine:** Javascript
+*   
 *   **AI Coordination:** Google AI Studio SDK / Fetch API API integration
 
 ---
