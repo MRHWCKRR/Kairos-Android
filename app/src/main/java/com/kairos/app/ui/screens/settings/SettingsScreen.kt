@@ -1,12 +1,16 @@
 package com.kairos.app.ui.screens.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -37,7 +41,6 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
         
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Simple TabRow
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -54,7 +57,7 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
                         .drawBehind {
                             if (selectedTab == index) {
                                 drawLine(
-                                    color = Color(0xFFA855F7), // Primary accent
+                                    color = Color(0xFFA855F7),
                                     start = Offset(0f, size.height),
                                     end = Offset(size.width, size.height),
                                     strokeWidth = 3.dp.toPx()
@@ -73,17 +76,35 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
             }
         }
 
-        // --- PLACEHOLDER CONTENT ---
-        Box(
+        // --- BODY (Incremental Step 3: Title + Avatar Only) ---
+        Column(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(24.dp)
         ) {
-            Text(
-                text = "Body Content for: ${tabs[selectedTab]}",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-            )
+            if (selectedTab == 0) {
+                Text(text = "Profile Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Surface(
+                        modifier = Modifier.size(80.dp), 
+                        shape = CircleShape, 
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(40.dp))
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                Text("Step 3: Title and Avatar Only", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f))
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(text = "Body Content for: ${tabs[selectedTab]}", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f))
+                }
+            }
         }
     }
 }
