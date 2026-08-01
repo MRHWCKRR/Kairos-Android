@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import com.kairos.app.data.models.*
 import com.kairos.app.data.repository.AuthRepository
 import com.kairos.app.data.repository.FirebaseRepository
-import com.kairos.app.data.repository.StorageRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,8 +26,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class MainViewModel @JvmOverloads constructor(
     private val authRepository: AuthRepository = AuthRepository(),
-    private val firebaseRepository: FirebaseRepository = FirebaseRepository(),
-    private val storageRepository: StorageRepository = StorageRepository()
+    private val firebaseRepository: FirebaseRepository = FirebaseRepository()
 ) : ViewModel() {
 
     private val _plan = MutableStateFlow<KairosPlan?>(null)
@@ -47,6 +45,9 @@ class MainViewModel @JvmOverloads constructor(
         private set
 
     var isUploadingAvatar by mutableStateOf(false)
+        private set
+
+    var settingsError by mutableStateOf<String?>(null)
         private set
 
     // Events for system notifications
@@ -457,20 +458,27 @@ class MainViewModel @JvmOverloads constructor(
         ))
     }
 
-    fun uploadAvatar(uri: android.net.Uri) {
-        val userId = _user.value?.uid ?: return
+    fun uploadAvatar(context: android.content.Context, uri: android.net.Uri) {
         viewModelScope.launch {
             isUploadingAvatar = true
             try {
-                val url = storageRepository.uploadAvatar(userId, uri)
-                updateAvatar(url)
+                // Encode to Base64 (Compressed to stay under Firestore limit)
+                val base64String = com.kairos.app.utils.ImageUtils.convertToBase64(context, uri)
+                    ?: throw Exception("Could not process image")
+                
+                updateAvatar(base64String)
+                settingsError = null
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Avatar upload failed", e)
-                errorMessage = "Upload failed: ${e.localizedMessage}"
+                Log.e("MainViewModel", "Avatar encoding failed", e)
+                settingsError = "Failed to process image: ${e.localizedMessage}"
             } finally {
                 isUploadingAvatar = false
             }
         }
+    }
+
+    fun clearSettingsError() {
+        settingsError = null
     }
 
     fun toggleAppearanceMode() {

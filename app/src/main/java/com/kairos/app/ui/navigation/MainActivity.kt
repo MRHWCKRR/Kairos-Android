@@ -267,7 +267,8 @@ fun KairosApp(viewModel: MainViewModel) {
                         SyncErrorScreen(
                             errorMessage = errorMessage,
                             modifier = Modifier.padding(innerPadding),
-                            onSignOut = { viewModel.signOut() }
+                            onSignOut = { viewModel.signOut() },
+                            onDismiss = { viewModel.clearError() }
                         )
                     } else {
                         NavHost(
@@ -381,7 +382,8 @@ fun formatTimeAgo(timestamp: Long): String {
 fun SyncErrorScreen(
     errorMessage: String,
     modifier: Modifier = Modifier,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -408,7 +410,7 @@ fun SyncErrorScreen(
         Spacer(modifier = Modifier.height(16.dp))
         
         Text(
-            text = "Data Sync Error",
+            text = "Data Sync Warning",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.error,
             fontWeight = FontWeight.Bold
@@ -439,6 +441,16 @@ fun SyncErrorScreen(
             Spacer(modifier = Modifier.height(12.dp))
         }
         
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+        ) {
+            Text("Dismiss & Go Back")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         OutlinedButton(
             onClick = onSignOut,
             modifier = Modifier.fillMaxWidth()

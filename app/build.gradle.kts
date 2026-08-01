@@ -33,7 +33,6 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
-    implementation(libs.firebase.storage.ktx)
     implementation(libs.play.services.auth)
     implementation(libs.generativeai)
     implementation(libs.kotlinx.serialization.json)

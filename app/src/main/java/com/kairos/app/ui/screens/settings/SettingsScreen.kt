@@ -1,14 +1,18 @@
 package com.kairos.app.ui.screens.settings
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,14 +39,44 @@ import com.kairos.app.ui.navigation.MainViewModel
 fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
     val profile by mainViewModel.profile.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Personal", "Accessibility", "Appearance", "AI Engine")
+    var isEditingProfile by remember { mutableStateOf(false) }
 
-    Column(
+    // --- ZERO-WINDOW CONTENT SWAP ---
+    // Either shows the main tabs OR the focused profile editor. No overlaps.
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // --- HEADER ---
+        if (isEditingProfile) {
+            PersonalEditBunker(
+                profile = profile,
+                viewModel = mainViewModel,
+                onDismiss = { isEditingProfile = false }
+            )
+        } else {
+            SettingsMainView(
+                profile = profile,
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                onEditRequest = { isEditingProfile = true },
+                mainViewModel = mainViewModel
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsMainView(
+    profile: KairosUserProfile,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    onEditRequest: () -> Unit,
+    mainViewModel: MainViewModel
+) {
+    val tabs = listOf("Personal", "Accessibility", "Appearance", "AI Engine")
+    
+    Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "Settings",
             fontSize = 32.sp,
@@ -53,127 +87,165 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
         
         Spacer(modifier = Modifier.height(24.dp))
 
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.primary,
-            divider = {}
+        Row(
+            modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp)
         ) {
             tabs.forEachIndexed { index, title ->
-                Tab(
+                BunkerTabItem(
+                    text = title,
                     selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = { 
-                        Text(
-                            text = title, 
-                            fontSize = 11.sp, 
-                            maxLines = 1,
-                            color = if (selectedTab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                        ) 
-                    }
+                    onClick = { onTabSelected(index) },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
 
-        // --- CONTENT AREA ---
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(24.dp)
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp)
         ) {
-            item {
-                when (selectedTab) {
-                    0 -> PersonalTabResetInteractive(profile, mainViewModel)
-                    1 -> AccessibilityTabSafe(profile.settings, mainViewModel)
-                    2 -> AppearanceTabSafe(profile.settings, mainViewModel)
-                    3 -> AiTabSafe()
-                }
+            when (selectedTab) {
+                0 -> PersonalTabView(profile, onEditRequest)
+                1 -> AccessibilityTabContent(profile.settings, mainViewModel)
+                2 -> AppearanceTabContent(profile.settings, mainViewModel)
+                3 -> AiTabSafe(mainViewModel)
             }
-            
-            item { Spacer(modifier = Modifier.height(100.dp)) }
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
 
 @Composable
-fun PersonalTabResetInteractive(profile: KairosUserProfile, viewModel: MainViewModel) {
-    var nameDraft by remember(profile.settings.profile.displayName) { mutableStateOf(profile.settings.profile.displayName) }
+fun PersonalTabView(profile: KairosUserProfile, onEditRequest: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Text(text = "Profile Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.align(Alignment.Start))
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Box(modifier = Modifier.size(100.dp)) {
+            if (profile.settings.profile.avatarURL.isNotBlank()) {
+                AsyncImage(
+                    model = profile.settings.profile.avatarURL,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize().clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Surface(modifier = Modifier.fillMaxSize(), shape = CircleShape, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(50.dp))
+                    }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text(text = profile.settings.profile.displayName.ifBlank { "User" }, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Text(text = "Routine Manager", fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Button(
+            onClick = onEditRequest,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(56.dp)
+        ) {
+            Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Edit Profile Details")
+        }
+    }
+}
+
+@Composable
+fun PersonalEditBunker(
+    profile: KairosUserProfile,
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit
+) {
+    var nameDraft by remember { mutableStateOf(profile.settings.profile.displayName) }
+    val context = LocalContext.current
     
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri: android.net.Uri? ->
-        uri?.let { viewModel.uploadAvatar(it) }
+    ) { uri: Uri? ->
+        uri?.let { viewModel.uploadAvatar(context, it) }
     }
 
-    Column {
-        Text(text = "Profile Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        // Avatar Section with Picker
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(modifier = Modifier.size(100.dp)) {
-                    if (profile.settings.profile.avatarURL.isNotBlank()) {
-                        AsyncImage(
-                            model = profile.settings.profile.avatarURL,
-                            contentDescription = null,
-                            modifier = Modifier.size(100.dp).clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Surface(modifier = Modifier.size(100.dp), shape = CircleShape, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(50.dp))
+    Column(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onBackground) }
+            Text(text = "Edit Profile", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            TextButton(onClick = {
+                viewModel.updateSettings(profile.settings.copy(profile = profile.settings.profile.copy(displayName = nameDraft)))
+                onDismiss()
+            }) {
+                Text("Save", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp)) {
+            // Avatar Section with Picker
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(modifier = Modifier.size(100.dp)) {
+                        if (profile.settings.profile.avatarURL.isNotBlank()) {
+                            AsyncImage(
+                                model = profile.settings.profile.avatarURL,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize().clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Surface(modifier = Modifier.size(100.dp), shape = CircleShape, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(50.dp))
+                                }
+                            }
+                        }
+                        
+                        if (viewModel.isUploadingAvatar) {
+                            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f), CircleShape), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
                             }
                         }
                     }
                     
-                    if (viewModel.isUploadingAvatar) {
-                        Box(
-                            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
-                        }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    OutlinedButton(
+                        onClick = { launcher.launch("image/*") },
+                        shape = RoundedCornerShape(8.dp),
+                        enabled = !viewModel.isUploadingAvatar
+                    ) {
+                        Text(if (viewModel.isUploadingAvatar) "Uploading..." else "Change Picture")
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                OutlinedButton(
-                    onClick = { launcher.launch("image/*") },
-                    shape = RoundedCornerShape(8.dp),
-                    enabled = !viewModel.isUploadingAvatar
-                ) {
-                    Text(if (viewModel.isUploadingAvatar) "Uploading..." else "Change Picture")
-                }
             }
-        }
-        
-        Spacer(modifier = Modifier.height(32.dp))
 
-        // Display Name Input
-        SettingsInputBunker(label = "Display Name", value = nameDraft, onValueChange = { nameDraft = it })
-        
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-        Button(
-            onClick = {
-                viewModel.updateSettings(profile.settings.copy(
-                    profile = profile.settings.profile.copy(
-                        displayName = nameDraft
-                    )
-                ))
-            },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Save Name Changes")
+            BunkerInputSafe(label = "Display Name", value = nameDraft, onValueChange = { nameDraft = it })
+            
+            if (viewModel.settingsError != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = viewModel.settingsError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(text = "Images are securely stored and synced to all your devices.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
         }
     }
 }
 
 @Composable
-fun AccessibilityTabSafe(settings: KairosSettings, viewModel: MainViewModel) {
+fun AccessibilityTabContent(settings: KairosSettings, viewModel: MainViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(text = "Accessibility", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         Column {
@@ -181,7 +253,7 @@ fun AccessibilityTabSafe(settings: KairosSettings, viewModel: MainViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
                 listOf("compact", "default", "spacious").forEach { density ->
-                    BunkerOptionTile(density, settings.accessibility.density == density, { viewModel.updateSettings(settings.copy(accessibility = settings.accessibility.copy(density = density))) }, Modifier.weight(1f))
+                    BunkerOptionButton(density, settings.accessibility.density == density, { viewModel.updateSettings(settings.copy(accessibility = settings.accessibility.copy(density = density))) }, Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
                 }
             }
@@ -190,36 +262,24 @@ fun AccessibilityTabSafe(settings: KairosSettings, viewModel: MainViewModel) {
 }
 
 @Composable
-fun AppearanceTabSafe(settings: KairosSettings, viewModel: MainViewModel) {
+fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(text = "Appearance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         Column {
             Text(text = "Theme Mode", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                BunkerOptionTile("dark", settings.appearance.mode == "dark", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "dark"))) }, Modifier.weight(1f))
+                BunkerOptionButton("dark", settings.appearance.mode == "dark", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "dark"))) }, Modifier.weight(1f))
                 Spacer(modifier = Modifier.width(8.dp))
-                BunkerOptionTile("light", settings.appearance.mode == "light", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "light"))) }, Modifier.weight(1f))
+                BunkerOptionButton("light", settings.appearance.mode == "light", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "light"))) }, Modifier.weight(1f))
             }
         }
         Column {
             Text(text = "Theme Accent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
             Row {
-                listOf(
-                    "default" to Color(0xFFA855F7),
-                    "fairyfloss" to Color(0xFFFF8FC9),
-                    "poseidon" to Color(0xFF38BDF8),
-                    "peacefulplains" to Color(0xFF4ADE80)
-                ).forEach { (id, color) ->
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                            .border(2.dp, if (settings.appearance.theme == id) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape)
-                            .clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(theme = id))) }
-                    )
+                listOf("default" to Color(0xFFA855F7), "fairyfloss" to Color(0xFFFF8FC9), "poseidon" to Color(0xFF38BDF8), "peacefulplains" to Color(0xFF4ADE80)).forEach { (id, color) ->
+                    Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(color).border(2.dp, if (settings.appearance.theme == id) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape).clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(theme = id))) })
                     Spacer(modifier = Modifier.width(12.dp))
                 }
             }
@@ -228,18 +288,18 @@ fun AppearanceTabSafe(settings: KairosSettings, viewModel: MainViewModel) {
 }
 
 @Composable
-fun AiTabSafe() {
+fun AiTabSafe(viewModel: MainViewModel) {
     val context = LocalContext.current
     val preferenceManager = remember { PreferenceManager(context) }
     var keyDraft by remember { mutableStateOf(preferenceManager.getGeminiKey() ?: "") }
 
-    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        Text(text = "AI Engine", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        SettingsInputBunker(label = "Gemini API Key", value = keyDraft, onValueChange = { keyDraft = it })
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(text = "AI Helper", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        BunkerInputSafe(label = "Gemini API Key", value = keyDraft, onValueChange = { keyDraft = it })
         Button(
             onClick = { 
                 preferenceManager.saveGeminiKey(keyDraft)
-                android.widget.Toast.makeText(context, "Key Saved!", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Key Saved!", Toast.LENGTH_SHORT).show()
             },
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(12.dp)
@@ -250,9 +310,33 @@ fun AiTabSafe() {
 }
 
 @Composable
-fun SettingsInputBunker(label: String, value: String, onValueChange: (String) -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+fun BunkerTabItem(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxHeight().clickable { onClick() }.drawBehind {
+            if (selected) {
+                drawLine(
+                    color = Color(0xFFA855F7),
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 3.dp.toPx()
+                )
+            }
+        },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+        )
+    }
+}
+
+@Composable
+fun BunkerInputSafe(label: String, value: String, onValueChange: (String) -> Unit) {
+    Column {
+        Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
         Spacer(modifier = Modifier.height(8.dp))
         Box(
             modifier = Modifier
@@ -271,17 +355,17 @@ fun SettingsInputBunker(label: String, value: String, onValueChange: (String) ->
                 singleLine = true
             )
             if (value.isEmpty()) {
-                Text(text = "Enter $label...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), fontSize = 16.sp)
+                Text(text = "Enter $label...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), fontSize = 15.sp)
             }
         }
     }
 }
 
 @Composable
-fun BunkerOptionTile(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun BunkerOptionButton(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier.height(48.dp).clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(8.dp),
         color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
         border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
     ) {
