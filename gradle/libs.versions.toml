@@ -1,6 +1,6 @@
 [versions]
-agp = "8.9.0"
-kotlin = "2.0.20"
+agp = "8.5.2"
+kotlin = "2.0.0"
 firebaseBom = "33.1.2"
 composeBom = "2024.06.00"
 activityCompose = "1.9.0"
@@ -20,6 +20,7 @@ play-services-auth = { group = "com.google.android.gms", name = "play-services-a
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
+firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx" }
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 compose-ui = { group = "androidx.compose.ui", name = "ui" }

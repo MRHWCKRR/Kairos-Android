@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.kairos.app.data.models.*
 import com.kairos.app.data.repository.AuthRepository
 import com.kairos.app.data.repository.FirebaseRepository
+import com.kairos.app.data.repository.StorageRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -26,7 +27,8 @@ import kotlin.time.Duration.Companion.seconds
 
 class MainViewModel @JvmOverloads constructor(
     private val authRepository: AuthRepository = AuthRepository(),
-    private val firebaseRepository: FirebaseRepository = FirebaseRepository()
+    private val firebaseRepository: FirebaseRepository = FirebaseRepository(),
+    private val storageRepository: StorageRepository = StorageRepository()
 ) : ViewModel() {
 
     private val _plan = MutableStateFlow<KairosPlan?>(null)
@@ -42,6 +44,9 @@ class MainViewModel @JvmOverloads constructor(
         private set
 
     var isInitializing by mutableStateOf(true)
+        private set
+
+    var isUploadingAvatar by mutableStateOf(false)
         private set
 
     // Events for system notifications
@@ -450,6 +455,22 @@ class MainViewModel @JvmOverloads constructor(
         updateSettings(currentSettings.copy(
             profile = currentSettings.profile.copy(avatarURL = url)
         ))
+    }
+
+    fun uploadAvatar(uri: android.net.Uri) {
+        val userId = _user.value?.uid ?: return
+        viewModelScope.launch {
+            isUploadingAvatar = true
+            try {
+                val url = storageRepository.uploadAvatar(userId, uri)
+                updateAvatar(url)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Avatar upload failed", e)
+                errorMessage = "Upload failed: ${e.localizedMessage}"
+            } finally {
+                isUploadingAvatar = false
+            }
+        }
     }
 
     fun toggleAppearanceMode() {

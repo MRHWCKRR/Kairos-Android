@@ -6,8 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,21 +31,18 @@ import com.kairos.app.data.local.PreferenceManager
 import com.kairos.app.data.models.*
 import com.kairos.app.ui.navigation.MainViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
     val profile by mainViewModel.profile.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(2) } // Default to Appearance
+    var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Personal", "Accessibility", "Appearance", "AI Engine")
-
-    var showEditSheet by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // --- FIXED HEADER ---
+        // --- HEADER ---
         Text(
             text = "Settings",
             fontSize = 32.sp,
@@ -55,235 +53,213 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
         
         Spacer(modifier = Modifier.height(24.dp))
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 16.dp)
+        TabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.primary,
+            divider = {}
         ) {
             tabs.forEachIndexed { index, title ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable { selectedTab = index }
-                        .drawBehind {
-                            if (selectedTab == index) {
-                                drawLine(
-                                    color = Color(0xFFA855F7),
-                                    start = Offset(0f, size.height),
-                                    end = Offset(size.width, size.height),
-                                    strokeWidth = 3.dp.toPx()
-                                )
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = title,
-                        fontSize = 11.sp,
-                        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selectedTab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
-                }
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = { 
+                        Text(
+                            text = title, 
+                            fontSize = 11.sp, 
+                            maxLines = 1,
+                            color = if (selectedTab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        ) 
+                    }
+                )
             }
         }
 
-        // --- CONTENT AREA (LazyColumn for ultimate stability) ---
+        // --- CONTENT AREA ---
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(24.dp)
         ) {
-            if (selectedTab == 0) { // PERSONAL
-                item { 
-                    Text(text = "Profile Settings", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                    Spacer(modifier = Modifier.height(32.dp))
-                }
-                
-                item {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Box(modifier = Modifier.size(80.dp)) {
-                            if (profile.settings.profile.avatarURL.isNotBlank()) {
-                                AsyncImage(
-                                    model = profile.settings.profile.avatarURL,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(80.dp).clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Surface(modifier = Modifier.size(80.dp), shape = CircleShape, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(40.dp))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
-
-                item {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Text(text = profile.settings.profile.displayName.ifBlank { "User" }, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                        Text(text = "Tap to update your information", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-                        Spacer(modifier = Modifier.height(32.dp))
-                        Button(
-                            onClick = { showEditSheet = true },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().height(52.dp)
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Edit Profile")
-                        }
-                    }
-                }
-            }
-
-            if (selectedTab == 1) { // ACCESSIBILITY
-                item { 
-                    Text(text = "Accessibility", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text(text = "Layout Density", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                item {
-                    Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                        listOf("compact", "default", "spacious").forEach { d ->
-                            OptionTileBunker(d, profile.settings.accessibility.density == d, { mainViewModel.updateSettings(profile.settings.copy(accessibility = profile.settings.accessibility.copy(density = it))) }, Modifier.weight(1f))
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                    }
-                }
-            }
-
-            if (selectedTab == 2) { // APPEARANCE
-                item { 
-                    Text(text = "Appearance", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text(text = "Theme Mode", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                item {
-                    Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                        OptionTileBunker("dark", profile.settings.appearance.mode == "dark", { mainViewModel.updateSettings(profile.settings.copy(appearance = profile.settings.appearance.copy(mode = "dark"))) }, Modifier.weight(1f))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OptionTileBunker("light", profile.settings.appearance.mode == "light", { mainViewModel.updateSettings(profile.settings.copy(appearance = profile.settings.appearance.copy(mode = "light"))) }, Modifier.weight(1f))
-                    }
-                    Spacer(modifier = Modifier.height(32.dp))
-                }
-                item {
-                    Text(text = "Accent Color", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row {
-                        listOf("default", "fairyfloss", "poseidon", "peacefulplains").forEach { theme ->
-                            Box(
-                                modifier = Modifier.size(44.dp).clip(CircleShape).background(
-                                    when(theme){
-                                        "fairyfloss" -> Color(0xFFFF8FC9)
-                                        "poseidon" -> Color(0xFF38BDF8)
-                                        "peacefulplains" -> Color(0xFF4ADE80)
-                                        else -> Color(0xFFA855F7)
-                                    }
-                                ).border(2.dp, if(profile.settings.appearance.theme == theme) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape)
-                                .clickable { mainViewModel.updateSettings(profile.settings.copy(appearance = profile.settings.appearance.copy(theme = theme))) }
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                        }
-                    }
-                }
-            }
-
-            if (selectedTab == 3) { // AI
-                item { 
-                    Text(text = "AI Helper Settings", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
-                item {
-                    val context = LocalContext.current
-                    val prefs = remember { PreferenceManager(context) }
-                    var keyDraft by remember { mutableStateOf(prefs.getGeminiKey() ?: "") }
-                    Column {
-                        BunkerInputMini(label = "Gemini API Key", value = keyDraft, onValueChange = { keyDraft = it })
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(onClick = { 
-                            prefs.saveGeminiKey(keyDraft)
-                            android.widget.Toast.makeText(context, "Key Saved!", android.widget.Toast.LENGTH_SHORT).show()
-                        }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(12.dp)) {
-                            Text("Save API Key")
-                        }
-                    }
+            item {
+                when (selectedTab) {
+                    0 -> PersonalTabResetInteractive(profile, mainViewModel)
+                    1 -> AccessibilityTabSafe(profile.settings, mainViewModel)
+                    2 -> AppearanceTabSafe(profile.settings, mainViewModel)
+                    3 -> AiTabSafe()
                 }
             }
             
             item { Spacer(modifier = Modifier.height(100.dp)) }
         }
     }
-
-    if (showEditSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showEditSheet = false },
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-        ) {
-            PersonalEditSheet(
-                profile = profile,
-                onSave = { updatedProfile ->
-                    mainViewModel.updateSettings(updatedProfile.settings)
-                    showEditSheet = false
-                }
-            )
-        }
-    }
 }
 
 @Composable
-fun PersonalEditSheet(profile: KairosUserProfile, onSave: (KairosUserProfile) -> Unit) {
-    var nameDraft by remember { mutableStateOf(profile.settings.profile.displayName) }
-    var avatarDraft by remember { mutableStateOf(profile.settings.profile.avatarURL) }
-    var birthdayDraft by remember { mutableStateOf(profile.settings.profile.birthday) }
+fun PersonalTabResetInteractive(profile: KairosUserProfile, viewModel: MainViewModel) {
+    var nameDraft by remember(profile.settings.profile.displayName) { mutableStateOf(profile.settings.profile.displayName) }
+    
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { viewModel.uploadAvatar(it) }
+    }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(24.dp).padding(bottom = 32.dp)
-    ) {
-        Text(text = "Edit Profile", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+    Column {
+        Text(text = "Profile Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        // Avatar Section with Picker
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(modifier = Modifier.size(100.dp)) {
+                    if (profile.settings.profile.avatarURL.isNotBlank()) {
+                        AsyncImage(
+                            model = profile.settings.profile.avatarURL,
+                            contentDescription = null,
+                            modifier = Modifier.size(100.dp).clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Surface(modifier = Modifier.size(100.dp), shape = CircleShape, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(50.dp))
+                            }
+                        }
+                    }
+                    
+                    if (viewModel.isUploadingAvatar) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedButton(
+                    onClick = { launcher.launch("image/*") },
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !viewModel.isUploadingAvatar
+                ) {
+                    Text(if (viewModel.isUploadingAvatar) "Uploading..." else "Change Picture")
+                }
+            }
+        }
+        
         Spacer(modifier = Modifier.height(32.dp))
 
-        BunkerInputMini(label = "Display Name", value = nameDraft, onValueChange = { nameDraft = it })
-        Spacer(modifier = Modifier.height(24.dp))
-        BunkerInputMini(label = "Avatar URL", value = avatarDraft, onValueChange = { avatarDraft = it })
-        Spacer(modifier = Modifier.height(24.dp))
-        BunkerInputMini(label = "Birthday (YYYY-MM-DD)", value = birthdayDraft, onValueChange = { birthdayDraft = it })
-
-        Spacer(modifier = Modifier.height(40.dp))
+        // Display Name Input
+        SettingsInputBunker(label = "Display Name", value = nameDraft, onValueChange = { nameDraft = it })
+        
+        Spacer(modifier = Modifier.height(32.dp))
 
         Button(
             onClick = {
-                onSave(profile.copy(
-                    settings = profile.settings.copy(
-                        profile = profile.settings.profile.copy(
-                            displayName = nameDraft,
-                            avatarURL = avatarDraft,
-                            birthday = birthdayDraft
-                        )
+                viewModel.updateSettings(profile.settings.copy(
+                    profile = profile.settings.profile.copy(
+                        displayName = nameDraft
                     )
                 ))
             },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(16.dp)
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Save Profile Changes", fontWeight = FontWeight.Bold)
+            Text("Save Name Changes")
         }
     }
 }
 
 @Composable
-fun BunkerInputMini(label: String, value: String, onValueChange: (String) -> Unit) {
-    Column {
-        Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+fun AccessibilityTabSafe(settings: KairosSettings, viewModel: MainViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        Text(text = "Accessibility", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Column {
+            Text(text = "Layout Density", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                listOf("compact", "default", "spacious").forEach { density ->
+                    BunkerOptionTile(density, settings.accessibility.density == density, { viewModel.updateSettings(settings.copy(accessibility = settings.accessibility.copy(density = density))) }, Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AppearanceTabSafe(settings: KairosSettings, viewModel: MainViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        Text(text = "Appearance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Column {
+            Text(text = "Theme Mode", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                BunkerOptionTile("dark", settings.appearance.mode == "dark", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "dark"))) }, Modifier.weight(1f))
+                Spacer(modifier = Modifier.width(8.dp))
+                BunkerOptionTile("light", settings.appearance.mode == "light", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "light"))) }, Modifier.weight(1f))
+            }
+        }
+        Column {
+            Text(text = "Theme Accent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row {
+                listOf(
+                    "default" to Color(0xFFA855F7),
+                    "fairyfloss" to Color(0xFFFF8FC9),
+                    "poseidon" to Color(0xFF38BDF8),
+                    "peacefulplains" to Color(0xFF4ADE80)
+                ).forEach { (id, color) ->
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .border(2.dp, if (settings.appearance.theme == id) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape)
+                            .clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(theme = id))) }
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AiTabSafe() {
+    val context = LocalContext.current
+    val preferenceManager = remember { PreferenceManager(context) }
+    var keyDraft by remember { mutableStateOf(preferenceManager.getGeminiKey() ?: "") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        Text(text = "AI Engine", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        SettingsInputBunker(label = "Gemini API Key", value = keyDraft, onValueChange = { keyDraft = it })
+        Button(
+            onClick = { 
+                preferenceManager.saveGeminiKey(keyDraft)
+                android.widget.Toast.makeText(context, "Key Saved!", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Save API Key")
+        }
+    }
+}
+
+@Composable
+fun SettingsInputBunker(label: String, value: String, onValueChange: (String) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
         Spacer(modifier = Modifier.height(8.dp))
         Box(
-            modifier = Modifier.fillMaxWidth().height(52.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(8.dp)).padding(horizontal = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             BasicTextField(
@@ -295,17 +271,17 @@ fun BunkerInputMini(label: String, value: String, onValueChange: (String) -> Uni
                 singleLine = true
             )
             if (value.isEmpty()) {
-                Text(text = "...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), fontSize = 15.sp)
+                Text(text = "Enter $label...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), fontSize = 16.sp)
             }
         }
     }
 }
 
 @Composable
-fun OptionTileBunker(text: String, selected: Boolean, onClick: (String) -> Unit, modifier: Modifier = Modifier) {
+fun BunkerOptionTile(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
-        modifier = modifier.fillMaxHeight().clickable { onClick(text) },
-        shape = RoundedCornerShape(8.dp),
+        modifier = modifier.height(48.dp).clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
         color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
         border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
     ) {
