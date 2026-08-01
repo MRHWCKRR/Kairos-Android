@@ -24,7 +24,7 @@ A smart, personalised and practical solution to school/work stress and last minu
 
 ## What its Made Of
 
-*   
+*   Kotlin
 *   **AI Coordination:** Google AI Studio SDK / Fetch API API integration
 
 ---
@@ -44,8 +44,6 @@ https://kairos-xi-two.vercel.app/app.html
 
 ```bash
 Coming Soon!
-Development Repo:
-https://github.com/MRHWCKRR/Kairos-Android
 ```
 
 ---
@@ -54,12 +52,12 @@ https://github.com/MRHWCKRR/Kairos-Android
 
 - Bugs will likely exist, please create and issue to let me know :)
 
-[contributors-shield]: https://img.shields.io/github/contributors/MRHWCKRR/ClientWarden.svg?style=for-the-badge
-[contributors-url]: https://github.com/MRHWCKRR/Kairos/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/MRHWCKRR/Kairos.svg?style=for-the-badge
-[forks-url]: https://github.com/MRHWCKRR/Kairos/network/members
-[stars-shield]: https://img.shields.io/github/stars/MRHWCKRR/Kairos.svg?style=for-the-badge
+[contributors-shield]: https://img.shields.io/github/contributors/MRHWCKRR/Kairos-Android.svg?style=for-the-badge
+[contributors-url]: https://github.com/MRHWCKRR/Kairos-Android/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/MRHWCKRR/Kairos-Android.svg?style=for-the-badge
+[forks-url]: https://github.com/MRHWCKRR/Kairos-Android/network/members
+[stars-shield]: https://img.shields.io/github/stars/MRHWCKRR/Kairos-Android.svg?style=for-the-badge
 [stars-url]: https://github.com/MRHWCKRR/Kairos/stargazers
-[issues-shield]: https://img.shields.io/github/issues/MRHWCKRR/Kairos.svg?style=for-the-badge
+[issues-shield]: https://img.shields.io/github/issues/MRHWCKRR/Kairos-Android.svg?style=for-the-badge
 [issues-url]: https://github.com/MRHWCKRR/Kairos/issues
-[license-shield]: https://img.shields.io/github/license/MRHWCKRR/Kairos.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/MRHWCKRR/Kairos-Android.svg?style=for-the-badge
