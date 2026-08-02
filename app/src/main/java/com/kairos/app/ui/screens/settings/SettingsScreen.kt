@@ -11,11 +11,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -173,6 +175,7 @@ fun ProfileInfoRow(label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersonalEditBunker(
     profile: KairosUserProfile,
@@ -183,6 +186,18 @@ fun PersonalEditBunker(
     var birthdayDraft by remember { mutableStateOf(profile.settings.profile.birthday) }
     var timezoneDraft by remember { mutableStateOf(profile.settings.profile.timezone) }
     
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimezoneMenu by remember { mutableStateOf(false) }
+
+    val commonTimezones = remember {
+        listOf(
+            "UTC", "GMT", "America/New_York", "America/Los_Angeles", "America/Chicago",
+            "Europe/London", "Europe/Paris", "Europe/Berlin", "Asia/Tokyo", "Asia/Shanghai",
+            "Asia/Singapore", "Australia/Sydney", "Australia/Melbourne", "Australia/Brisbane",
+            "Pacific/Auckland"
+        ).sorted()
+    }
+
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -216,7 +231,7 @@ fun PersonalEditBunker(
         }
 
         Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp)) {
-            // Avatar Section
+            // Avatar Section with Picker
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(modifier = Modifier.size(100.dp)) {
@@ -260,15 +275,109 @@ fun PersonalEditBunker(
             Spacer(modifier = Modifier.height(32.dp))
 
             BunkerInputSafe(label = "Display Name", value = nameDraft, onValueChange = { nameDraft = it })
+            
             Spacer(modifier = Modifier.height(24.dp))
-            BunkerInputSafe(label = "Birthday", value = birthdayDraft, placeholder = "DD/MM/YYYY", onValueChange = { birthdayDraft = it })
+
+            // Birthday with DatePicker
+            Column {
+                Text(text = "Birthday", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                        .clickable { showDatePicker = true }
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = birthdayDraft.ifBlank { "Select Date" },
+                        color = if (birthdayDraft.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface,
+                        fontSize = 15.sp
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
-            BunkerInputSafe(label = "Timezone", value = timezoneDraft, onValueChange = { timezoneDraft = it })
+
+            // Timezone with Dropdown
+            Column {
+                Text(text = "Timezone", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                            .clickable { showTimezoneMenu = true }
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = timezoneDraft, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                            Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = showTimezoneMenu,
+                        onDismissRequest = { showTimezoneMenu = false },
+                        modifier = Modifier.fillMaxWidth(0.8f).background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        commonTimezones.forEach { zone ->
+                            DropdownMenuItem(
+                                text = { Text(zone) },
+                                onClick = {
+                                    timezoneDraft = zone
+                                    showTimezoneMenu = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
             
             if (viewModel.settingsError != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(text = viewModel.settingsError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
             }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = if (birthdayDraft.isNotBlank()) {
+                try {
+                    LocalDate.parse(birthdayDraft, DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        .atStartOfDay(ZoneId.of("UTC"))
+                        .toInstant()
+                        .toEpochMilli()
+                } catch (e: Exception) { null }
+            } else null
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val date = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
+                        birthdayDraft = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }
