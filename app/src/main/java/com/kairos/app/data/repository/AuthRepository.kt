@@ -38,4 +38,19 @@ class AuthRepository {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         auth.signInWithCredential(credential).await()
     }
+
+    suspend fun reauthenticate(password: String) {
+        val user = auth.currentUser ?: throw Exception("No user logged in")
+        val email = user.email ?: throw Exception("No email found")
+        val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(email, password)
+        user.reauthenticate(credential).await()
+    }
+
+    suspend fun updateEmail(newEmail: String) {
+        auth.currentUser?.updateEmail(newEmail)?.await()
+    }
+
+    suspend fun updatePassword(newPassword: String) {
+        auth.currentUser?.updatePassword(newPassword)?.await()
+    }
 }

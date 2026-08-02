@@ -50,6 +50,12 @@ class MainViewModel @JvmOverloads constructor(
     var settingsError by mutableStateOf<String?>(null)
         private set
 
+    var securityError by mutableStateOf<String?>(null)
+        private set
+
+    var securitySuccess by mutableStateOf<String?>(null)
+        private set
+
     // Events for system notifications
     private val _notificationEvents = MutableSharedFlow<Pair<String, String>>()
     val notificationEvents: SharedFlow<Pair<String, String>> = _notificationEvents.asSharedFlow()
@@ -483,6 +489,37 @@ class MainViewModel @JvmOverloads constructor(
 
     fun clearSettingsError() {
         settingsError = null
+    }
+
+    fun clearSecurityMessages() {
+        securityError = null
+        securitySuccess = null
+    }
+
+    fun updateEmail(password: String, newEmail: String) {
+        viewModelScope.launch {
+            try {
+                authRepository.reauthenticate(password)
+                authRepository.updateEmail(newEmail)
+                securitySuccess = "Email updated successfully"
+                securityError = null
+            } catch (e: Exception) {
+                securityError = e.localizedMessage ?: "Failed to update email"
+            }
+        }
+    }
+
+    fun updatePassword(currentPassword: String, newPassword: String) {
+        viewModelScope.launch {
+            try {
+                authRepository.reauthenticate(currentPassword)
+                authRepository.updatePassword(newPassword)
+                securitySuccess = "Password updated successfully"
+                securityError = null
+            } catch (e: Exception) {
+                securityError = e.localizedMessage ?: "Failed to update password"
+            }
+        }
     }
 
     fun toggleAppearanceMode() {

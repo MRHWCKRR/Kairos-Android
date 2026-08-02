@@ -10,14 +10,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +26,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -37,6 +37,14 @@ import com.kairos.app.data.local.PreferenceManager
 import com.kairos.app.data.models.*
 import com.kairos.app.ui.components.ProfileImage
 import com.kairos.app.ui.navigation.MainViewModel
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 @Composable
 fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
@@ -116,7 +124,7 @@ fun SettingsMainView(
             when (selectedTab) {
                 0 -> PersonalTabView(profile, onEditRequest)
                 1 -> AccessibilityTabContent(profile.settings, mainViewModel)
-                2 -> SecurityTabContent(user)
+                2 -> SecurityTabContent(user, mainViewModel)
                 3 -> AppearanceTabContent(profile.settings, mainViewModel)
                 4 -> AiTabSafe(mainViewModel)
             }
@@ -383,33 +391,90 @@ fun PersonalEditBunker(
 }
 
 @Composable
-fun SecurityTabContent(user: com.google.firebase.auth.FirebaseUser?) {
+fun SecurityTabContent(user: com.google.firebase.auth.FirebaseUser?, viewModel: MainViewModel) {
+    var newEmail by remember { mutableStateOf(user?.email ?: "") }
+    var emailPassword by remember { mutableStateOf("") }
+    
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+
+    val lastSignIn = remember(user) {
+        user?.metadata?.lastSignInTimestamp?.let {
+            SimpleDateFormat("M/d/yyyy, h:mm:ss a", Locale.getDefault()).format(Date(it))
+        } ?: "Unknown"
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(text = "Privacy & Security", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(text = "Account", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(modifier = Modifier.height(20.dp))
-                
-                Text(text = "Email", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                Text(text = user?.email ?: "Unknown", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-                
-                Spacer(modifier = Modifier.height(20.dp))
-                
-                Text(text = "Signed in with", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                val provider = user?.providerData?.getOrNull(1)?.providerId ?: "password"
-                val providerName = when {
-                    provider.contains("google") -> "Google"
-                    provider.contains("github") -> "GitHub"
-                    else -> "Email"
-                }
-                Text(text = providerName, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+        // Change Email
+        SecurityCard(title = "Change Email") {
+            BunkerInputSafe(label = "New Email", value = newEmail, onValueChange = { newEmail = it })
+            Spacer(modifier = Modifier.height(16.dp))
+            BunkerInputSafe(label = "Confirm with Password", value = emailPassword, onValueChange = { emailPassword = it }, isPassword = true)
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = { viewModel.updateEmail(emailPassword, newEmail) },
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(44.dp)
+            ) {
+                Text("Update Email")
             }
+        }
+
+        // Change Password
+        SecurityCard(title = "Change Password") {
+            BunkerInputSafe(label = "Current password", value = currentPassword, onValueChange = { currentPassword = it }, isPassword = true)
+            Spacer(modifier = Modifier.height(16.dp))
+            BunkerInputSafe(label = "New password", value = newPassword, onValueChange = { newPassword = it }, isPassword = true)
+            Spacer(modifier = Modifier.height(16.dp))
+            BunkerInputSafe(label = "Confirm new password", value = confirmPassword, onValueChange = { confirmPassword = it }, isPassword = true)
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = { 
+                    if (newPassword == confirmPassword) {
+                        viewModel.updatePassword(currentPassword, newPassword)
+                    }
+                },
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(44.dp)
+            ) {
+                Text("Update Password")
+            }
+        }
+
+        // Session
+        SecurityCard(title = "Session") {
+            Text(text = "Last sign-in: $lastSignIn", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "A full \"manage all devices\" view needs a backend we don't have yet — this is on the roadmap.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+
+        if (viewModel.securityError != null) {
+            Text(text = viewModel.securityError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+        }
+        if (viewModel.securitySuccess != null) {
+            Text(text = viewModel.securitySuccess!!, color = Color(0xFF4ADE80), fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+fun SecurityCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(text = title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.height(20.dp))
+            content()
         }
     }
 }
@@ -511,7 +576,13 @@ fun BunkerTabItem(text: String, selected: Boolean, onClick: () -> Unit, modifier
 }
 
 @Composable
-fun BunkerInputSafe(label: String, value: String, placeholder: String = "", onValueChange: (String) -> Unit) {
+fun BunkerInputSafe(
+    label: String, 
+    value: String, 
+    onValueChange: (String) -> Unit,
+    isPassword: Boolean = false,
+    placeholder: String = ""
+) {
     Column {
         Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
         Spacer(modifier = Modifier.height(8.dp))
@@ -529,7 +600,9 @@ fun BunkerInputSafe(label: String, value: String, placeholder: String = "", onVa
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                singleLine = true
+                singleLine = true,
+                visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+                keyboardOptions = KeyboardOptions(keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text)
             )
             if (value.isEmpty()) {
                 Text(text = placeholder.ifBlank { "Enter $label..." }, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), fontSize = 15.sp)
