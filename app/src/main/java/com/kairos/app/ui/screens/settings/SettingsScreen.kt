@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -33,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.kairos.app.data.local.PreferenceManager
 import com.kairos.app.data.models.*
+import com.kairos.app.ui.components.ProfileImage
 import com.kairos.app.ui.navigation.MainViewModel
 
 @Composable
@@ -42,19 +42,23 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
     var isEditingProfile by remember { mutableStateOf(false) }
 
     // --- ZERO-WINDOW CONTENT SWAP ---
-    // Either shows the main tabs OR the focused profile editor. No overlaps.
+    // Either shows the main tabs OR the isolated profile editor. 
+    // This physically prevents measurement loops between overlapping windows.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
         if (isEditingProfile) {
+            // THE ISOLATED EDITOR (No ties to main profile Flow during editing)
             PersonalEditBunker(
-                profile = profile,
+                initialName = profile.settings.profile.displayName,
+                initialAvatar = profile.settings.profile.avatarURL,
                 viewModel = mainViewModel,
                 onDismiss = { isEditingProfile = false }
             )
         } else {
+            // THE MAIN VIEW
             SettingsMainView(
                 profile = profile,
                 selectedTab = selectedTab,
@@ -121,20 +125,10 @@ fun PersonalTabView(profile: KairosUserProfile, onEditRequest: () -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         
         Box(modifier = Modifier.size(100.dp)) {
-            if (profile.settings.profile.avatarURL.isNotBlank()) {
-                AsyncImage(
-                    model = profile.settings.profile.avatarURL,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize().clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Surface(modifier = Modifier.fillMaxSize(), shape = CircleShape, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(50.dp))
-                    }
-                }
-            }
+            ProfileImage(
+                imageUrl = profile.settings.profile.avatarURL,
+                modifier = Modifier.size(100.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+            )
         }
         
         Spacer(modifier = Modifier.height(24.dp))
@@ -158,11 +152,16 @@ fun PersonalTabView(profile: KairosUserProfile, onEditRequest: () -> Unit) {
 
 @Composable
 fun PersonalEditBunker(
-    profile: KairosUserProfile,
+    initialName: String,
+    initialAvatar: String,
     viewModel: MainViewModel,
     onDismiss: () -> Unit
 ) {
-    var nameDraft by remember { mutableStateOf(profile.settings.profile.displayName) }
+    // --- SNAPSHOT STATE ---
+    // By using local state derived from constants, we decouple the editor 
+    // from the main profile flow, breaking any recomposition loops.
+    var nameDraft by remember { mutableStateOf(initialName) }
+    val currentAvatar = remember { initialAvatar } 
     val context = LocalContext.current
     
     val launcher = rememberLauncherForActivityResult(
@@ -174,16 +173,23 @@ fun PersonalEditBunker(
     Column(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
     ) {
-        // Header
+        // Simple Top Bar
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onBackground) }
+            IconButton(onClick = {
+                viewModel.clearSettingsError()
+                onDismiss()
+            }) { 
+                Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onBackground) 
+            }
             Text(text = "Edit Profile", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             TextButton(onClick = {
-                viewModel.updateSettings(profile.settings.copy(profile = profile.settings.profile.copy(displayName = nameDraft)))
+                viewModel.updateSettings(viewModel.profile.value.settings.copy(
+                    profile = viewModel.profile.value.settings.profile.copy(displayName = nameDraft)
+                ))
                 onDismiss()
             }) {
                 Text("Save", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
@@ -191,24 +197,14 @@ fun PersonalEditBunker(
         }
 
         Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp)) {
-            // Avatar Section with Picker
+            // Avatar Section
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(modifier = Modifier.size(100.dp)) {
-                        if (profile.settings.profile.avatarURL.isNotBlank()) {
-                            AsyncImage(
-                                model = profile.settings.profile.avatarURL,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize().clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Surface(modifier = Modifier.size(100.dp), shape = CircleShape, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(50.dp))
-                                }
-                            }
-                        }
+                        ProfileImage(
+                            imageUrl = currentAvatar,
+                            modifier = Modifier.size(100.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        )
                         
                         if (viewModel.isUploadingAvatar) {
                             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f), CircleShape), contentAlignment = Alignment.Center) {
@@ -222,9 +218,10 @@ fun PersonalEditBunker(
                     OutlinedButton(
                         onClick = { launcher.launch("image/*") },
                         shape = RoundedCornerShape(8.dp),
-                        enabled = !viewModel.isUploadingAvatar
+                        enabled = !viewModel.isUploadingAvatar,
+                        modifier = Modifier.height(44.dp)
                     ) {
-                        Text(if (viewModel.isUploadingAvatar) "Uploading..." else "Change Picture")
+                        Text(if (viewModel.isUploadingAvatar) "Processing..." else "Change Picture")
                     }
                 }
             }
@@ -239,7 +236,7 @@ fun PersonalEditBunker(
             }
             
             Spacer(modifier = Modifier.height(32.dp))
-            Text(text = "Images are securely stored and synced to all your devices.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
+            Text(text = "Images are compressed to stay under 800KB for Firestore stability.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
         }
     }
 }
@@ -275,11 +272,18 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
             }
         }
         Column {
-            Text(text = "Theme Accent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Text(text = "Accent Color", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
             Row {
-                listOf("default" to Color(0xFFA855F7), "fairyfloss" to Color(0xFFFF8FC9), "poseidon" to Color(0xFF38BDF8), "peacefulplains" to Color(0xFF4ADE80)).forEach { (id, color) ->
-                    Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(color).border(2.dp, if (settings.appearance.theme == id) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape).clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(theme = id))) })
+                listOf(
+                    "default" to Color(0xFFA855F7),
+                    "fairyfloss" to Color(0xFFFF8FC9),
+                    "poseidon" to Color(0xFF38BDF8),
+                    "peacefulplains" to Color(0xFF4ADE80)
+                ).forEach { (id, color) ->
+                    Box(
+                        modifier = Modifier.size(44.dp).clip(CircleShape).background(color).border(2.dp, if (settings.appearance.theme == id) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape).clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(theme = id))) }
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
                 }
             }
@@ -364,7 +368,7 @@ fun BunkerInputSafe(label: String, value: String, onValueChange: (String) -> Uni
 @Composable
 fun BunkerOptionButton(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
-        modifier = modifier.height(48.dp).clickable { onClick() },
+        modifier = modifier.fillMaxHeight().clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
         border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))

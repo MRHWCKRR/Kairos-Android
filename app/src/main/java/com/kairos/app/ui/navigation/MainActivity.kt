@@ -41,6 +41,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import coil.compose.AsyncImage
 import com.kairos.app.data.models.KairosNotification
+import com.kairos.app.ui.components.ProfileImage
 import com.kairos.app.ui.screens.achievements.AchievementsScreen
 import com.kairos.app.ui.screens.ai.AiHelperScreen
 import com.kairos.app.ui.screens.calendar.CalendarScreen
@@ -178,28 +179,10 @@ fun KairosApp(viewModel: MainViewModel) {
                                             modifier = Modifier.padding(16.dp).width(200.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            if (userPhoto.isNotEmpty()) {
-                                                AsyncImage(
-                                                    model = userPhoto,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(40.dp).clip(CircleShape),
-                                                    contentScale = ContentScale.Crop
-                                                )
-                                            } else {
-                                                Surface(
-                                                    modifier = Modifier.size(40.dp),
-                                                    shape = CircleShape,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                ) {
-                                                    Box(contentAlignment = Alignment.Center) {
-                                                        Text(
-                                                            text = userName.take(1).uppercase(),
-                                                            color = Color.White,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                }
-                                            }
+                                            ProfileImage(
+                                                imageUrl = userPhoto,
+                                                modifier = Modifier.size(40.dp)
+                                            )
                                             Column(modifier = Modifier.padding(start = 12.dp)) {
                                                 Text(text = userName, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 Text(text = user?.email ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), maxLines = 1, overflow = TextOverflow.Ellipsis)
