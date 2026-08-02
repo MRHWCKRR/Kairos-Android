@@ -9,13 +9,17 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
 import com.kairos.app.utils.ImageUtils
 
 /**
@@ -25,40 +29,61 @@ import com.kairos.app.utils.ImageUtils
 fun ProfileImage(
     imageUrl: String,
     modifier: Modifier = Modifier,
-    placeholderSize: Int = 40
+    userName: String = ""
 ) {
+    var isLoading by remember { mutableStateOf(true) }
+    var isError by remember { mutableStateOf(false) }
+
     // Determine the model for Coil. If it looks like Base64, decode it to ByteArray.
     val model = remember(imageUrl) {
-        if (imageUrl.length > 100 || !imageUrl.startsWith("http")) {
-            // Likely Base64 or non-URL data
+        if (imageUrl.length > 100 || (!imageUrl.startsWith("http") && imageUrl.isNotBlank())) {
             ImageUtils.decodeBase64(imageUrl)
-        } else {
-            // Likely a standard web URL
+        } else if (imageUrl.isNotBlank()) {
             imageUrl
+        } else {
+            null
         }
     }
 
-    if (imageUrl.isNotBlank()) {
-        AsyncImage(
-            model = model,
-            contentDescription = "Profile Picture",
-            modifier = modifier.clip(CircleShape),
-            contentScale = ContentScale.Crop,
-            error = null // Fallback handled by the else block if model is null
-        )
-    } else {
-        // Default placeholder
-        Surface(
-            modifier = modifier,
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        if (model != null && !isError) {
+            AsyncImage(
+                model = model,
+                contentDescription = "Profile Picture",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+                onState = { state ->
+                    isLoading = state is AsyncImagePainter.State.Loading
+                    isError = state is AsyncImagePainter.State.Error
+                }
+            )
+        }
+
+        // Show Placeholder if no model, or error, or still loading
+        if (model == null || isError) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (userName.isNotBlank()) {
+                        Text(
+                            text = userName.take(1).uppercase(),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
+                }
             }
         }
     }

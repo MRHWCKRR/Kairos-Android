@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -38,29 +39,26 @@ import com.kairos.app.ui.navigation.MainViewModel
 @Composable
 fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
     val profile by mainViewModel.profile.collectAsState()
+    val user by mainViewModel.user.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     var isEditingProfile by remember { mutableStateOf(false) }
 
     // --- ZERO-WINDOW CONTENT SWAP ---
-    // Either shows the main tabs OR the isolated profile editor. 
-    // This physically prevents measurement loops between overlapping windows.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
         if (isEditingProfile) {
-            // THE ISOLATED EDITOR (No ties to main profile Flow during editing)
             PersonalEditBunker(
-                initialName = profile.settings.profile.displayName,
-                initialAvatar = profile.settings.profile.avatarURL,
+                profile = profile,
                 viewModel = mainViewModel,
                 onDismiss = { isEditingProfile = false }
             )
         } else {
-            // THE MAIN VIEW
             SettingsMainView(
                 profile = profile,
+                user = user,
                 selectedTab = selectedTab,
                 onTabSelected = { selectedTab = it },
                 onEditRequest = { isEditingProfile = true },
@@ -73,12 +71,13 @@ fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
 @Composable
 fun SettingsMainView(
     profile: KairosUserProfile,
+    user: com.google.firebase.auth.FirebaseUser?,
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
     onEditRequest: () -> Unit,
     mainViewModel: MainViewModel
 ) {
-    val tabs = listOf("Personal", "Accessibility", "Appearance", "AI Engine")
+    val tabs = listOf("Personal", "Accessibility", "Security", "Appearance", "AI Engine")
     
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
@@ -91,15 +90,20 @@ fun SettingsMainView(
         
         Spacer(modifier = Modifier.height(24.dp))
 
+        // Basic Tab Row - Scrollable if too many tabs
         Row(
-            modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
         ) {
             tabs.forEachIndexed { index, title ->
                 BunkerTabItem(
                     text = title,
                     selected = selectedTab == index,
                     onClick = { onTabSelected(index) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.width(100.dp) // Fixed width for scrollable tabs
                 )
             }
         }
@@ -110,8 +114,9 @@ fun SettingsMainView(
             when (selectedTab) {
                 0 -> PersonalTabView(profile, onEditRequest)
                 1 -> AccessibilityTabContent(profile.settings, mainViewModel)
-                2 -> AppearanceTabContent(profile.settings, mainViewModel)
-                3 -> AiTabSafe(mainViewModel)
+                2 -> SecurityTabContent(user)
+                3 -> AppearanceTabContent(profile.settings, mainViewModel)
+                4 -> AiTabSafe(mainViewModel)
             }
             Spacer(modifier = Modifier.height(100.dp))
         }
@@ -120,23 +125,33 @@ fun SettingsMainView(
 
 @Composable
 fun PersonalTabView(profile: KairosUserProfile, onEditRequest: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Text(text = "Profile Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.align(Alignment.Start))
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(text = "Profile Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(32.dp))
         
-        Box(modifier = Modifier.size(100.dp)) {
-            ProfileImage(
-                imageUrl = profile.settings.profile.avatarURL,
-                modifier = Modifier.size(100.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(80.dp)) {
+                ProfileImage(
+                    imageUrl = profile.settings.profile.avatarURL,
+                    userName = profile.settings.profile.displayName,
+                    modifier = Modifier.size(80.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(text = profile.settings.profile.displayName.ifBlank { "User" }, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Text(text = "Routine Manager", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            }
         }
         
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Text(text = profile.settings.profile.displayName.ifBlank { "User" }, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        Text(text = "Routine Manager", fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-        
         Spacer(modifier = Modifier.height(32.dp))
+        
+        // Info Grid
+        ProfileInfoRow(label = "Birthday", value = profile.settings.profile.birthday.ifBlank { "Not set" })
+        Spacer(modifier = Modifier.height(16.dp))
+        ProfileInfoRow(label = "Timezone", value = profile.settings.profile.timezone)
+
+        Spacer(modifier = Modifier.height(40.dp))
         
         Button(
             onClick = onEditRequest,
@@ -151,19 +166,24 @@ fun PersonalTabView(profile: KairosUserProfile, onEditRequest: () -> Unit) {
 }
 
 @Composable
+fun ProfileInfoRow(label: String, value: String) {
+    Column {
+        Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+        Text(text = value, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
 fun PersonalEditBunker(
-    initialName: String,
-    initialAvatar: String,
+    profile: KairosUserProfile,
     viewModel: MainViewModel,
     onDismiss: () -> Unit
 ) {
-    // --- SNAPSHOT STATE ---
-    // By using local state derived from constants, we decouple the editor 
-    // from the main profile flow, breaking any recomposition loops.
-    var nameDraft by remember { mutableStateOf(initialName) }
-    val currentAvatar = remember { initialAvatar } 
-    val context = LocalContext.current
+    var nameDraft by remember { mutableStateOf(profile.settings.profile.displayName) }
+    var birthdayDraft by remember { mutableStateOf(profile.settings.profile.birthday) }
+    var timezoneDraft by remember { mutableStateOf(profile.settings.profile.timezone) }
     
+    val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -173,22 +193,21 @@ fun PersonalEditBunker(
     Column(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
     ) {
-        // Simple Top Bar
+        // Header
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = {
-                viewModel.clearSettingsError()
-                onDismiss()
-            }) { 
-                Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onBackground) 
-            }
+            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onBackground) }
             Text(text = "Edit Profile", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             TextButton(onClick = {
-                viewModel.updateSettings(viewModel.profile.value.settings.copy(
-                    profile = viewModel.profile.value.settings.profile.copy(displayName = nameDraft)
+                viewModel.updateSettings(profile.settings.copy(
+                    profile = profile.settings.profile.copy(
+                        displayName = nameDraft,
+                        birthday = birthdayDraft,
+                        timezone = timezoneDraft
+                    )
                 ))
                 onDismiss()
             }) {
@@ -202,7 +221,8 @@ fun PersonalEditBunker(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(modifier = Modifier.size(100.dp)) {
                         ProfileImage(
-                            imageUrl = currentAvatar,
+                            imageUrl = profile.settings.profile.avatarURL,
+                            userName = nameDraft,
                             modifier = Modifier.size(100.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
                         )
                         
@@ -215,13 +235,24 @@ fun PersonalEditBunker(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    OutlinedButton(
-                        onClick = { launcher.launch("image/*") },
-                        shape = RoundedCornerShape(8.dp),
-                        enabled = !viewModel.isUploadingAvatar,
-                        modifier = Modifier.height(44.dp)
-                    ) {
-                        Text(if (viewModel.isUploadingAvatar) "Processing..." else "Change Picture")
+                    Row {
+                        OutlinedButton(
+                            onClick = { launcher.launch("image/*") },
+                            shape = RoundedCornerShape(8.dp),
+                            enabled = !viewModel.isUploadingAvatar,
+                            modifier = Modifier.height(44.dp)
+                        ) {
+                            Text(if (viewModel.isUploadingAvatar) "Processing..." else "Upload")
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        OutlinedButton(
+                            onClick = { viewModel.removeAvatar() },
+                            shape = RoundedCornerShape(8.dp),
+                            enabled = !viewModel.isUploadingAvatar && profile.settings.profile.avatarURL.isNotEmpty(),
+                            modifier = Modifier.height(44.dp)
+                        ) {
+                            Text("Remove")
+                        }
                     }
                 }
             }
@@ -229,14 +260,47 @@ fun PersonalEditBunker(
             Spacer(modifier = Modifier.height(32.dp))
 
             BunkerInputSafe(label = "Display Name", value = nameDraft, onValueChange = { nameDraft = it })
+            Spacer(modifier = Modifier.height(24.dp))
+            BunkerInputSafe(label = "Birthday", value = birthdayDraft, placeholder = "DD/MM/YYYY", onValueChange = { birthdayDraft = it })
+            Spacer(modifier = Modifier.height(24.dp))
+            BunkerInputSafe(label = "Timezone", value = timezoneDraft, onValueChange = { timezoneDraft = it })
             
             if (viewModel.settingsError != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(text = viewModel.settingsError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
             }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(text = "Images are compressed to stay under 800KB for Firestore stability.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
+        }
+    }
+}
+
+@Composable
+fun SecurityTabContent(user: com.google.firebase.auth.FirebaseUser?) {
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        Text(text = "Privacy & Security", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "Account", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                Text(text = "Email", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Text(text = user?.email ?: "Unknown", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                Text(text = "Signed in with", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                val provider = user?.providerData?.getOrNull(1)?.providerId ?: "password"
+                val providerName = when {
+                    provider.contains("google") -> "Google"
+                    provider.contains("github") -> "GitHub"
+                    else -> "Email"
+                }
+                Text(text = providerName, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+            }
         }
     }
 }
@@ -338,7 +402,7 @@ fun BunkerTabItem(text: String, selected: Boolean, onClick: () -> Unit, modifier
 }
 
 @Composable
-fun BunkerInputSafe(label: String, value: String, onValueChange: (String) -> Unit) {
+fun BunkerInputSafe(label: String, value: String, placeholder: String = "", onValueChange: (String) -> Unit) {
     Column {
         Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
         Spacer(modifier = Modifier.height(8.dp))
@@ -359,7 +423,7 @@ fun BunkerInputSafe(label: String, value: String, onValueChange: (String) -> Uni
                 singleLine = true
             )
             if (value.isEmpty()) {
-                Text(text = "Enter $label...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), fontSize = 15.sp)
+                Text(text = placeholder.ifBlank { "Enter $label..." }, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), fontSize = 15.sp)
             }
         }
     }

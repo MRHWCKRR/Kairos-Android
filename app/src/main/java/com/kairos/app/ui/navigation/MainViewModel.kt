@@ -458,6 +458,10 @@ class MainViewModel @JvmOverloads constructor(
         ))
     }
 
+    fun removeAvatar() {
+        updateAvatar("")
+    }
+
     fun uploadAvatar(context: android.content.Context, uri: android.net.Uri) {
         viewModelScope.launch {
             isUploadingAvatar = true

@@ -145,29 +145,11 @@ fun KairosApp(viewModel: MainViewModel) {
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                         showProfileMenu = true 
                                     }) {
-                                        if (userPhoto.isNotEmpty()) {
-                                            AsyncImage(
-                                                model = userPhoto,
-                                                contentDescription = "Profile",
-                                                modifier = Modifier.size(32.dp).clip(CircleShape),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                        } else {
-                                            Surface(
-                                                modifier = Modifier.size(32.dp),
-                                                shape = CircleShape,
-                                                color = MaterialTheme.colorScheme.primary
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Text(
-                                                        text = userName.take(1).uppercase(),
-                                                        color = Color.White,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 14.sp
-                                                    )
-                                                }
-                                            }
-                                        }
+                                        ProfileImage(
+                                            imageUrl = userPhoto,
+                                            userName = userName,
+                                            modifier = Modifier.size(32.dp)
+                                        )
                                     }
 
                                     DropdownMenu(
@@ -181,6 +163,7 @@ fun KairosApp(viewModel: MainViewModel) {
                                         ) {
                                             ProfileImage(
                                                 imageUrl = userPhoto,
+                                                userName = userName,
                                                 modifier = Modifier.size(40.dp)
                                             )
                                             Column(modifier = Modifier.padding(start = 12.dp)) {
