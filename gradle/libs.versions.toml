@@ -11,9 +11,15 @@ googleServicesPlugin = "4.4.2"
 playServicesAuth = "21.2.0"
 generativeAi = "0.9.0"
 kotlinxSerializationJson = "1.6.3"
+media3 = "1.4.0"
+glance = "1.1.0"
 # ...plus any other original entries (junit, espresso, etc.) — keep those too
 
 [libraries]
+media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
+media3-common = { group = "androidx.media3", name = "media3-common", version.ref = "media3" }
+glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeAi" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }

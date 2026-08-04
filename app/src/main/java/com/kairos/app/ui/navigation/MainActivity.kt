@@ -84,6 +84,12 @@ class MainActivity : ComponentActivity() {
                     launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
+
+            // --- AMBIENT AUDIO SYNC ---
+            val appearance = profile.settings.appearance
+            LaunchedEffect(appearance.ambientSound, appearance.ambientVolume) {
+                mainViewModel.syncAmbientAudio(context)
+            }
             
             KairosTheme(appearance = profile.settings.appearance) {
                 KairosApp(mainViewModel)
@@ -113,143 +119,170 @@ fun KairosApp(viewModel: MainViewModel) {
             if (user == null) {
                 LoginScreen()
             } else {
-                Scaffold(
-                    topBar = {
-                        CenterAlignedTopAppBar(
-                            title = { Text("Kairos", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground) },
-                            actions = {
-                                IconButton(onClick = { 
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    showNotifPanel = true 
-                                    viewModel.markNotificationsRead()
-                                }) {
-                                    BadgedBox(
-                                        badge = {
-                                            if (unreadCount > 0) {
-                                                Badge {
-                                                    Text(text = if (unreadCount > 9) "9+" else unreadCount.toString())
-                                                }
-                                            }
-                                        }
-                                    ) {
-                                        Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = MaterialTheme.colorScheme.onBackground)
-                                    }
-                                }
-                                
-                                var showProfileMenu by remember { mutableStateOf(false) }
-                                val userName = profile.settings.profile.displayName.ifBlank { user?.displayName ?: "User" }
-                                val userPhoto = profile.settings.profile.avatarURL.ifBlank { user?.photoUrl?.toString() ?: "" }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // --- THEME BACKGROUND HANDLER ---
+                    if (profile.settings.appearance.background != "none") {
+                        if (profile.settings.appearance.background == "custom" && !profile.settings.appearance.customBackground.isNullOrBlank()) {
+                            AsyncImage(
+                                model = profile.settings.appearance.customBackground,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                alpha = 0.4f
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        if (profile.settings.appearance.background == "mesh") {
+                                            androidx.compose.ui.graphics.Brush.linearGradient(
+                                                colors = listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), Color.Transparent)
+                                            )
+                                        } else androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+                                    )
+                            )
+                        }
+                    }
 
-                                Box {
+                    Scaffold(
+                        topBar = {
+                            CenterAlignedTopAppBar(
+                                title = { Text("Kairos", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground) },
+                                actions = {
                                     IconButton(onClick = { 
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        showProfileMenu = true 
+                                        showNotifPanel = true 
+                                        viewModel.markNotificationsRead()
                                     }) {
-                                        ProfileImage(
-                                            imageUrl = userPhoto,
-                                            userName = userName,
-                                            modifier = Modifier.size(32.dp)
-                                        )
-                                    }
-
-                                    DropdownMenu(
-                                        expanded = showProfileMenu,
-                                        onDismissRequest = { showProfileMenu = false },
-                                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(16.dp).width(200.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                        BadgedBox(
+                                            badge = {
+                                                if (unreadCount > 0) {
+                                                    Badge {
+                                                        Text(text = if (unreadCount > 9) "9+" else unreadCount.toString())
+                                                    }
+                                                }
+                                            }
                                         ) {
+                                            Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = MaterialTheme.colorScheme.onBackground)
+                                        }
+                                    }
+                                    
+                                    var showProfileMenu by remember { mutableStateOf(false) }
+                                    val userName = profile.settings.profile.displayName.ifBlank { user?.displayName ?: "User" }
+                                    val userPhoto = profile.settings.profile.avatarURL.ifBlank { user?.photoUrl?.toString() ?: "" }
+
+                                    Box {
+                                        IconButton(onClick = { 
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            showProfileMenu = true 
+                                        }) {
                                             ProfileImage(
                                                 imageUrl = userPhoto,
                                                 userName = userName,
-                                                modifier = Modifier.size(40.dp)
+                                                modifier = Modifier.size(32.dp)
                                             )
-                                            Column(modifier = Modifier.padding(start = 12.dp)) {
-                                                Text(text = userName, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                Text(text = user?.email ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            }
                                         }
 
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-
-                                        DropdownMenuItem(
-                                            text = { Text("Settings", color = MaterialTheme.colorScheme.onSurface) },
-                                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) },
-                                            onClick = {
-                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                showProfileMenu = false
-                                                navController.navigate(KairosDestination.Settings.route) {
-                                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                                    launchSingleTop = true
-                                                    restoreState = true
+                                        DropdownMenu(
+                                            expanded = showProfileMenu,
+                                            onDismissRequest = { showProfileMenu = false },
+                                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(16.dp).width(200.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                ProfileImage(
+                                                    imageUrl = userPhoto,
+                                                    userName = userName,
+                                                    modifier = Modifier.size(40.dp)
+                                                )
+                                                Column(modifier = Modifier.padding(start = 12.dp)) {
+                                                    Text(text = userName, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                    Text(text = user?.email ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
                                             }
-                                        )
 
-                                        DropdownMenuItem(
-                                            text = { 
-                                                val isDark = profile.settings.appearance.mode == "dark"
-                                                Text(if (isDark) "Switch to Light Mode" else "Switch to Dark Mode", color = MaterialTheme.colorScheme.onSurface) 
-                                            },
-                                            leadingIcon = { 
-                                                val isDark = profile.settings.appearance.mode == "dark"
-                                                Icon(
-                                                    imageVector = if (isDark) Icons.Default.WbSunny else Icons.Outlined.ModeNight,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                                ) 
-                                            },
-                                            onClick = {
-                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                showProfileMenu = false
-                                                viewModel.toggleAppearanceMode()
-                                            }
-                                        )
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
 
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                            DropdownMenuItem(
+                                                text = { Text("Settings", color = MaterialTheme.colorScheme.onSurface) },
+                                                leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) },
+                                                onClick = {
+                                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    showProfileMenu = false
+                                                    navController.navigate(KairosDestination.Settings.route) {
+                                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                }
+                                            )
 
-                                        DropdownMenuItem(
-                                            text = { Text("Sign Out", color = MaterialTheme.colorScheme.error) },
-                                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                                            onClick = {
-                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                showProfileMenu = false
-                                                viewModel.signOut()
-                                            }
-                                        )
+                                            DropdownMenuItem(
+                                                text = { 
+                                                    val isDark = profile.settings.appearance.mode == "dark"
+                                                    Text(if (isDark) "Switch to Light Mode" else "Switch to Dark Mode", color = MaterialTheme.colorScheme.onSurface) 
+                                                },
+                                                leadingIcon = { 
+                                                    val isDark = profile.settings.appearance.mode == "dark"
+                                                    Icon(
+                                                        imageVector = if (isDark) Icons.Default.WbSunny else Icons.Outlined.ModeNight,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                                    ) 
+                                                },
+                                                onClick = {
+                                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    showProfileMenu = false
+                                                    viewModel.toggleAppearanceMode()
+                                                }
+                                            )
+
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+
+                                            DropdownMenuItem(
+                                                text = { Text("Sign Out", color = MaterialTheme.colorScheme.error) },
+                                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                                                onClick = {
+                                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    showProfileMenu = false
+                                                    viewModel.signOut()
+                                                }
+                                            )
+                                        }
                                     }
-                                }
-                            },
-                            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.background
+                                },
+                                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.background
+                                )
                             )
-                        )
-                    },
-                    bottomBar = { KairosBottomNav(navController) }
-                ) { innerPadding ->
-                    if (errorMessage != null) {
-                        SyncErrorScreen(
-                            errorMessage = errorMessage,
-                            modifier = Modifier.padding(innerPadding),
-                            onSignOut = { viewModel.signOut() },
-                            onDismiss = { viewModel.clearError() }
-                        )
-                    } else {
-                        NavHost(
-                            navController = navController,
-                            startDestination = KairosDestination.Dashboard.route,
-                            modifier = Modifier.padding(innerPadding)
-                        ) {
-                            composable(KairosDestination.Dashboard.route) { DashboardScreen(viewModel) }
-                            composable(KairosDestination.AiHelper.route) { AiHelperScreen(viewModel) }
-                            composable(KairosDestination.Tasks.route) { TasksScreen(viewModel) }
-                            composable(KairosDestination.Schedule.route) { ScheduleScreen(viewModel) }
-                            composable(KairosDestination.Calendar.route) { CalendarScreen(viewModel) }
-                            composable(KairosDestination.Achievements.route) { AchievementsScreen(viewModel) }
-                            composable(KairosDestination.Statistics.route) { StatisticsScreen(viewModel) }
-                            composable(KairosDestination.Settings.route) { SettingsScreen(viewModel) }
+                        },
+                        bottomBar = { KairosBottomNav(navController) }
+                    ) { innerPadding ->
+                        if (errorMessage != null) {
+                            SyncErrorScreen(
+                                errorMessage = errorMessage,
+                                modifier = Modifier.padding(innerPadding),
+                                onSignOut = { viewModel.signOut() },
+                                onDismiss = { viewModel.clearError() }
+                            )
+                        } else {
+                            NavHost(
+                                navController = navController,
+                                startDestination = KairosDestination.Dashboard.route,
+                                modifier = Modifier.padding(innerPadding)
+                            ) {
+                                composable(KairosDestination.Dashboard.route) { DashboardScreen(viewModel) }
+                                composable(KairosDestination.AiHelper.route) { AiHelperScreen(viewModel) }
+                                composable(KairosDestination.Tasks.route) { TasksScreen(viewModel) }
+                                composable(KairosDestination.Schedule.route) { ScheduleScreen(viewModel) }
+                                composable(KairosDestination.Calendar.route) { CalendarScreen(viewModel) }
+                                composable(KairosDestination.Achievements.route) { AchievementsScreen(viewModel) }
+                                composable(KairosDestination.Statistics.route) { StatisticsScreen(viewModel) }
+                                composable(KairosDestination.Settings.route) { SettingsScreen(viewModel) }
+                            }
                         }
                     }
                 }

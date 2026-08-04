@@ -1,5 +1,7 @@
 package com.kairos.app.ui.navigation
 
+import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -528,6 +530,23 @@ class MainViewModel @JvmOverloads constructor(
         updateSettings(currentSettings.copy(
             appearance = currentSettings.appearance.copy(mode = newMode)
         ))
+    }
+
+    fun syncAmbientAudio(context: Context) {
+        val settings = _profile.value.settings.appearance
+        val intent = Intent(context, com.kairos.app.utils.AmbientAudioService::class.java).apply {
+            putExtra("sound", settings.ambientSound)
+            putExtra("volume", settings.ambientVolume)
+        }
+        if (settings.ambientSound == "none") {
+            context.stopService(intent)
+        } else {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
     }
 
     fun signOut() {

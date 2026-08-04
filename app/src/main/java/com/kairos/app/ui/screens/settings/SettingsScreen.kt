@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -500,6 +501,8 @@ fun AccessibilityTabContent(settings: KairosSettings, viewModel: MainViewModel) 
 fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(text = "Appearance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        
+        // Mode
         Column {
             Text(text = "Theme Mode", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
@@ -509,8 +512,22 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
                 BunkerOptionButton("light", settings.appearance.mode == "light", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "light"))) }, Modifier.weight(1f))
             }
         }
+
+        // Font
         Column {
-            Text(text = "Accent Color", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Text(text = "Font Style", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                listOf("sans", "round", "mono").forEach { f ->
+                    BunkerOptionButton(f, settings.appearance.font == f, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(font = f))) }, Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+            }
+        }
+
+        // Theme Accent
+        Column {
+            Text(text = "Theme Accent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
             Row {
                 listOf(
@@ -525,6 +542,64 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
                     Spacer(modifier = Modifier.width(12.dp))
                 }
             }
+        }
+
+        // Background Style
+        Column {
+            Text(text = "Background Style", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                listOf("none", "glass", "mesh", "custom").forEach { b ->
+                    BunkerOptionButton(b, settings.appearance.background == b, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(background = b))) }, Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+            }
+            if (settings.appearance.background == "custom") {
+                Spacer(modifier = Modifier.height(16.dp))
+                BunkerInputSafe(
+                    label = "Custom Background URL",
+                    value = settings.appearance.customBackground ?: "",
+                    onValueChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(customBackground = it))) }
+                )
+            }
+        }
+
+        // Ambient Sound
+        Column {
+            Text(text = "Ambient Sound", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth().height(48.dp).horizontalScroll(rememberScrollState())) {
+                listOf("none", "lofi", "rain", "coffee").forEach { s ->
+                    BunkerOptionButton(s, settings.appearance.ambientSound == s, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(ambientSound = s))) }, Modifier.width(80.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.AutoMirrored.Filled.VolumeUp, null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                Slider(
+                    value = settings.appearance.ambientVolume.toFloat(),
+                    onValueChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(ambientVolume = it.toInt()))) },
+                    valueRange = 0f..100f,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        // Confetti
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(text = "Celebratory Confetti", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Text(text = "Show confetti when completing routines.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            }
+            Switch(
+                checked = settings.appearance.confetti,
+                onCheckedChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(confetti = it))) }
+            )
         }
     }
 }

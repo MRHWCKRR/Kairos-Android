@@ -37,6 +37,11 @@ dependencies {
     implementation(libs.generativeai)
     implementation(libs.kotlinx.serialization.json)
 
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
+    implementation(libs.media3.common)
+    implementation(libs.glance.appwidget)
+
     implementation(platform(libs.compose.bom))
     implementation(libs.activity.compose)
     implementation(libs.compose.ui)

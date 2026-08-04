@@ -41,7 +41,7 @@ fun KairosTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = KairosTypography,
+        typography = getKairosTypography(appearance.font),
         content = content
     )
 }
