@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.getValue
+import com.kairos.app.utils.WidgetManager
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -546,6 +547,19 @@ class MainViewModel @JvmOverloads constructor(
             } else {
                 context.startService(intent)
             }
+        }
+    }
+
+    fun syncWidgets(context: Context) {
+        viewModelScope.launch {
+            WidgetManager.updateFocusState(context, focusTimerRunning, focusSecondsActive)
+            val topTasks = _plan.value?.boards
+                ?.flatMap { it.sections }
+                ?.flatMap { it.tasks }
+                ?.filter { !it.completed && !it.archived }
+                ?.take(3)
+                ?.map { it.title } ?: emptyList()
+            WidgetManager.updateTasks(context, topTasks)
         }
     }
 

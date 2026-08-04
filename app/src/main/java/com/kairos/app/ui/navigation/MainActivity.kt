@@ -71,6 +71,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Handle Widget Actions
+            val action = intent?.getStringExtra("action")
+            LaunchedEffect(action) {
+                if (action == "toggle_focus") {
+                    if (mainViewModel.focusTimerRunning) {
+                        mainViewModel.pauseFocusTimer()
+                    } else {
+                        mainViewModel.startFocusTimer()
+                    }
+                }
+            }
+
             val launcher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
             ) { isGranted ->
@@ -89,6 +101,12 @@ class MainActivity : ComponentActivity() {
             val appearance = profile.settings.appearance
             LaunchedEffect(appearance.ambientSound, appearance.ambientVolume) {
                 mainViewModel.syncAmbientAudio(context)
+            }
+
+            // --- WIDGET SYNC ---
+            val plan by mainViewModel.plan.collectAsState()
+            LaunchedEffect(plan, mainViewModel.focusTimerRunning, mainViewModel.focusSecondsActive) {
+                mainViewModel.syncWidgets(context)
             }
             
             KairosTheme(appearance = profile.settings.appearance) {

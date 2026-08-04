@@ -1,46 +1,47 @@
-# Implementation Plan - Phase 4: Logo Integration & Google Sign-In
+# Implementation Plan - Premium & Interactive Widgets
 
-I will replace the text-based logo with the PNG provided and implement the Google Sign-In feature to match the web app's functionality.
-
-## User Review Required
-
-> [!IMPORTANT]
-> **Logo Image**: Please save the logo PNG you provided as `app/src/main/res/drawable/ic_kairos_logo.png` in your project directory. I cannot "save" the image from the chat directly into your source code.
->
-> **Google Sign-In**: To make Google Sign-In work, you will need to:
-> 1. Add your Android app's **SHA-1 fingerprint** to your Firebase project settings in the Firebase Console.
-> 2. Download the updated `google-services.json` and replace the existing one in the `app` folder.
+The initial widget implementation was static and minimal. I will now transform them into interactive, live-syncing tools with a premium "Glassmorphism" look that matches the flagship Kairos aesthetic.
 
 ## Proposed Changes
 
-### 1. Project Configuration
+### 1. Infrastructure (Live Sync)
 
-#### [MODIFY] [libs.versions.toml](file:///C:/Dev/Kairos-Android/gradle/libs.versions.toml)
-- Add `play-services-auth` library definition.
+#### [MODIFY] [libs.versions.toml](file:///C:/Dev/Kairos-Android/gradle/libs.versions.toml) & [build.gradle.kts](file:///C:/Dev/Kairos-Android/app/build.gradle.kts)
+- Add `androidx.datastore:datastore-preferences` to share state between the app and Widgets.
+- Add `androidx.glance:glance-material3` for better UI components in widgets.
 
-#### [MODIFY] [app/build.gradle.kts](file:///C:/Dev/Kairos-Android/app/build.gradle.kts)
-- Add `play-services-auth` dependency.
+#### [NEW] [WidgetSyncWorker.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/utils/WidgetSyncWorker.kt)
+- Create a utility to push app state (Focus Timer status, Top Tasks) into the DataStore so Widgets can react to changes instantly.
 
-### 2. Data Layer (Auth)
+### 2. Focus Widget Overhaul (Interactive)
 
-#### [MODIFY] [AuthRepository.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/data/repository/AuthRepository.kt)
-- Add `signInWithGoogle(idToken)` method using `GoogleAuthProvider.getCredential`.
+#### [MODIFY] [FocusWidget.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/widgets/FocusWidget.kt)
+- **Live Timer**: Display the actual current focus time.
+- **Action Button**: Implement `ActionCallback` to start/stop the timer directly from the home screen.
+- **Premium UI**:
+    - Semi-translucent background with rounded corners.
+    - Progress ring showing daily focus goal progress.
+    - Vibrantly styled buttons.
 
-### 3. UI Layer (Login)
+### 3. Tasks Widget Overhaul (Dynamic)
 
-#### [MODIFY] [LoginViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginViewModel.kt)
-- Add `onGoogleSignInResult(idToken)` logic.
-- Handle state for Google Sign-In process.
+#### [MODIFY] [TasksWidget.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/widgets/TasksWidget.kt)
+- **Real Data**: Fetch the top 3 uncompleted tasks from your actual routines.
+- **Quick Check**: Add clickable checkboxes that mark tasks as complete in Firestore immediately.
+- **Empty State**: A beautiful "All Caught Up" message if no tasks are pending.
 
-#### [MODIFY] [LoginScreen.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/screens/login/LoginScreen.kt)
-- **Logo**: Replace the `//` Text with an `Image` component using `painterResource(id = R.drawable.ic_kairos_logo)`.
-- **Google Button**: Implement the actual Google Sign-In launcher using `rememberLauncherForActivityResult`.
+### 4. ViewModel Connection
+
+#### [MODIFY] [MainViewModel.kt](file:///C:/Dev/Kairos-Android/app/src/main/java/com/kairos/app/ui/navigation/MainViewModel.kt)
+- Trigger a widget sync whenever a task is toggled or the timer starts/stops.
 
 ## Verification Plan
 
 ### Automated Tests
-- Run `./gradlew :app:assembleDebug` to verify compilation with new dependencies.
+- Run `./gradlew :app:assembleDebug`.
+- Verify DataStore writes don't block the UI thread.
 
 ### Manual Verification
-- Verify the logo displays correctly on the Login screen.
-- Test the Google Sign-In button (requires SHA-1 configuration in Firebase).
+1.  **Interaction**: Tap "Start" on the Focus Widget. Open the app and verify the timer is running.
+2.  **Task Sync**: Check a task on the Tasks Widget. Verify it is marked complete inside the app.
+3.  **Visuals**: Verify the widgets look "Premium" (rounded corners, correct colors) and update within seconds of app changes.

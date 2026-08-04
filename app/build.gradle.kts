@@ -41,6 +41,8 @@ dependencies {
     implementation(libs.media3.session)
     implementation(libs.media3.common)
     implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
+    implementation(libs.datastore.preferences)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.activity.compose)
