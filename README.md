@@ -57,7 +57,7 @@ Coming Soon!
 [forks-shield]: https://img.shields.io/github/forks/MRHWCKRR/Kairos-Android.svg?style=for-the-badge
 [forks-url]: https://github.com/MRHWCKRR/Kairos-Android/network/members
 [stars-shield]: https://img.shields.io/github/stars/MRHWCKRR/Kairos-Android.svg?style=for-the-badge
-[stars-url]: https://github.com/MRHWCKRR/Kairos/stargazers
+[stars-url]: https://github.com/MRHWCKRR/Kairos/Kairos-Android
 [issues-shield]: https://img.shields.io/github/issues/MRHWCKRR/Kairos-Android.svg?style=for-the-badge
 [issues-url]: https://github.com/MRHWCKRR/Kairos/issues
 [license-shield]: https://img.shields.io/github/license/MRHWCKRR/Kairos-Android.svg?style=for-the-badge
