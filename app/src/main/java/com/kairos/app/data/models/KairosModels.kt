@@ -127,6 +127,21 @@ data class KairosUserProfile(
     val focusData: KairosFocusData = KairosFocusData()
 )
 
+@IgnoreExtraProperties
+data class KairosSharedRoutine(
+    val id: String = "",
+    val creatorName: String = "",
+    val creatorAvatar: String = "",
+    val title: String = "", // AI Generated "Power Name"
+    val description: String = "",
+    val category: String = "other", // deep work, student, etc.
+    val boards: List<KairosBoard> = emptyList(),
+    val downloads: Int = 0,
+    val likes: Int = 0,
+    val tags: List<String> = emptyList(),
+    val createdAt: Timestamp? = null
+)
+
 data class AchievementDef(
     val id: String,
     val category: String,

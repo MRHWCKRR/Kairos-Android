@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class KairosDestination(val route: String, val label: String, val icon: ImageVector) {
     data object Dashboard : KairosDestination("dashboard", "Dashboard", Icons.Default.Home)
+    data object Discovery : KairosDestination("discovery", "Discovery", Icons.Default.Explore)
     data object AiHelper : KairosDestination("ai_helper", "AI Helper", Icons.Default.AutoAwesome)
     data object Tasks : KairosDestination("tasks", "Tasks", Icons.Default.CheckCircle)
     data object Schedule : KairosDestination("schedule", "Schedule", Icons.Default.Schedule)
@@ -15,6 +16,6 @@ sealed class KairosDestination(val route: String, val label: String, val icon: I
     data object Settings : KairosDestination("settings", "Settings", Icons.Default.Settings)
 
     companion object {
-        val all = listOf(Dashboard, AiHelper, Tasks, Schedule, Calendar, Achievements, Statistics, Settings)
+        val all = listOf(Dashboard, Discovery, AiHelper, Tasks, Schedule, Calendar, Achievements, Statistics, Settings)
     }
 }

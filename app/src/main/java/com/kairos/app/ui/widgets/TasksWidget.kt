@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.Preferences
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -17,26 +18,28 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.*
+import androidx.glance.state.GlanceStateDefinition
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.text.TextDecoration
 import com.kairos.app.utils.WidgetManager
-import com.kairos.app.utils.dataStore
-import kotlinx.coroutines.flow.first
 
 class TasksWidget : GlanceAppWidget() {
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val prefs = context.dataStore.data.first()
-        val tasksStr = prefs[WidgetManager.KEY_TOP_TASKS] ?: ""
-        
-        val tasks = if (tasksStr.isEmpty()) emptyList() else tasksStr.split("|").mapNotNull {
-            val parts = it.split(":", limit = 2)
-            if (parts.size == 2) parts[0] to parts[1] else null
-        }
+    override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
 
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
+            val prefs = currentState<Preferences>()
+            val tasksStr = prefs[WidgetManager.KEY_TOP_TASKS] ?: ""
+            
+            val tasks = if (tasksStr.isEmpty()) emptyList() else tasksStr.split("|").mapNotNull {
+                val parts = it.split(":", limit = 2)
+                if (parts.size == 2) parts[0] to parts[1] else null
+            }
+
             GlanceTheme {
                 TasksWidgetContent(tasks)
             }
@@ -64,7 +67,7 @@ fun TasksWidgetContent(tasks: List<Pair<String, String>>) {
             ) {}
             Spacer(modifier = GlanceModifier.width(8.dp))
             Text(
-                text = "MUST-DO",
+                text = "To Do",
                 style = TextStyle(
                     color = GlanceTheme.colors.primary,
                     fontWeight = FontWeight.Bold,
@@ -131,7 +134,6 @@ class CompleteTaskAction : ActionCallback {
         parameters: ActionParameters
     ) {
         val id = parameters[taskIdKey] ?: return
-        
         val intent = Intent(context, com.kairos.app.ui.navigation.MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
             putExtra("action", "complete_task")

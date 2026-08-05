@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.Preferences
 import androidx.glance.Button
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -15,22 +16,25 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.*
+import androidx.glance.state.GlanceStateDefinition
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.kairos.app.utils.WidgetManager
-import com.kairos.app.utils.dataStore
-import kotlinx.coroutines.flow.first
 import java.util.Locale
 
 class FocusWidget : GlanceAppWidget() {
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val prefs = context.dataStore.data.first()
-        val isRunning = prefs[WidgetManager.KEY_FOCUS_RUNNING] ?: false
-        val seconds = prefs[WidgetManager.KEY_FOCUS_SECONDS] ?: 0L
+    override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
 
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
+            val prefs = currentState<Preferences>()
+            val isRunning = prefs[WidgetManager.KEY_FOCUS_RUNNING] ?: false
+            val seconds = prefs[WidgetManager.KEY_FOCUS_SECONDS] ?: 0L
+            
             GlanceTheme {
                 FocusWidgetContent(isRunning, seconds)
             }

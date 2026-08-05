@@ -42,6 +42,7 @@ import androidx.navigation.compose.*
 import coil.compose.AsyncImage
 import com.kairos.app.data.models.KairosNotification
 import com.kairos.app.ui.components.ProfileImage
+import com.kairos.app.ui.screens.discovery.DiscoveryScreen
 import com.kairos.app.ui.screens.achievements.AchievementsScreen
 import com.kairos.app.ui.screens.ai.AiHelperScreen
 import com.kairos.app.ui.screens.calendar.CalendarScreen
@@ -58,8 +59,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
 class MainActivity : ComponentActivity() {
+
+    private var incomingAction by mutableStateOf<String?>(null)
+    private var incomingTaskId by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIntent(intent)
+        
         setContent {
             val mainViewModel: MainViewModel = viewModel()
             val profile by mainViewModel.profile.collectAsState()
@@ -73,22 +80,11 @@ class MainActivity : ComponentActivity() {
             }
 
             // Handle Widget Actions
-            val action = intent?.getStringExtra("action")
-            LaunchedEffect(action, intent) {
-                when (action) {
-                    "toggle_focus" -> {
-                        if (mainViewModel.focusTimerRunning) {
-                            mainViewModel.pauseFocusTimer()
-                        } else {
-                            mainViewModel.startFocusTimer()
-                        }
-                    }
-                    "complete_task" -> {
-                        val taskId = intent?.getStringExtra("task_id")
-                        if (taskId != null) {
-                            mainViewModel.toggleTask(taskId, true)
-                        }
-                    }
+            LaunchedEffect(incomingAction, incomingTaskId) {
+                if (incomingAction != null) {
+                    mainViewModel.handleWidgetAction(incomingAction, incomingTaskId, context)
+                    incomingAction = null
+                    incomingTaskId = null
                 }
             }
 
@@ -116,21 +112,24 @@ class MainActivity : ComponentActivity() {
             val plan by mainViewModel.plan.collectAsState()
             LaunchedEffect(plan, mainViewModel.focusTimerRunning) {
                 // Initial sync on state change
-                mainViewModel.syncWidgets(context)
-                
-                // Periodic sync if running
-                if (mainViewModel.focusTimerRunning) {
-                    while (true) {
-                        delay(5000)
-                        mainViewModel.syncWidgets(context)
-                    }
-                }
+                mainViewModel.syncWidgets(context.applicationContext)
             }
             
             KairosTheme(appearance = profile.settings.appearance) {
                 KairosApp(mainViewModel)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        incomingAction = intent?.getStringExtra("action")
+        incomingTaskId = intent?.getStringExtra("task_id")
     }
 }
 
@@ -311,6 +310,7 @@ fun KairosApp(viewModel: MainViewModel) {
                                 modifier = Modifier.padding(innerPadding)
                             ) {
                                 composable(KairosDestination.Dashboard.route) { DashboardScreen(viewModel) }
+                                composable(KairosDestination.Discovery.route) { DiscoveryScreen(viewModel) }
                                 composable(KairosDestination.AiHelper.route) { AiHelperScreen(viewModel) }
                                 composable(KairosDestination.Tasks.route) { TasksScreen(viewModel) }
                                 composable(KairosDestination.Schedule.route) { ScheduleScreen(viewModel) }

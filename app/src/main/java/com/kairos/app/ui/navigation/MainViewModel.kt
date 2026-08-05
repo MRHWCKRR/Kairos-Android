@@ -59,6 +59,11 @@ class MainViewModel @JvmOverloads constructor(
     var securitySuccess by mutableStateOf<String?>(null)
         private set
 
+    private var pendingWidgetAction: String? = null
+    private var pendingWidgetTaskId: String? = null
+    var lastApplicationContext: Context? = null
+        private set
+
     // Events for system notifications
     private val _notificationEvents = MutableSharedFlow<Pair<String, String>>()
     val notificationEvents: SharedFlow<Pair<String, String>> = _notificationEvents.asSharedFlow()
@@ -81,7 +86,10 @@ class MainViewModel @JvmOverloads constructor(
                     launch {
                         firebaseRepository.getLatestPlan(firebaseUser.uid)
                             .catch { e -> errorMessage = e.localizedMessage }
-                            .collect { _plan.value = it }
+                            .collect { 
+                                _plan.value = it
+                                processPendingActions()
+                            }
                     }
                     launch {
                         firebaseRepository.getUserProfile(firebaseUser.uid)
@@ -155,6 +163,8 @@ class MainViewModel @JvmOverloads constructor(
             while (focusTimerRunning) {
                 delay(1.seconds)
                 focusSecondsActive++
+                // Aggressive Widget Sync (Every second while running)
+                syncWidgetsInternal(lastApplicationContext)
             }
         }
     }
@@ -428,6 +438,8 @@ class MainViewModel @JvmOverloads constructor(
     private fun updatePlanInternal(updatedPlan: KairosPlan) {
         val userId = _user.value?.uid ?: return
         _plan.value = updatedPlan
+        // Aggressive Widget Update
+        syncWidgetsInternal(lastApplicationContext) 
         viewModelScope.launch {
             try {
                 firebaseRepository.updatePlan(userId, updatedPlan)
@@ -458,6 +470,7 @@ class MainViewModel @JvmOverloads constructor(
     fun updateSettings(newSettings: KairosSettings) {
         _profile.value = _profile.value.copy(settings = newSettings)
         updateProfileInternal(mapOf("settings" to newSettings))
+        syncWidgetsInternal(lastApplicationContext) // Sync widgets on settings change
     }
 
     fun updateAvatar(url: String) {
@@ -551,16 +564,59 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun syncWidgets(context: Context) {
-        viewModelScope.launch {
-            WidgetManager.updateFocusState(context, focusTimerRunning, focusSecondsActive)
-            val topTasks = _plan.value?.boards
-                ?.flatMap { it.sections }
-                ?.flatMap { it.tasks }
-                ?.filter { !it.completed && !it.archived }
-                ?.take(3)
-                ?.map { "${it.id}:${it.title}" } ?: emptyList()
-            WidgetManager.updateTasks(context, topTasks)
+        lastApplicationContext = context.applicationContext
+        syncWidgetsInternal(context)
+    }
+
+    private fun syncWidgetsInternal(context: Context? = null) {
+        context?.let { ctx ->
+            viewModelScope.launch {
+                WidgetManager.updateFocusState(ctx, focusTimerRunning, focusSecondsActive)
+                val topTasks = _plan.value?.boards
+                    ?.filter { !it.archived }
+                    ?.flatMap { it.sections }
+                    ?.filter { !it.archived }
+                    ?.flatMap { it.tasks }
+                    ?.filter { !it.completed && !it.archived }
+                    ?.take(3)
+                    ?.map { "${it.id}:${it.title}" } ?: emptyList()
+                WidgetManager.updateTasks(ctx, topTasks)
+            }
         }
+    }
+
+    fun handleWidgetAction(action: String?, taskId: String?, context: Context) {
+        lastApplicationContext = context.applicationContext
+        if (action == null) return
+        
+        if (_plan.value == null) {
+            pendingWidgetAction = action
+            pendingWidgetTaskId = taskId
+        } else {
+            executeAction(action, taskId, context)
+        }
+    }
+
+    private fun processPendingActions() {
+        val action = pendingWidgetAction ?: return
+        val taskId = pendingWidgetTaskId
+        val context = lastApplicationContext ?: return
+        
+        executeAction(action, taskId, context)
+        pendingWidgetAction = null
+        pendingWidgetTaskId = null
+    }
+
+    private fun executeAction(action: String, taskId: String?, context: Context) {
+        when (action) {
+            "toggle_focus" -> {
+                if (focusTimerRunning) pauseFocusTimer() else startFocusTimer()
+            }
+            "complete_task" -> {
+                if (taskId != null) toggleTask(taskId, true)
+            }
+        }
+        syncWidgetsInternal(context)
     }
 
     fun signOut() {

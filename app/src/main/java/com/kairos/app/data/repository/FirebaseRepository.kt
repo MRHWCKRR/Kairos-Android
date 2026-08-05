@@ -66,6 +66,32 @@ class FirebaseRepository {
     }
 
     /**
+     * Marketplace: Fetches shared routines.
+     */
+    fun getSharedRoutines(): Flow<List<com.kairos.app.data.models.KairosSharedRoutine>> = callbackFlow {
+        val query = db.collection("shared_routines")
+            .orderBy("downloads", Query.Direction.DESCENDING)
+            .limit(20)
+
+        val subscription = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            val routines = snapshot?.documents?.mapNotNull { it.toObject(com.kairos.app.data.models.KairosSharedRoutine::class.java) } ?: emptyList()
+            trySend(routines)
+        }
+        awaitClose { subscription.remove() }
+    }
+
+    /**
+     * Marketplace: Shares a routine to the global collection.
+     */
+    suspend fun shareRoutine(shared: com.kairos.app.data.models.KairosSharedRoutine) {
+        db.collection("shared_routines").document(shared.id).set(shared).await()
+    }
+
+    /**
      * Updates the study plan document.
      */
     suspend fun updatePlan(userId: String, plan: KairosPlan) {
