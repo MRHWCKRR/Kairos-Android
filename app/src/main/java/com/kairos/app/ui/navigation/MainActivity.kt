@@ -54,6 +54,7 @@ import com.kairos.app.ui.screens.login.LoginScreen
 import com.kairos.app.ui.screens.splash.SplashScreen
 import com.kairos.app.ui.theme.*
 import com.kairos.app.utils.NotificationHelper
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
 class MainActivity : ComponentActivity() {
@@ -73,12 +74,20 @@ class MainActivity : ComponentActivity() {
 
             // Handle Widget Actions
             val action = intent?.getStringExtra("action")
-            LaunchedEffect(action) {
-                if (action == "toggle_focus") {
-                    if (mainViewModel.focusTimerRunning) {
-                        mainViewModel.pauseFocusTimer()
-                    } else {
-                        mainViewModel.startFocusTimer()
+            LaunchedEffect(action, intent) {
+                when (action) {
+                    "toggle_focus" -> {
+                        if (mainViewModel.focusTimerRunning) {
+                            mainViewModel.pauseFocusTimer()
+                        } else {
+                            mainViewModel.startFocusTimer()
+                        }
+                    }
+                    "complete_task" -> {
+                        val taskId = intent?.getStringExtra("task_id")
+                        if (taskId != null) {
+                            mainViewModel.toggleTask(taskId, true)
+                        }
                     }
                 }
             }
@@ -105,8 +114,17 @@ class MainActivity : ComponentActivity() {
 
             // --- WIDGET SYNC ---
             val plan by mainViewModel.plan.collectAsState()
-            LaunchedEffect(plan, mainViewModel.focusTimerRunning, mainViewModel.focusSecondsActive) {
+            LaunchedEffect(plan, mainViewModel.focusTimerRunning) {
+                // Initial sync on state change
                 mainViewModel.syncWidgets(context)
+                
+                // Periodic sync if running
+                if (mainViewModel.focusTimerRunning) {
+                    while (true) {
+                        delay(5000)
+                        mainViewModel.syncWidgets(context)
+                    }
+                }
             }
             
             KairosTheme(appearance = profile.settings.appearance) {
