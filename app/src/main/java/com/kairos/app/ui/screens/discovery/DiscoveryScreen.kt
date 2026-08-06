@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -30,34 +32,69 @@ fun DiscoveryScreen(
     mainViewModel: MainViewModel,
     discoveryViewModel: DiscoveryViewModel = viewModel()
 ) {
-    val routines by discoveryViewModel.routines.collectAsState()
+    val allRoutines by discoveryViewModel.routines.collectAsState()
     val user by mainViewModel.user.collectAsState()
     val context = LocalContext.current
     val errorMessage = discoveryViewModel.errorMessage
     val isRefreshing = discoveryViewModel.isRefreshing
+    val showOnlyMyRoutines = discoveryViewModel.showOnlyMyRoutines
+
+    val filteredRoutines = remember(allRoutines, showOnlyMyRoutines, user) {
+        if (showOnlyMyRoutines) {
+            allRoutines.filter { it.creatorId == user?.uid }
+        } else {
+            allRoutines
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Text(
-            text = "Discovery",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(24.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Discovery",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            
+            // Feed Toggle
+            Row(
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp)).padding(4.dp)
+            ) {
+                FilterChip(
+                    selected = !showOnlyMyRoutines,
+                    onClick = { discoveryViewModel.toggleFilter(false) },
+                    label = { Text("Global", fontSize = 10.sp) },
+                    border = null,
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primary, selectedLabelColor = Color.White)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                FilterChip(
+                    selected = showOnlyMyRoutines,
+                    onClick = { discoveryViewModel.toggleFilter(true) },
+                    label = { Text("My Shared", fontSize = 10.sp) },
+                    border = null,
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primary, selectedLabelColor = Color.White)
+                )
+            }
+        }
 
         if (errorMessage != null) {
             DiscoveryErrorView(errorMessage) { discoveryViewModel.loadRoutines() }
-        } else if (isRefreshing && routines.isEmpty()) {
+        } else if (isRefreshing && allRoutines.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(24.dp),
+                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 modifier = Modifier.weight(1f)
             ) {
@@ -65,28 +102,28 @@ fun DiscoveryScreen(
                     MarketplaceHeader()
                 }
 
-                if (routines.isEmpty() && !isRefreshing) {
+                if (filteredRoutines.isEmpty() && !isRefreshing) {
                     item {
                         Text(
-                            text = "No shared routines found yet.",
+                            text = if (showOnlyMyRoutines) "You haven't shared any routines yet." else "No shared routines found yet.",
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                             modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
                             textAlign = TextAlign.Center
                         )
                     }
                 } else {
-                    items(routines) { routine ->
+                    items(filteredRoutines) { routine ->
                         RoutineMarketplaceCard(
                             routine = routine,
+                            isOwner = routine.creatorId == user?.uid,
                             onAdopt = {
                                 user?.uid?.let { uid ->
                                     discoveryViewModel.adoptRoutine(routine, uid)
-                                    routine.boards.forEach { board ->
-                                        mainViewModel.addBoard(board.title)
-                                    }
+                                    mainViewModel.importRoutine(routine)
                                     Toast.makeText(context, "Routine Adopted!", Toast.LENGTH_SHORT).show()
                                 }
-                            }
+                            },
+                            onDelete = { discoveryViewModel.deleteRoutine(routine.id) }
                         )
                     }
                 }
@@ -142,7 +179,9 @@ fun MarketplaceHeader() {
 @Composable
 fun RoutineMarketplaceCard(
     routine: KairosSharedRoutine,
-    onAdopt: () -> Unit
+    isOwner: Boolean,
+    onAdopt: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -158,22 +197,21 @@ fun RoutineMarketplaceCard(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = routine.creatorName,
+                    text = if (isOwner) "You" else routine.creatorName,
                     style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (isOwner) FontWeight.Bold else FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    Icons.Default.Favorite,
-                    contentDescription = null,
-                    tint = Color(0xFFFF4B91),
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    text = " ${routine.likes}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+                
+                if (isOwner) {
+                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
+                    }
+                } else {
+                    Icon(Icons.Default.Favorite, null, tint = Color(0xFFFF4B91), modifier = Modifier.size(16.dp))
+                    Text(text = " ${routine.likes}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -194,14 +232,27 @@ fun RoutineMarketplaceCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Button(
-                onClick = onAdopt,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Add to My Kairos")
+            if (!isOwner) {
+                Button(
+                    onClick = onAdopt,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add to My Kairos")
+                }
+            } else {
+                OutlinedButton(
+                    onClick = { /* Edit logic would go here */ },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                ) {
+                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Edit Description")
+                }
             }
         }
     }

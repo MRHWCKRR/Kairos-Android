@@ -24,6 +24,9 @@ class DiscoveryViewModel(
     var isRefreshing by mutableStateOf(false)
         private set
 
+    var showOnlyMyRoutines by mutableStateOf(false)
+        private set
+
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
@@ -45,6 +48,35 @@ class DiscoveryViewModel(
                     _routines.value = it
                     isRefreshing = false
                 }
+        }
+    }
+
+    fun toggleFilter(myRoutines: Boolean) {
+        showOnlyMyRoutines = myRoutines
+    }
+
+    fun deleteRoutine(routineId: String) {
+        viewModelScope.launch {
+            try {
+                firebaseRepository.deleteSharedRoutine(routineId)
+            } catch (e: Exception) {
+                Log.e("DiscoveryViewModel", "Delete failed", e)
+                errorMessage = "Failed to delete: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun updateRoutine(routineId: String, description: String, category: String) {
+        viewModelScope.launch {
+            try {
+                firebaseRepository.updateSharedRoutine(routineId, mapOf(
+                    "description" to description,
+                    "category" to category
+                ))
+            } catch (e: Exception) {
+                Log.e("DiscoveryViewModel", "Update failed", e)
+                errorMessage = "Failed to update: ${e.localizedMessage}"
+            }
         }
     }
 

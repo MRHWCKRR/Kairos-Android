@@ -651,6 +651,27 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
+    fun importRoutine(routine: KairosSharedRoutine) {
+        val currentPlan = _plan.value ?: return
+        val newBoards = routine.boards.map { board ->
+            board.copy(
+                id = "board-${System.currentTimeMillis()}-${(0..1000).random()}",
+                sections = board.sections.map { section ->
+                    section.copy(
+                        id = "sec-${System.currentTimeMillis()}-${(0..1000).random()}",
+                        tasks = section.tasks.map { task ->
+                            task.copy(
+                                id = "task-${System.currentTimeMillis()}-${(0..1000).random()}",
+                                completed = false // Imported tasks should be fresh
+                            )
+                        }
+                    )
+                }
+            )
+        }
+        updatePlanInternal(currentPlan.copy(boards = currentPlan.boards + newBoards))
+    }
+
     fun signOut() {
         authRepository.signOut()
     }

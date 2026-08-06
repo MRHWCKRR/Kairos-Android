@@ -108,6 +108,20 @@ class FirebaseRepository {
     }
 
     /**
+     * Marketplace: Deletes a shared routine from the global collection.
+     */
+    suspend fun deleteSharedRoutine(routineId: String) {
+        db.collection("shared_routines").document(routineId).delete().await()
+    }
+
+    /**
+     * Marketplace: Updates metadata of a shared routine.
+     */
+    suspend fun updateSharedRoutine(routineId: String, data: Map<String, Any>) {
+        db.collection("shared_routines").document(routineId).update(data).await()
+    }
+
+    /**
      * Updates the study plan document.
      */
     suspend fun updatePlan(userId: String, plan: KairosPlan) {
