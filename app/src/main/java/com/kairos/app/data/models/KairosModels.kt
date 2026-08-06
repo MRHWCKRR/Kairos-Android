@@ -130,6 +130,7 @@ data class KairosUserProfile(
 @IgnoreExtraProperties
 data class KairosSharedRoutine(
     val id: String = "",
+    val creatorId: String = "",
     val creatorName: String = "",
     val creatorAvatar: String = "",
     val title: String = "", // AI Generated "Power Name"

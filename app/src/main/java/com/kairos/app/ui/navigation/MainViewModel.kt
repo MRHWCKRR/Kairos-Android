@@ -578,6 +578,7 @@ class MainViewModel @JvmOverloads constructor(
                     ?.filter { !it.archived }
                     ?.flatMap { it.tasks }
                     ?.filter { !it.completed && !it.archived }
+                    ?.distinctBy { it.id }
                     ?.take(3)
                     ?.map { "${it.id}:${it.title}" } ?: emptyList()
                 WidgetManager.updateTasks(ctx, topTasks)
