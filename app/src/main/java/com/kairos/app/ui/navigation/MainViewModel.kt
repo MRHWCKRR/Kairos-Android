@@ -569,20 +569,24 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun syncWidgetsInternal(context: Context? = null) {
-        context?.let { ctx ->
-            viewModelScope.launch {
-                WidgetManager.updateFocusState(ctx, focusTimerRunning, focusSecondsActive)
-                val topTasks = _plan.value?.boards
-                    ?.filter { !it.archived }
-                    ?.flatMap { it.sections }
-                    ?.filter { !it.archived }
-                    ?.flatMap { it.tasks }
-                    ?.filter { !it.completed && !it.archived }
-                    ?.distinctBy { it.id }
-                    ?.take(3)
-                    ?.map { "${it.id}:${it.title}" } ?: emptyList()
-                WidgetManager.updateTasks(ctx, topTasks)
-            }
+        val ctx = context ?: lastApplicationContext
+        if (ctx == null) {
+            Log.w("MainViewModel", "Cannot sync widgets: Context is null")
+            return
+        }
+        
+        viewModelScope.launch {
+            WidgetManager.updateFocusState(ctx, focusTimerRunning, focusSecondsActive)
+            val topTasks = _plan.value?.boards
+                ?.filter { !it.archived }
+                ?.flatMap { it.sections }
+                ?.filter { !it.archived }
+                ?.flatMap { it.tasks }
+                ?.filter { !it.completed && !it.archived }
+                ?.distinctBy { it.id }
+                ?.take(3)
+                ?.map { "${it.id}:${it.title}" } ?: emptyList()
+            WidgetManager.updateTasks(ctx, topTasks)
         }
     }
 
@@ -618,6 +622,33 @@ class MainViewModel @JvmOverloads constructor(
             }
         }
         syncWidgetsInternal(context)
+    }
+
+    fun shareBoard(board: KairosBoard, description: String, category: String) {
+        val userId = _user.value?.uid ?: return
+        val profile = _profile.value
+        
+        val sharedRoutine = KairosSharedRoutine(
+            id = "shared-${System.currentTimeMillis()}",
+            creatorId = userId,
+            creatorName = profile.settings.profile.displayName.ifBlank { "Anonymous" },
+            creatorAvatar = profile.settings.profile.avatarURL,
+            title = board.title,
+            description = description,
+            category = category,
+            boards = listOf(board),
+            createdAt = com.google.firebase.Timestamp.now()
+        )
+
+        viewModelScope.launch {
+            try {
+                firebaseRepository.shareRoutine(sharedRoutine)
+                pushNotification("🚀 Routine Published!", "Your routine '${board.title}' is now live in Discovery.")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to share routine", e)
+                errorMessage = "Sharing failed: ${e.localizedMessage}"
+            }
+        }
     }
 
     fun signOut() {

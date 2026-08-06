@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.tasks
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,8 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
     
     var boardIdForNewSection by remember { mutableStateOf<String?>(null) }
     var sectionIdForNewTask by remember { mutableStateOf<String?>(null) }
+    
+    var boardToShare by remember { mutableStateOf<KairosBoard?>(null) }
 
     Scaffold(
         floatingActionButton = {
@@ -92,7 +96,8 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
                         onAddTask = { sectionIdForNewTask = it.id },
                         onTaskToggle = { taskId, completed -> viewModel.toggleTask(taskId, completed) },
                         onTaskRename = { taskToRename = it },
-                        onTaskArchive = { viewModel.archiveTask(it.id) }
+                        onTaskArchive = { viewModel.archiveTask(it.id) },
+                        onShare = { boardToShare = board }
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                 }
@@ -170,6 +175,17 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
             onConfirm = { newTitle ->
                 viewModel.renameTask(task.id, newTitle)
                 taskToRename = null
+            }
+        )
+    }
+
+    boardToShare?.let { board ->
+        ShareRoutineDialog(
+            board = board,
+            onDismiss = { boardToShare = null },
+            onConfirm = { desc, cat ->
+                viewModel.shareBoard(board, desc, cat)
+                boardToShare = null
             }
         )
     }
@@ -359,7 +375,8 @@ fun BoardCard(
     onAddTask: (KairosSection) -> Unit,
     onTaskToggle: (String, Boolean) -> Unit,
     onTaskRename: (KairosTask) -> Unit,
-    onTaskArchive: (KairosTask) -> Unit
+    onTaskArchive: (KairosTask) -> Unit,
+    onShare: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -376,7 +393,10 @@ fun BoardCard(
                     text = board.title,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 
                 var showMenu by remember { mutableStateOf(false) }
@@ -386,6 +406,7 @@ fun BoardCard(
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRename() })
+                        DropdownMenuItem(text = { Text("Share to Discovery") }, onClick = { showMenu = false; onShare() })
                         DropdownMenuItem(text = { Text("Archive") }, onClick = { showMenu = false; onArchive() })
                     }
                 }
@@ -406,8 +427,13 @@ fun BoardCard(
                 Spacer(modifier = Modifier.height(16.dp))
             }
             
-            TextButton(onClick = onAddSection) {
-                Text("+ Add Section", color = MaterialTheme.colorScheme.primary)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(onClick = onAddSection) {
+                    Text("+ Add Section", color = MaterialTheme.colorScheme.primary)
+                }
+                TextButton(onClick = onShare) {
+                    Text("Share Routine", color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                }
             }
         }
     }
@@ -523,6 +549,75 @@ fun InputDialog(
         confirmButton = {
             Button(onClick = { if (text.isNotBlank()) onConfirm(text) }) {
                 Text("Confirm")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ShareRoutineDialog(
+    board: KairosBoard,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
+) {
+    var description by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("Deep Work") }
+    val categories = listOf("Deep Work", "Student", "Lofi Lovers", "Creative Flow", "Health")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Share Routine") },
+        text = {
+            Column {
+                Text(text = "Routine: ${board.title}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(text = "Description", style = MaterialTheme.typography.labelSmall)
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    placeholder = { Text("What makes this routine great?") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(text = "Category", style = MaterialTheme.typography.labelSmall)
+                var expanded by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(
+                        onClick = { expanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(selectedCategory)
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        categories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { Text(cat) },
+                                onClick = {
+                                    selectedCategory = cat
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(description, selectedCategory) },
+                enabled = description.isNotBlank()
+            ) {
+                Text("Share Now")
             }
         },
         dismissButton = {
