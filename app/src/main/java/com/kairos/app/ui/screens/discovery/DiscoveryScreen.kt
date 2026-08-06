@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,6 +33,8 @@ fun DiscoveryScreen(
     val routines by discoveryViewModel.routines.collectAsState()
     val user by mainViewModel.user.collectAsState()
     val context = LocalContext.current
+    val errorMessage = discoveryViewModel.errorMessage
+    val isRefreshing = discoveryViewModel.isRefreshing
 
     Column(
         modifier = Modifier
@@ -45,30 +49,67 @@ fun DiscoveryScreen(
             modifier = Modifier.padding(24.dp)
         )
 
-        LazyColumn(
-            contentPadding = PaddingValues(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            item {
-                MarketplaceHeader()
+        if (errorMessage != null) {
+            DiscoveryErrorView(errorMessage) { discoveryViewModel.loadRoutines() }
+        } else if (isRefreshing && routines.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                item {
+                    MarketplaceHeader()
+                }
 
-            items(routines) { routine ->
-                RoutineMarketplaceCard(
-                    routine = routine,
-                    onAdopt = {
-                        user?.uid?.let { uid ->
-                            discoveryViewModel.adoptRoutine(routine, uid)
-                            // Clone boards to main plan
-                            routine.boards.forEach { board ->
-                                mainViewModel.addBoard(board.title)
-                            }
-                            Toast.makeText(context, "Routine Adopted!", Toast.LENGTH_SHORT).show()
-                        }
+                if (routines.isEmpty() && !isRefreshing) {
+                    item {
+                        Text(
+                            text = "No shared routines found yet.",
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+                            textAlign = TextAlign.Center
+                        )
                     }
-                )
+                } else {
+                    items(routines) { routine ->
+                        RoutineMarketplaceCard(
+                            routine = routine,
+                            onAdopt = {
+                                user?.uid?.let { uid ->
+                                    discoveryViewModel.adoptRoutine(routine, uid)
+                                    routine.boards.forEach { board ->
+                                        mainViewModel.addBoard(board.title)
+                                    }
+                                    Toast.makeText(context, "Routine Adopted!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun DiscoveryErrorView(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(text = "Oops!", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.error)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = message, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onRetry) {
+            Icon(Icons.Default.Refresh, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Try Again")
         }
     }
 }

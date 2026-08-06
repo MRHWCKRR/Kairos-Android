@@ -69,17 +69,33 @@ class FirebaseRepository {
      * Marketplace: Fetches shared routines.
      */
     fun getSharedRoutines(): Flow<List<com.kairos.app.data.models.KairosSharedRoutine>> = callbackFlow {
+        Log.d("FirebaseRepository", "Fetching shared routines...")
         val query = db.collection("shared_routines")
-            .orderBy("downloads", Query.Direction.DESCENDING)
+            // Temporarily removed orderBy to rule out missing index crashes
+            // .orderBy("downloads", Query.Direction.DESCENDING) 
             .limit(20)
 
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
+                Log.e("FirebaseRepository", "Shared routines listener error: ${error.message}", error)
                 close(error)
                 return@addSnapshotListener
             }
-            val routines = snapshot?.documents?.mapNotNull { it.toObject(com.kairos.app.data.models.KairosSharedRoutine::class.java) } ?: emptyList()
-            trySend(routines)
+            
+            try {
+                val routines = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        doc.toObject(com.kairos.app.data.models.KairosSharedRoutine::class.java)
+                    } catch (e: Exception) {
+                        Log.e("FirebaseRepository", "Error parsing shared routine: ${doc.id}", e)
+                        null
+                    }
+                } ?: emptyList()
+                Log.d("FirebaseRepository", "Loaded ${routines.size} shared routines")
+                trySend(routines)
+            } catch (e: Exception) {
+                Log.e("FirebaseRepository", "General parse error in shared routines", e)
+            }
         }
         awaitClose { subscription.remove() }
     }

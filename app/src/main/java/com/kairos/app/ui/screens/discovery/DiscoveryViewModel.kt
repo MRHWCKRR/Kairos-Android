@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.discovery
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -7,10 +8,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kairos.app.data.models.KairosSharedRoutine
 import com.kairos.app.data.repository.FirebaseRepository
-import com.google.ai.client.generativeai.GenerativeModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 class DiscoveryViewModel(
@@ -23,24 +24,33 @@ class DiscoveryViewModel(
     var isRefreshing by mutableStateOf(false)
         private set
 
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
+
     init {
         loadRoutines()
     }
 
-    private fun loadRoutines() {
+    fun loadRoutines() {
         viewModelScope.launch {
             isRefreshing = true
-            firebaseRepository.getSharedRoutines().collect {
-                _routines.value = it
-                isRefreshing = false
-            }
+            errorMessage = null
+            firebaseRepository.getSharedRoutines()
+                .catch { e ->
+                    Log.e("DiscoveryViewModel", "Flow error", e)
+                    errorMessage = e.localizedMessage ?: "Failed to load routines"
+                    isRefreshing = false
+                }
+                .collect {
+                    _routines.value = it
+                    isRefreshing = false
+                }
         }
     }
 
     fun adoptRoutine(shared: KairosSharedRoutine, userId: String) {
         viewModelScope.launch {
-            // Logic to add the shared routine's boards to the user's plan
-            // This would normally involve calling mainViewModel.addBoard for each
+            // Future logic for adoption tracking
         }
     }
 }
