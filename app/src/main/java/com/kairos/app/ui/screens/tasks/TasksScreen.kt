@@ -35,6 +35,7 @@ import com.kairos.app.ui.navigation.MainViewModel
 fun TasksScreen(viewModel: MainViewModel = viewModel()) {
     val plan by viewModel.plan.collectAsState()
     val boards = plan?.boards?.filter { !it.archived } ?: emptyList()
+    val shareSuccess = viewModel.shareSuccessMessage
 
     var showAddBoardDialog by remember { mutableStateOf(false) }
     var boardToRename by remember { mutableStateOf<KairosBoard?>(null) }
@@ -186,6 +187,19 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
             onConfirm = { desc, cat ->
                 viewModel.shareBoard(board, desc, cat)
                 boardToShare = null
+            }
+        )
+    }
+
+    shareSuccess?.let { message ->
+        AlertDialog(
+            onDismissRequest = { viewModel.clearShareSuccess() },
+            title = { Text("🚀 Routine Published!") },
+            text = { Text(message) },
+            confirmButton = {
+                Button(onClick = { viewModel.clearShareSuccess() }) {
+                    Text("Awesome")
+                }
             }
         )
     }
@@ -427,13 +441,8 @@ fun BoardCard(
                 Spacer(modifier = Modifier.height(16.dp))
             }
             
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(onClick = onAddSection) {
-                    Text("+ Add Section", color = MaterialTheme.colorScheme.primary)
-                }
-                TextButton(onClick = onShare) {
-                    Text("Share Routine", color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
-                }
+            TextButton(onClick = onAddSection) {
+                Text("+ Add Section", color = MaterialTheme.colorScheme.primary)
             }
         }
     }

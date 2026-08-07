@@ -7,15 +7,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +35,9 @@ fun DiscoveryScreen(
     val errorMessage = discoveryViewModel.errorMessage
     val isRefreshing = discoveryViewModel.isRefreshing
     val showOnlyMyRoutines = discoveryViewModel.showOnlyMyRoutines
+
+    var routineToDelete by remember { mutableStateOf<KairosSharedRoutine?>(null) }
+    var routineToEdit by remember { mutableStateOf<KairosSharedRoutine?>(null) }
 
     val filteredRoutines = remember(allRoutines, showOnlyMyRoutines, user) {
         if (showOnlyMyRoutines) {
@@ -64,25 +64,46 @@ fun DiscoveryScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
             
-            // Feed Toggle
+            // --- REFINED FEED TOGGLE ---
             Row(
-                modifier = Modifier.background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp)).padding(4.dp)
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
+                    .padding(4.dp)
+                    .height(36.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                FilterChip(
-                    selected = !showOnlyMyRoutines,
-                    onClick = { discoveryViewModel.toggleFilter(false) },
-                    label = { Text("Global", fontSize = 10.sp) },
-                    border = null,
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primary, selectedLabelColor = Color.White)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                FilterChip(
-                    selected = showOnlyMyRoutines,
-                    onClick = { discoveryViewModel.toggleFilter(true) },
-                    label = { Text("My Shared", fontSize = 10.sp) },
-                    border = null,
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primary, selectedLabelColor = Color.White)
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (!showOnlyMyRoutines) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        .clickable { discoveryViewModel.toggleFilter(false) }
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Global", 
+                        fontSize = 11.sp, 
+                        fontWeight = FontWeight.Bold,
+                        color = if (!showOnlyMyRoutines) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (showOnlyMyRoutines) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        .clickable { discoveryViewModel.toggleFilter(true) }
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "My Shared", 
+                        fontSize = 11.sp, 
+                        fontWeight = FontWeight.Bold,
+                        color = if (showOnlyMyRoutines) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
 
@@ -98,9 +119,7 @@ fun DiscoveryScreen(
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                item {
-                    MarketplaceHeader()
-                }
+                item { MarketplaceHeader() }
 
                 if (filteredRoutines.isEmpty() && !isRefreshing) {
                     item {
@@ -123,12 +142,96 @@ fun DiscoveryScreen(
                                     Toast.makeText(context, "Routine Adopted!", Toast.LENGTH_SHORT).show()
                                 }
                             },
-                            onDelete = { discoveryViewModel.deleteRoutine(routine.id) }
+                            onDelete = { routineToDelete = routine },
+                            onEdit = { routineToEdit = routine }
                         )
                     }
                 }
             }
         }
+    }
+
+    // --- DIALOGS ---
+
+    routineToDelete?.let { routine ->
+        AlertDialog(
+            onDismissRequest = { routineToDelete = null },
+            title = { Text("Delete Shared Routine?") },
+            text = { Text("This will remove '${routine.title}' from the community marketplace. Your personal boards will not be affected.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        discoveryViewModel.deleteRoutine(routine.id)
+                        routineToDelete = null
+                        Toast.makeText(context, "Routine removed from marketplace", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete", color = Color.White) }
+            },
+            dismissButton = {
+                TextButton(onClick = { routineToDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+
+    routineToEdit?.let { routine ->
+        var descDraft by remember { mutableStateOf(routine.description) }
+        var catDraft by remember { mutableStateOf(routine.category) }
+        val categories = listOf("Deep Work", "Student", "Lofi Lovers", "Creative Flow", "Health")
+
+        AlertDialog(
+            onDismissRequest = { routineToEdit = null },
+            title = { Text("Edit Routine Details") },
+            text = {
+                Column {
+                    Text(text = "Routine: ${routine.title}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(text = "Description", style = MaterialTheme.typography.labelSmall)
+                    OutlinedTextField(
+                        value = descDraft,
+                        onValueChange = { descDraft = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(text = "Category", style = MaterialTheme.typography.labelSmall)
+                    var expanded by remember { mutableStateOf(false) }
+                    Box {
+                        OutlinedButton(
+                            onClick = { expanded = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) { Text(catDraft) }
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            categories.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = { Text(cat) },
+                                    onClick = {
+                                        catDraft = cat
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        discoveryViewModel.updateRoutine(routine.id, descDraft, catDraft)
+                        routineToEdit = null
+                        Toast.makeText(context, "Routine updated!", Toast.LENGTH_SHORT).show()
+                    }
+                ) { Text("Save Changes") }
+            },
+            dismissButton = {
+                TextButton(onClick = { routineToEdit = null }) { Text("Cancel") }
+            }
+        )
     }
 }
 
@@ -181,7 +284,8 @@ fun RoutineMarketplaceCard(
     routine: KairosSharedRoutine,
     isOwner: Boolean,
     onAdopt: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -244,14 +348,14 @@ fun RoutineMarketplaceCard(
                 }
             } else {
                 OutlinedButton(
-                    onClick = { /* Edit logic would go here */ },
+                    onClick = onEdit,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                 ) {
                     Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Edit Description")
+                    Text("Edit Details")
                 }
             }
         }

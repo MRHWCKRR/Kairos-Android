@@ -59,6 +59,9 @@ class MainViewModel @JvmOverloads constructor(
     var securitySuccess by mutableStateOf<String?>(null)
         private set
 
+    var shareSuccessMessage by mutableStateOf<String?>(null)
+        private set
+
     private var pendingWidgetAction: String? = null
     private var pendingWidgetTaskId: String? = null
     var lastApplicationContext: Context? = null
@@ -643,6 +646,7 @@ class MainViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             try {
                 firebaseRepository.shareRoutine(sharedRoutine)
+                shareSuccessMessage = "Routine '${board.title}' Published!"
                 pushNotification("🚀 Routine Published!", "Your routine '${board.title}' is now live in Discovery.")
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to share routine", e)
@@ -651,8 +655,14 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
+    fun clearShareSuccess() {
+        shareSuccessMessage = null
+    }
+
     fun importRoutine(routine: KairosSharedRoutine) {
         val currentPlan = _plan.value ?: return
+        
+        // Deep clone the routine to ensure all sections and tasks are carried over
         val newBoards = routine.boards.map { board ->
             board.copy(
                 id = "board-${System.currentTimeMillis()}-${(0..1000).random()}",
@@ -662,13 +672,14 @@ class MainViewModel @JvmOverloads constructor(
                         tasks = section.tasks.map { task ->
                             task.copy(
                                 id = "task-${System.currentTimeMillis()}-${(0..1000).random()}",
-                                completed = false // Imported tasks should be fresh
+                                completed = false // Reset completion for the new user
                             )
                         }
                     )
                 }
             )
         }
+        
         updatePlanInternal(currentPlan.copy(boards = currentPlan.boards + newBoards))
     }
 
