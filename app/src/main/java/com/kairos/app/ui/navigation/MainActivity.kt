@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
@@ -304,6 +305,22 @@ fun KairosApp(viewModel: MainViewModel) {
                                 onDismiss = { viewModel.clearError() }
                             )
                         } else {
+                            // --- GLOBAL MARKETPLACE SUCCESS DIALOG ---
+                            viewModel.shareSuccessMessage?.let { message ->
+                                AlertDialog(
+                                    onDismissRequest = { viewModel.clearShareSuccess() },
+                                    title = { Text("🚀 Board Published!", fontWeight = FontWeight.Bold) },
+                                    text = { Text(message) },
+                                    confirmButton = {
+                                        Button(onClick = { viewModel.clearShareSuccess() }) {
+                                            Text("Awesome")
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(24.dp),
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                )
+                            }
+
                             NavHost(
                                 navController = navController,
                                 startDestination = KairosDestination.Dashboard.route,

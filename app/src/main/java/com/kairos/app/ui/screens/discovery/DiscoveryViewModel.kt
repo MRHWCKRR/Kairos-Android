@@ -30,8 +30,26 @@ class DiscoveryViewModel(
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
+    var searchQuery by mutableStateOf("")
+        private set
+
+    var filterCreatorId by mutableStateOf<String?>(null)
+        private set
+
     init {
         loadRoutines()
+    }
+
+    fun onSearchQueryChange(query: String) {
+        searchQuery = query
+    }
+
+    fun filterByCreator(creatorId: String?) {
+        filterCreatorId = creatorId
+    }
+
+    fun toggleFilter(myRoutines: Boolean) {
+        showOnlyMyRoutines = myRoutines
     }
 
     fun loadRoutines() {
@@ -49,10 +67,6 @@ class DiscoveryViewModel(
                     isRefreshing = false
                 }
         }
-    }
-
-    fun toggleFilter(myRoutines: Boolean) {
-        showOnlyMyRoutines = myRoutines
     }
 
     fun deleteRoutine(routineId: String) {
@@ -77,6 +91,14 @@ class DiscoveryViewModel(
                 Log.e("DiscoveryViewModel", "Update failed", e)
                 errorMessage = "Failed to update: ${e.localizedMessage}"
             }
+        }
+    }
+
+    fun toggleLike(routineId: String, currentLikes: Int) {
+        viewModelScope.launch {
+            try {
+                firebaseRepository.updateSharedRoutine(routineId, mapOf("likes" to currentLikes + 1))
+            } catch (e: Exception) { }
         }
     }
 

@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -88,7 +90,7 @@ fun SettingsMainView(
     onEditRequest: () -> Unit,
     mainViewModel: MainViewModel
 ) {
-    val tabs = listOf("Personal", "Accessibility", "Security", "Appearance", "AI Engine")
+    val tabs = listOf("Personal", "Accessibility", "Security", "Appearance", "AI Engine", "Privacy & Data")
     
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
@@ -128,6 +130,7 @@ fun SettingsMainView(
                 2 -> SecurityTabContent(user, mainViewModel)
                 3 -> AppearanceTabContent(profile.settings, mainViewModel)
                 4 -> AiTabSafe(mainViewModel)
+                5 -> PrivacyTabContent(profile, mainViewModel)
             }
             Spacer(modifier = Modifier.height(100.dp))
         }
@@ -622,6 +625,117 @@ fun AiTabSafe(viewModel: MainViewModel) {
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("Save API Key")
+        }
+    }
+}
+
+@Composable
+fun PrivacyTabContent(profile: KairosUserProfile, viewModel: MainViewModel) {
+    val plan by viewModel.plan.collectAsState()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        Text(text = "Privacy & Data", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        
+        // Recycle Bin
+        SecurityCard(title = "Recycle Bin") {
+            RecycleBinContent(plan, viewModel)
+        }
+
+        // Legal
+        SecurityCard(title = "Legal") {
+            TextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+                Text("Terms of Service", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+            }
+            TextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+                Text("Privacy Policy", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+            }
+        }
+
+        // Danger Zone
+        SecurityCard(title = "Danger Zone") {
+            Button(
+                onClick = { showDeleteConfirm = true },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Delete My Account", color = Color.White)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "This action is permanent and will delete all your boards, statistics, and profile data.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Account?") },
+            text = { Text("Are you absolutely sure? This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteAccount(); showDeleteConfirm = false }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun RecycleBinContent(plan: KairosPlan?, viewModel: MainViewModel) {
+    val archivedBoards = plan?.boards?.filter { it.archived } ?: emptyList()
+    val archivedSections = mutableListOf<Pair<KairosBoard, KairosSection>>()
+    val archivedTasks = mutableListOf<Triple<KairosBoard, KairosSection, KairosTask>>()
+    
+    plan?.boards?.forEach { board ->
+        board.sections.forEach { section ->
+            if (section.archived && !board.archived) archivedSections.add(board to section)
+            section.tasks.forEach { task ->
+                if (task.archived && !section.archived && !board.archived) {
+                    archivedTasks.add(Triple(board, section, task))
+                }
+            }
+        }
+    }
+
+    val totalCount = archivedBoards.size + archivedSections.size + archivedTasks.size
+
+    if (totalCount == 0) {
+        Text("Your recycle bin is empty.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            archivedBoards.forEach { board ->
+                RecycleItemRow(board.title, "Board", { viewModel.restoreBoard(board.id) }, { viewModel.deleteBoardForever(board.id) })
+            }
+            archivedSections.forEach { (board, section) ->
+                RecycleItemRow(section.title, "Section (${board.title})", { viewModel.restoreSection(section.id) }, { viewModel.deleteSectionForever(board.id, section.id) })
+            }
+            archivedTasks.forEach { (board, section, task) ->
+                RecycleItemRow(task.title, "Task (${section.title})", { viewModel.restoreTask(task.id) }, { viewModel.deleteTaskForever(section.id, task.id) })
+            }
+        }
+    }
+}
+
+@Composable
+fun RecycleItemRow(title: String, type: String, onRestore: () -> Unit, onDelete: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+            Text(text = type, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        }
+        Row {
+            IconButton(onClick = onRestore) { Icon(Icons.Default.Restore, null, tint = MaterialTheme.colorScheme.primary) }
+            IconButton(onClick = onDelete) { Icon(Icons.Default.DeleteForever, null, tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)) }
         }
     }
 }

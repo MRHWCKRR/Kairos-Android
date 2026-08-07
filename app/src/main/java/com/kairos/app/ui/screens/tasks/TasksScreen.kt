@@ -35,7 +35,6 @@ import com.kairos.app.ui.navigation.MainViewModel
 fun TasksScreen(viewModel: MainViewModel = viewModel()) {
     val plan by viewModel.plan.collectAsState()
     val boards = plan?.boards?.filter { !it.archived } ?: emptyList()
-    val shareSuccess = viewModel.shareSuccessMessage
 
     var showAddBoardDialog by remember { mutableStateOf(false) }
     var boardToRename by remember { mutableStateOf<KairosBoard?>(null) }
@@ -73,13 +72,13 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
             ) {
                 item {
                     Text(
-                        text = "Routines & Tasks",
+                        text = "Your Boards",
                         fontSize = 32.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "Manage your master list. AI plans will populate here.",
+                        text = "Manage your active workspace. Share boards to inspire others.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                         modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
@@ -101,10 +100,6 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
                         onShare = { boardToShare = board }
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                }
-
-                item {
-                    ArchiveSection(plan = plan, viewModel = viewModel)
                 }
             }
         }
@@ -187,19 +182,6 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
             onConfirm = { desc, cat ->
                 viewModel.shareBoard(board, desc, cat)
                 boardToShare = null
-            }
-        )
-    }
-
-    shareSuccess?.let { message ->
-        AlertDialog(
-            onDismissRequest = { viewModel.clearShareSuccess() },
-            title = { Text("🚀 Routine Published!") },
-            text = { Text(message) },
-            confirmButton = {
-                Button(onClick = { viewModel.clearShareSuccess() }) {
-                    Text("Awesome")
-                }
             }
         )
     }

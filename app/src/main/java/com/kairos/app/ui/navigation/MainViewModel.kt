@@ -646,10 +646,10 @@ class MainViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             try {
                 firebaseRepository.shareRoutine(sharedRoutine)
-                shareSuccessMessage = "Routine '${board.title}' Published!"
-                pushNotification("🚀 Routine Published!", "Your routine '${board.title}' is now live in Discovery.")
+                shareSuccessMessage = "Board '${board.title}' Published!"
+                pushNotification("🚀 Board Published!", "Your board '${board.title}' is now live in Discovery.")
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to share routine", e)
+                Log.e("MainViewModel", "Failed to share board", e)
                 errorMessage = "Sharing failed: ${e.localizedMessage}"
             }
         }
@@ -685,6 +685,20 @@ class MainViewModel @JvmOverloads constructor(
 
     fun signOut() {
         authRepository.signOut()
+    }
+
+    fun deleteAccount() {
+        val userId = _user.value?.uid ?: return
+        viewModelScope.launch {
+            try {
+                // In a production app, we would delete all user data here first
+                // firebaseRepository.deleteAllUserData(userId)
+                // authRepository.deleteUser()
+                signOut()
+            } catch (e: Exception) {
+                errorMessage = "Account deletion failed: ${e.localizedMessage}"
+            }
+        }
     }
 
     fun clearError() {
