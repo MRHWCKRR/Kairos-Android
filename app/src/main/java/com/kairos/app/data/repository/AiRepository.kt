@@ -43,7 +43,7 @@ class AiRepository {
 
         val messages = listOf(
             com.kairos.app.data.models.ChatMessage(role = "system", content = "You are an expert study coach that outputs raw JSON."),
-            com.kairos.app.data.models.ChatMessage(role = "user", content = systemPrompt)
+            com.kairos.app.data.models.ChatMessage(role = "user", content = systemPrompt.take(4000))
         )
         
         val rawResponse = sendChatRequest(messages)
@@ -83,7 +83,7 @@ class AiRepository {
     suspend fun generateText(prompt: String): String {
         val messages = listOf(
             com.kairos.app.data.models.ChatMessage(role = "system", content = "You are a supportive productivity coach."),
-            com.kairos.app.data.models.ChatMessage(role = "user", content = prompt)
+            com.kairos.app.data.models.ChatMessage(role = "user", content = prompt.take(4000))
         )
         return sendChatRequest(messages)
     }
@@ -110,14 +110,20 @@ class AiRepository {
                     messages.forEach { msg ->
                         addJsonObject {
                             put("role", msg.role)
-                            put("content", msg.content)
+                            // Truncate to 4000 characters to match proxy limit
+                            val safeContent = if (msg.content.length > 4000) {
+                                msg.content.take(3997) + "..."
+                            } else {
+                                msg.content
+                            }
+                            put("content", safeContent)
                         }
                     }
                 })
             }
             val body = serializer.encodeToString(JsonObject.serializer(), bodyObj)
 
-            connection.outputStream.use { it.write(body.toByteArray()) }
+            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
 
             if (connection.responseCode != 200) {
                 val error = connection.errorStream?.bufferedReader()?.readText() ?: "No error body"

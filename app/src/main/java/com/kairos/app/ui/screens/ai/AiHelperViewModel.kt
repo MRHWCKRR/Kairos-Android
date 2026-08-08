@@ -73,7 +73,10 @@ class AiHelperViewModel @JvmOverloads constructor(
             try {
                 // system prompt
                 val systemMessage = ChatMessage(role = "system", content = "You are a helpful, friendly assistant inside the Kairos productivity app. Always respond in English, regardless of what language the user writes in, unless they explicitly ask you to reply in a different language.")
-                val apiMessages = listOf(systemMessage) + _chatMessages.value
+                
+                // Proxy limit is 40 messages total. We take the last 38 to allow for system prompt + history.
+                val chatHistory = _chatMessages.value.takeLast(38)
+                val apiMessages = listOf(systemMessage) + chatHistory
                 
                 val replyContent = aiRepository.sendChatRequest(apiMessages)
                 val assistantMessage = ChatMessage(role = "assistant", content = replyContent)
@@ -128,7 +131,7 @@ class AiHelperViewModel @JvmOverloads constructor(
         val user = authRepository.currentUser ?: return
         viewModelScope.launch {
             try {
-                firebaseRepository.updateUserProfile(user.uid, mapOf("aiChatHistory" to _chatMessages.value.takeLast(60)))
+                firebaseRepository.updateUserProfile(user.uid, mapOf("aiChatHistory" to _chatMessages.value.takeLast(38)))
             } catch (e: Exception) {
                 Log.e("AiHelperViewModel", "Failed to save history", e)
             }
