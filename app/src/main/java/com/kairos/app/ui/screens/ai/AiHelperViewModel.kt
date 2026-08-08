@@ -104,8 +104,11 @@ class AiHelperViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             try {
                 val transcript = _chatMessages.value.joinToString("\n") { "${it.role}: ${it.content}" }
+                val promptPrefix = "Below is a conversation transcript between a user and an AI Study Coach. " +
+                                  "Please extract the core study/action plan discussed into a structured format.\n\n"
+                
                 val result = aiRepository.generatePlan(
-                    input = transcript,
+                    input = promptPrefix + transcript,
                     apiKey = geminiKey,
                     languageName = "English",
                     scheduleSummary = "",

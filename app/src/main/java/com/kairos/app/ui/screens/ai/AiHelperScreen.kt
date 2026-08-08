@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -110,7 +111,7 @@ fun AiHelperScreen(
                     ChatBubble(message)
                 }
 
-                if (viewModel.isLoading) {
+                if (viewModel.isLoading && !viewModel.showConfirmationDialog) {
                     item { TypingIndicator() }
                 }
             }
@@ -125,6 +126,26 @@ fun AiHelperScreen(
                 },
                 isLoading = viewModel.isLoading
             )
+        }
+    }
+
+    // --- LOADING OVERLAY ---
+    if (viewModel.isLoading && viewModel.userInput.isEmpty() && chatMessages.isNotEmpty()) {
+        Dialog(onDismissRequest = {}) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Generating your board...", fontWeight = FontWeight.Medium)
+                }
+            }
         }
     }
 
@@ -224,7 +245,7 @@ fun ChatInputBar(
                     disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                 )
             ) {
-                if (isLoading) {
+                if (isLoading && value.isNotEmpty()) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                 } else {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", modifier = Modifier.size(20.dp))
@@ -293,9 +314,12 @@ fun AiPlanConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = { viewModel.dismissDialog() },
-        title = { Text("Add AI-generated tasks to:") },
+        title = { Text("Configure Your New Board") },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text("Where should we add these tasks?", style = MaterialTheme.typography.labelMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(
                         selected = viewModel.targetBoardMode == TargetBoardMode.NEW,
@@ -308,8 +332,9 @@ fun AiPlanConfirmationDialog(
                     OutlinedTextField(
                         value = viewModel.newBoardName,
                         onValueChange = { viewModel.newBoardName = it },
-                        placeholder = { Text("New board name") },
-                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp)
+                        placeholder = { Text("Board name (e.g. Math Study)") },
+                        modifier = Modifier.fillMaxWidth().padding(start = 32.dp),
+                        singleLine = true
                     )
                 }
 
@@ -331,11 +356,12 @@ fun AiPlanConfirmationDialog(
                 if (viewModel.targetBoardMode == TargetBoardMode.EXISTING) {
                     var expanded by remember { mutableStateOf(false) }
                     Box(modifier = Modifier.padding(start = 32.dp)) {
-                        Text(
-                            text = "Selected: ${existingBoards.find { it.id == viewModel.selectedExistingBoardId }?.title ?: "Choose a board"}",
-                            modifier = Modifier.clickable { expanded = true },
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        OutlinedButton(
+                            onClick = { expanded = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(text = existingBoards.find { it.id == viewModel.selectedExistingBoardId }?.title ?: "Select Board")
+                        }
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             existingBoards.forEach { board ->
                                 DropdownMenuItem(
@@ -355,24 +381,35 @@ fun AiPlanConfirmationDialog(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
+                // --- TASK PREVIEW ---
                 Text(
-                    text = "Summary:",
+                    text = "BOARD PREVIEW",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 1.sp
                 )
-                Text(
-                    text = "${viewModel.pendingResponse?.sections?.size ?: 0} sections",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                viewModel.pendingResponse?.sections?.forEach { section ->
+                    Column(modifier = Modifier.padding(bottom = 12.dp)) {
+                        Text(text = section.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        section.tasks.forEach { task ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp, top = 4.dp)) {
+                                Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = task.title, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(onClick = onConfirm) {
-                Text("Add Tasks")
+                Text("Add to Boards")
             }
         },
         dismissButton = {
