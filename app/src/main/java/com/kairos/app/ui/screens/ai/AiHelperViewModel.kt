@@ -1,13 +1,12 @@
 package com.kairos.app.ui.screens.ai
 
 import android.app.Application
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.kairos.app.data.local.PreferenceManager
+import android.util.Log
 import com.kairos.app.data.models.*
 import com.kairos.app.data.repository.AiRepository
 import com.kairos.app.data.repository.AiResponse
@@ -26,13 +25,13 @@ class AiHelperViewModel @JvmOverloads constructor(
     private val authRepository: AuthRepository = AuthRepository()
 ) : AndroidViewModel(application) {
 
-    private val preferenceManager = PreferenceManager(application)
     
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
     var userInput by mutableStateOf("")
     var isLoading by mutableStateOf(false)
+    var isGeneratingBoard by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
     
     var pendingResponse by mutableStateOf<AiResponse?>(null)
@@ -91,14 +90,10 @@ class AiHelperViewModel @JvmOverloads constructor(
     }
 
     fun createPlanFromChat(currentPlan: KairosPlan?) {
-        val geminiKey = preferenceManager.getGeminiKey() 
-        if (geminiKey.isNullOrBlank()) {
-            errorMessage = "Please go to Settings and save your Gemini API Key first!"
-            return
-        }
         if (_chatMessages.value.isEmpty()) return
 
         isLoading = true
+        isGeneratingBoard = true
         errorMessage = null
 
         viewModelScope.launch {
@@ -109,7 +104,6 @@ class AiHelperViewModel @JvmOverloads constructor(
                 
                 val result = aiRepository.generatePlan(
                     input = promptPrefix + transcript,
-                    apiKey = geminiKey,
                     languageName = "English",
                     scheduleSummary = "",
                     userContext = ""
@@ -120,6 +114,7 @@ class AiHelperViewModel @JvmOverloads constructor(
                 errorMessage = e.localizedMessage ?: "AI generation failed."
             } finally {
                 isLoading = false
+                isGeneratingBoard = false
             }
         }
     }
@@ -147,19 +142,39 @@ class AiHelperViewModel @JvmOverloads constructor(
         val updatedBoards = plan.boards.toMutableList()
         
         if (targetBoardMode == TargetBoardMode.NEW) {
+            // Generate unique IDs for imported tasks/sections to ensure sync works
+            val timestamp = System.currentTimeMillis()
+            val newSections = response.sections.mapIndexed { sIdx, sec ->
+                sec.copy(
+                    id = "ai-sec-$timestamp-$sIdx",
+                    tasks = sec.tasks.mapIndexed { tIdx, task ->
+                        task.copy(id = "ai-task-$timestamp-$sIdx-$tIdx")
+                    }
+                )
+            }
+            
             updatedBoards.add(
                 KairosBoard(
-                    id = "board-${System.currentTimeMillis()}",
+                    id = "board-$timestamp",
                     title = newBoardName.ifBlank { "AI Plan" },
-                    sections = response.sections
+                    sections = newSections
                 )
             )
         } else {
             val boardIndex = updatedBoards.indexOfFirst { it.id == selectedExistingBoardId }
             if (boardIndex != -1) {
                 val board = updatedBoards[boardIndex]
+                val timestamp = System.currentTimeMillis()
+                val newSections = response.sections.mapIndexed { sIdx, sec ->
+                    sec.copy(
+                        id = "ai-sec-$timestamp-$sIdx",
+                        tasks = sec.tasks.mapIndexed { tIdx, task ->
+                            task.copy(id = "ai-task-$timestamp-$sIdx-$tIdx")
+                        }
+                    )
+                }
                 updatedBoards[boardIndex] = board.copy(
-                    sections = board.sections + response.sections
+                    sections = board.sections + newSections
                 )
             }
         }

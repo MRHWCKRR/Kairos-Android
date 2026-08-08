@@ -21,6 +21,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -111,7 +113,7 @@ fun AiHelperScreen(
                     ChatBubble(message)
                 }
 
-                if (viewModel.isLoading && !viewModel.showConfirmationDialog) {
+                if (viewModel.isLoading && !viewModel.isGeneratingBoard && !viewModel.showConfirmationDialog) {
                     item { TypingIndicator() }
                 }
             }
@@ -127,10 +129,29 @@ fun AiHelperScreen(
                 isLoading = viewModel.isLoading
             )
         }
+
+        // --- ERROR SNACKBAR ---
+        viewModel.errorMessage?.let { msg ->
+            Box(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp), contentAlignment = Alignment.BottomCenter) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 4.dp,
+                    modifier = Modifier.padding(16.dp).clickable { viewModel.errorMessage = null }
+                ) {
+                    Text(
+                        text = msg,
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
     }
 
     // --- LOADING OVERLAY ---
-    if (viewModel.isLoading && viewModel.userInput.isEmpty() && chatMessages.isNotEmpty()) {
+    if (viewModel.isGeneratingBoard) {
         Dialog(onDismissRequest = {}) {
             Surface(
                 shape = RoundedCornerShape(16.dp),

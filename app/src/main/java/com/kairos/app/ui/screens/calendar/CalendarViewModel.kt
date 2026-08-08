@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.kairos.app.data.local.PreferenceManager
 import com.kairos.app.data.models.KairosPlan
 import com.kairos.app.data.repository.AiRepository
 import kotlinx.coroutines.launch
@@ -19,7 +18,6 @@ class CalendarViewModel @JvmOverloads constructor(
     private val aiRepository: AiRepository = AiRepository()
 ) : AndroidViewModel(application) {
 
-    private val preferenceManager = PreferenceManager(application)
 
     var currentMonth by mutableStateOf(YearMonth.now())
     var selectedDate by mutableStateOf<LocalDate?>(null)
@@ -35,11 +33,6 @@ class CalendarViewModel @JvmOverloads constructor(
     }
 
     fun generateInsight(date: LocalDate, plan: KairosPlan?, onResult: (String) -> Unit) {
-        val geminiKey = preferenceManager.getGeminiKey()
-        if (geminiKey.isNullOrBlank()) {
-            insightError = "Add a Gemini API key in Settings to unlock AI insights."
-            return
-        }
 
         val dateKey = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
         val tasksForDay = plan?.boards?.flatMap { it.sections }?.flatMap { it.tasks }
@@ -58,7 +51,7 @@ class CalendarViewModel @JvmOverloads constructor(
                 val taskSummary = tasksForDay.joinToString("\n") { "- ${it.title} [${if (it.completed) "done" else "pending"}]" }
                 val prompt = "You are a supportive productivity coach. Here is a user's task list for $dateKey:\n$taskSummary\n\nWrite a short, encouraging 1-2 sentence comment about their day in English. Be specific about what they've completed or still need to do. Do not use markdown formatting."
                 
-                val result = aiRepository.generateText(prompt, geminiKey)
+                val result = aiRepository.generateText(prompt)
                 onResult(result)
             } catch (e: Exception) {
                 insightError = "Couldn't generate an insight right now."

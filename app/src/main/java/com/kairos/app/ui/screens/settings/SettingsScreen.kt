@@ -609,23 +609,24 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
 
 @Composable
 fun AiTabSafe(viewModel: MainViewModel) {
-    val context = LocalContext.current
-    val preferenceManager = remember { PreferenceManager(context) }
-    var keyDraft by remember { mutableStateOf(preferenceManager.getGeminiKey() ?: "") }
-
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(text = "AI Helper", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        BunkerInputSafe(label = "Gemini API Key", value = keyDraft, onValueChange = { keyDraft = it })
-        Button(
-            onClick = { 
-                preferenceManager.saveGeminiKey(keyDraft)
-                Toast.makeText(context, "Key Saved!", Toast.LENGTH_SHORT).show()
-            },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("Save API Key")
+        Text(text = "AI Coach", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        
+        SecurityCard(title = "Inbuilt Intelligence") {
+            Text(
+                text = "Kairos features inbuilt AI coaching and routine generation powered by our community relay. No API keys or setup required.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
         }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = "Your coaching history is synced across all your devices and the Kairos web app automatically.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        )
     }
 }
 

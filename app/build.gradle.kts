@@ -49,7 +49,6 @@ dependencies {
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.play.services.auth)
-    implementation(libs.generativeai)
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.media3.exoplayer)
