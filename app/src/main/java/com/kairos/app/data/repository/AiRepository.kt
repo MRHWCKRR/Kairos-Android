@@ -100,8 +100,8 @@ class AiRepository {
             // This secret is injected from local.properties during build
             connection.setRequestProperty("X-Kairos-Auth", com.kairos.app.BuildConfig.KAIROS_RELAY_SECRET) 
             connection.doOutput = true
-            connection.connectTimeout = 15000
-            connection.readTimeout = 15000
+            connection.connectTimeout = 60000 // 60 seconds for complex board generation
+            connection.readTimeout = 60000
 
             // Safely build the JSON body using kotlinx.serialization
             val serializer = Json { ignoreUnknownKeys = true }

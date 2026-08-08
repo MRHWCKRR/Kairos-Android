@@ -101,9 +101,9 @@ class AiHelperViewModel @JvmOverloads constructor(
 
         viewModelScope.launch {
             try {
-                val transcript = _chatMessages.value.joinToString("\n") { "${it.role}: ${it.content}" }
-                val promptPrefix = "Below is a conversation transcript between a user and an AI Study Coach. " +
-                                  "Please extract the core study/action plan discussed into a structured format.\n\n"
+                // Focus on the core discussion for faster parsing
+                val transcript = _chatMessages.value.takeLast(20).joinToString("\n") { "${it.role}: ${it.content}" }
+                val promptPrefix = "Extract a structured routine from this chat into raw JSON sections and tasks.\n\n"
                 
                 val result = aiRepository.generatePlan(
                     input = promptPrefix + transcript,
@@ -114,7 +114,7 @@ class AiHelperViewModel @JvmOverloads constructor(
                 pendingResponse = result
                 showConfirmationDialog = true
             } catch (e: Exception) {
-                errorMessage = e.localizedMessage ?: "AI generation failed."
+                errorMessage = "Board generation failed: ${e.localizedMessage}"
             } finally {
                 isLoading = false
                 isGeneratingBoard = false
