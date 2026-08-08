@@ -5,6 +5,18 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+val localPropertiesFile = rootProject.file("local.properties")
+val relaySecret = if (localPropertiesFile.exists()) {
+    val lines = localPropertiesFile.readLines()
+    lines.firstOrNull { it.startsWith("KAIROS_RELAY_SECRET=") }
+        ?.substringAfter("KAIROS_RELAY_SECRET=")
+        ?.trim()
+        ?.removeSurrounding("\"")
+        ?: ""
+} else {
+    ""
+}
+
 android {
     namespace = "com.kairos.app"
     compileSdk = 34
@@ -15,10 +27,13 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
+
+        buildConfigField("String", "KAIROS_RELAY_SECRET", "\"$relaySecret\"")
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

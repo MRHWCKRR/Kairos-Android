@@ -124,7 +124,15 @@ data class KairosUserProfile(
     val settings: KairosSettings = KairosSettings(),
     val notifications: List<KairosNotification> = emptyList(),
     val achievements: KairosAchievementsData = KairosAchievementsData(),
-    val focusData: KairosFocusData = KairosFocusData()
+    val focusData: KairosFocusData = KairosFocusData(),
+    val aiChatHistory: List<ChatMessage> = emptyList()
+)
+
+@IgnoreExtraProperties
+data class ChatMessage(
+    val role: String = "", // user, assistant, system
+    val content: String = "",
+    val timestamp: Long = System.currentTimeMillis()
 )
 
 @IgnoreExtraProperties

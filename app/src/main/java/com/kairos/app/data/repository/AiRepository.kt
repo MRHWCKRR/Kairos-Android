@@ -106,6 +106,53 @@ class AiRepository {
         val response = generativeModel.generateContent(prompt)
         return response.text ?: throw Exception("Empty AI response")
     }
+
+    /**
+     * Chatbot: Calls the Kairos Relay (Hack Club AI Proxy).
+     */
+    suspend fun sendChatRequest(messages: List<com.kairos.app.data.models.ChatMessage>): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val url = java.net.URL("https://kairos.kirosapp.workers.dev")
+        val connection = url.openConnection() as java.net.HttpURLConnection
+        try {
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            // This secret is injected from local.properties during build
+            connection.setRequestProperty("X-Kairos-Auth", com.kairos.app.BuildConfig.KAIROS_RELAY_SECRET) 
+            connection.doOutput = true
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+
+            // Safely build the JSON body using kotlinx.serialization
+            val serializer = Json { ignoreUnknownKeys = true }
+            val bodyObj = buildJsonObject {
+                put("messages", buildJsonArray {
+                    messages.forEach { msg ->
+                        addJsonObject {
+                            put("role", msg.role)
+                            put("content", msg.content)
+                        }
+                    }
+                })
+            }
+            val body = serializer.encodeToString(JsonObject.serializer(), bodyObj)
+
+            connection.outputStream.use { it.write(body.toByteArray()) }
+
+            if (connection.responseCode != 200) {
+                val error = connection.errorStream?.bufferedReader()?.readText() ?: "No error body"
+                Log.e("AiRepository", "Chat proxy error ${connection.responseCode}: $error")
+                throw Exception("Chat proxy error ${connection.responseCode}")
+            }
+
+            val response = connection.inputStream.bufferedReader().readText()
+            val json = Json { ignoreUnknownKeys = true }
+            val root = json.parseToJsonElement(response).jsonObject
+            root["choices"]?.jsonArray?.get(0)?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content
+                ?: throw Exception("Malformed AI response")
+        } finally {
+            connection.disconnect()
+        }
+    }
 }
 
 data class AiResponse(
