@@ -14,6 +14,8 @@ object WidgetManager {
     val KEY_FOCUS_RUNNING = booleanPreferencesKey("focus_running")
     val KEY_FOCUS_SECONDS = longPreferencesKey("focus_seconds")
     val KEY_TOP_TASKS = stringPreferencesKey("top_tasks")
+    val KEY_THEME_COLOR = stringPreferencesKey("theme_color") // Hex string
+    val KEY_IS_DARK = booleanPreferencesKey("is_dark")
 
     suspend fun updateFocusState(context: Context, running: Boolean, seconds: Long) {
         try {
@@ -45,6 +47,28 @@ object WidgetManager {
             }
         } catch (e: Exception) {
             android.util.Log.e("WidgetManager", "Failed to update tasks", e)
+        }
+    }
+
+    suspend fun updateTheme(context: Context, colorHex: String, isDark: Boolean) {
+        try {
+            val manager = GlanceAppWidgetManager(context)
+            val focusIds = manager.getGlanceIds(FocusWidget::class.java)
+            val taskIds = manager.getGlanceIds(TasksWidget::class.java)
+            
+            (focusIds + taskIds).forEach { id ->
+                updateAppWidgetState(context, PreferencesGlanceStateDefinition, id) { prefs ->
+                    prefs.toMutablePreferences().apply {
+                        set(KEY_THEME_COLOR, colorHex)
+                        set(KEY_IS_DARK, isDark)
+                    }
+                }
+            }
+            
+            focusIds.forEach { FocusWidget().update(context, it) }
+            taskIds.forEach { TasksWidget().update(context, it) }
+        } catch (e: Exception) {
+            android.util.Log.e("WidgetManager", "Failed to update theme", e)
         }
     }
 }

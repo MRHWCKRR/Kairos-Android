@@ -1,11 +1,15 @@
 package com.kairos.app.ui.widgets
 
 import android.content.Context
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.glance.Button
+import androidx.glance.ButtonDefaults
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -18,6 +22,7 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.*
+import androidx.glance.material3.ColorProviders
 import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
@@ -34,8 +39,28 @@ class FocusWidget : GlanceAppWidget() {
             val prefs = currentState<Preferences>()
             val isRunning = prefs[WidgetManager.KEY_FOCUS_RUNNING] ?: false
             val seconds = prefs[WidgetManager.KEY_FOCUS_SECONDS] ?: 0L
+            val accentHex = prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FFA855F7"
             
-            GlanceTheme {
+            val accentColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFFA855F7) }
+            
+            val colorProviders = ColorProviders(
+                light = lightColorScheme(
+                    primary = accentColor,
+                    onPrimary = Color.White,
+                    surface = Color.White,
+                    onSurface = Color(0xFF161616),
+                    onSurfaceVariant = Color(0xFF808080)
+                ),
+                dark = darkColorScheme(
+                    primary = accentColor,
+                    onPrimary = Color.White,
+                    surface = Color(0xFF161616),
+                    onSurface = Color(0xFFF5F5F5),
+                    onSurfaceVariant = Color(0xFF808080)
+                )
+            )
+
+            GlanceTheme(colors = colorProviders) {
                 FocusWidgetContent(isRunning, seconds)
             }
         }
@@ -65,31 +90,35 @@ fun FocusWidgetContent(isRunning: Boolean, seconds: Long) {
             ) {}
             Spacer(modifier = GlanceModifier.width(8.dp))
             Text(
-                text = "FOCUS FLOW",
+                text = if (isRunning) "FOCUS ACTIVE" else "TIMER READY",
                 style = TextStyle(
-                    color = GlanceTheme.colors.onSurfaceVariant,
+                    color = GlanceTheme.colors.onSurface,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
             )
         }
         
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(12.dp))
         
         Text(
             text = timeStr,
             style = TextStyle(
                 color = if (isRunning) GlanceTheme.colors.primary else GlanceTheme.colors.onSurface,
-                fontSize = 32.sp,
+                fontSize = 40.sp,
                 fontWeight = FontWeight.Bold
             )
         )
         
-        Spacer(modifier = GlanceModifier.height(12.dp))
+        Spacer(modifier = GlanceModifier.height(16.dp))
         
         Button(
-            text = if (isRunning) "PAUSE SESSION" else "START FOCUS",
+            text = if (isRunning) "PAUSE" else "START",
             onClick = actionRunCallback<ToggleFocusAction>(),
+            colors = ButtonDefaults.buttonColors(
+                backgroundColor = GlanceTheme.colors.primary,
+                contentColor = GlanceTheme.colors.onPrimary
+            ),
             modifier = GlanceModifier.fillMaxWidth().height(48.dp)
         )
     }

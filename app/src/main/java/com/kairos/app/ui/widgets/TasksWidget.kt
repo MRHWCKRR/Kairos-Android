@@ -2,7 +2,10 @@ package com.kairos.app.ui.widgets
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
@@ -20,6 +23,7 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.*
+import androidx.glance.material3.ColorProviders
 import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
@@ -34,13 +38,33 @@ class TasksWidget : GlanceAppWidget() {
         provideContent {
             val prefs = currentState<Preferences>()
             val tasksStr = prefs[WidgetManager.KEY_TOP_TASKS] ?: ""
+            val accentHex = prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FFA855F7"
             
+            val accentColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFFA855F7) }
+            
+            val colorProviders = ColorProviders(
+                light = lightColorScheme(
+                    primary = accentColor,
+                    onPrimary = Color.White,
+                    surface = Color.White,
+                    onSurface = Color(0xFF161616),
+                    onSurfaceVariant = Color(0xFF808080)
+                ),
+                dark = darkColorScheme(
+                    primary = accentColor,
+                    onPrimary = Color.White,
+                    surface = Color(0xFF161616),
+                    onSurface = Color(0xFFF5F5F5),
+                    onSurfaceVariant = Color(0xFF808080)
+                )
+            )
+
             val tasks = if (tasksStr.isEmpty()) emptyList() else tasksStr.split("|").mapNotNull {
                 val parts = it.split(":", limit = 2)
                 if (parts.size == 2) parts[0] to parts[1] else null
             }
 
-            GlanceTheme {
+            GlanceTheme(colors = colorProviders) {
                 TasksWidgetContent(tasks)
             }
         }
@@ -67,7 +91,7 @@ fun TasksWidgetContent(tasks: List<Pair<String, String>>) {
             ) {}
             Spacer(modifier = GlanceModifier.width(8.dp))
             Text(
-                text = "To Do",
+                text = "TO DO",
                 style = TextStyle(
                     color = GlanceTheme.colors.primary,
                     fontWeight = FontWeight.Bold,

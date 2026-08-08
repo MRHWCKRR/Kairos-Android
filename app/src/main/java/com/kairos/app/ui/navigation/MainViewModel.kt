@@ -579,6 +579,16 @@ class MainViewModel @JvmOverloads constructor(
         }
         
         viewModelScope.launch {
+            val appearance = _profile.value.settings.appearance
+            val isDark = appearance.mode == "dark"
+            val accentHex = when (appearance.theme) {
+                "fairyfloss" -> "#FFFF8FC9"
+                "poseidon" -> "#FF38BDF8"
+                "peacefulplains" -> "#FF4ADE80"
+                else -> "#FFA855F7"
+            }
+            WidgetManager.updateTheme(ctx, accentHex, isDark)
+            
             WidgetManager.updateFocusState(ctx, focusTimerRunning, focusSecondsActive)
             val topTasks = _plan.value?.boards
                 ?.filter { !it.archived }
