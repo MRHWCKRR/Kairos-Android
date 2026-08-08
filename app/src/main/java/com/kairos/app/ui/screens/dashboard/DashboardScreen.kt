@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,6 +8,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -106,50 +109,83 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
 
 @Composable
 fun FocusTimerWidget(viewModel: MainViewModel) {
+    val isRunning = viewModel.focusTimerRunning
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
     ) {
-        Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text(
-                text = "Focus Timer", 
-                style = MaterialTheme.typography.titleMedium, 
-                color = MaterialTheme.colorScheme.onSurface
+                text = if (isRunning) "FOCUS ACTIVE" else "TIMER READY",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 2.sp
             )
             
-            Text(
-                text = formatHMS(viewModel.focusSecondsActive),
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Black,
-                color = if (viewModel.focusTimerRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-            )
+            Spacer(modifier = Modifier.height(24.dp))
             
-            Spacer(modifier = Modifier.height(16.dp))
+            // Centered Timer Display
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = formatHMS(viewModel.focusSecondsActive),
+                    fontSize = 56.sp,
+                    fontWeight = FontWeight.Black,
+                    color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = (-1).sp
+                )
+            }
             
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (!viewModel.focusTimerRunning) {
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (!isRunning) {
                     Button(
                         onClick = { viewModel.startFocusTimer() },
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1.2f).height(52.dp)
                     ) {
-                        Text("Start")
+                        Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Start", fontWeight = FontWeight.Bold)
                     }
                 } else {
+                    // Refined Muted Pause Button
                     Button(
                         onClick = { viewModel.pauseFocusTimer() },
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1.2f).height(52.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     ) {
-                        Text("Pause")
+                        Icon(Icons.Default.Pause, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Pause", fontWeight = FontWeight.Bold)
                     }
                 }
                 
                 OutlinedButton(
                     onClick = { viewModel.stopAndLogFocus() },
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).height(52.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                 ) {
-                    Text("Stop & Log")
+                    Text("Stop & Log", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }
