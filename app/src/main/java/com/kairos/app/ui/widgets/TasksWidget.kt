@@ -158,12 +158,41 @@ class CompleteTaskAction : ActionCallback {
         parameters: ActionParameters
     ) {
         val id = parameters[taskIdKey] ?: return
-        val intent = Intent(context, com.kairos.app.ui.navigation.MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            putExtra("action", "complete_task")
-            putExtra("task_id", id)
+        
+        // --- SILENT BACKGROUND UPDATE ---
+        val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val userId = firebaseAuth.currentUser?.uid ?: return
+        val repository = com.kairos.app.data.repository.FirebaseRepository()
+
+        // 1. Fetch current plan
+        val plan = repository.getPlanOnce(userId)
+        if (plan != null) {
+            // 2. Update task completion
+            val updatedBoards = plan.boards.map { board ->
+                board.copy(sections = board.sections.map { section ->
+                    section.copy(tasks = section.tasks.map { task ->
+                        if (task.id == id) task.copy(completed = true) else task
+                    })
+                })
+            }
+            val updatedPlan = plan.copy(boards = updatedBoards)
+            
+            // 3. Save back to Firestore
+            repository.updatePlan(userId, updatedPlan)
+            
+            // 4. Update local widget state immediately
+            val topTasks = updatedBoards
+                .filter { !it.archived }
+                .flatMap { it.sections }
+                .filter { !it.archived }
+                .flatMap { it.tasks }
+                .filter { !it.completed && !it.archived }
+                .distinctBy { it.id }
+                .take(3)
+                .map { "${it.id}:${it.title}" }
+            
+            WidgetManager.updateTasks(context, topTasks)
         }
-        context.startActivity(intent)
     }
 }
 

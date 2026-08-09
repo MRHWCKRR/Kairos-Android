@@ -103,9 +103,10 @@ fun FocusWidgetContent(isRunning: Boolean, seconds: Long) {
         
         Text(
             text = timeStr,
+            maxLines = 1,
             style = TextStyle(
                 color = if (isRunning) GlanceTheme.colors.primary else GlanceTheme.colors.onSurface,
-                fontSize = 40.sp,
+                fontSize = 32.sp,
                 fontWeight = FontWeight.Bold
             )
         )

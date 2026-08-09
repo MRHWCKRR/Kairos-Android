@@ -30,6 +30,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.ChatMessage
 import com.kairos.app.ui.navigation.MainViewModel
+import com.kairos.app.utils.MarkdownUtils
 
 @Composable
 fun AiHelperScreen(
@@ -200,7 +201,7 @@ fun ChatBubble(message: ChatMessage) {
             tonalElevation = 2.dp
         ) {
             Text(
-                text = message.content,
+                text = MarkdownUtils.parseMarkdown(message.content),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,

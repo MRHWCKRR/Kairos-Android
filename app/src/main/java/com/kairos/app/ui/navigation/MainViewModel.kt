@@ -91,6 +91,7 @@ class MainViewModel @JvmOverloads constructor(
                             .catch { e -> errorMessage = e.localizedMessage }
                             .collect { 
                                 _plan.value = it
+                                checkBackgroundCompletions(it) // Ensure achievements sync
                                 processPendingActions()
                             }
                     }
@@ -145,6 +146,38 @@ class MainViewModel @JvmOverloads constructor(
             val updatedFocusData = currentProfile.focusData.copy(
                 dailyTasksLog = currentProfile.focusData.dailyTasksLog.toMutableMap().apply {
                     this[dateKey] = (this[dateKey] ?: 0) + 1
+                }
+            )
+            
+            updateProfileInternal(mapOf(
+                "achievements" to updatedAchievements,
+                "focusData" to updatedFocusData
+            ))
+            
+            checkAchievements(updatedAchievements, updatedFocusData)
+        }
+    }
+
+    private fun checkBackgroundCompletions(plan: KairosPlan?) {
+        val currentProfile = _profile.value
+        val newlyCompletedTaskIds = mutableListOf<String>()
+
+        plan?.boards?.flatMap { it.sections }?.flatMap { it.tasks }?.forEach { task ->
+            if (task.completed && !currentProfile.achievements.countedTaskIds.contains(task.id)) {
+                newlyCompletedTaskIds.add(task.id)
+            }
+        }
+
+        if (newlyCompletedTaskIds.isNotEmpty()) {
+            val updatedAchievements = currentProfile.achievements.copy(
+                countedTaskIds = currentProfile.achievements.countedTaskIds + newlyCompletedTaskIds,
+                lifetimeTasksCompleted = currentProfile.achievements.lifetimeTasksCompleted + newlyCompletedTaskIds.size
+            )
+            
+            val dateKey = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+            val updatedFocusData = currentProfile.focusData.copy(
+                dailyTasksLog = currentProfile.focusData.dailyTasksLog.toMutableMap().apply {
+                    this[dateKey] = (this[dateKey] ?: 0) + newlyCompletedTaskIds.size
                 }
             )
             
