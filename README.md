@@ -9,7 +9,7 @@
 *Everyone has 24 hours a day. Plan your day before it plans you.*
 
 A smart, personalised and practical solution to school/work stress and last minute tasks.
-**Kairos** is an Ai assisted smart schedule, allowing you to fit your tasks into an organised and packed day.
+**Kairos** is an Ai assisted smart schedule, allowing you to fit your tasks into an organised and optimised day.
 
 ---
 
