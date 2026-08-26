@@ -80,6 +80,7 @@ class MainViewModel @JvmOverloads constructor(
     
     // Achievement Toast State
     var newlyUnlockedAchievement by mutableStateOf<AchievementDef?>(null)
+    private var isInitialSync = true
 
     init {
         viewModelScope.launch {
@@ -93,6 +94,10 @@ class MainViewModel @JvmOverloads constructor(
                                 _plan.value = it
                                 checkBackgroundCompletions(it) // Ensure achievements sync
                                 processPendingActions()
+                                if (isInitialSync) {
+                                    delay(1000) // Grace period for initial sync popups
+                                    isInitialSync = false
+                                }
                             }
                     }
                     launch {
@@ -102,7 +107,14 @@ class MainViewModel @JvmOverloads constructor(
                                 isInitializing = false
                             }
                             .collect { 
-                                if (it != null) _profile.value = it 
+                                if (it != null) {
+                                    _profile.value = it
+                                    // Once profile is in, we can allow achievement checks
+                                    if (isInitialSync) {
+                                        delay(1000) // 1 second stability delay
+                                        isInitialSync = false
+                                    }
+                                }
                                 isInitializing = false
                             }
                     }
@@ -159,6 +171,8 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun checkBackgroundCompletions(plan: KairosPlan?) {
+        if (isInitialSync) return // Prevent popups during first data load
+        
         val currentProfile = _profile.value
         val newlyCompletedTaskIds = mutableListOf<String>()
 
@@ -255,9 +269,10 @@ class MainViewModel @JvmOverloads constructor(
         val updatedUnlocked = _profile.value.achievements.unlocked.toMutableMap()
         updatedUnlocked[def.id] = System.currentTimeMillis()
         
-        newlyUnlockedAchievement = def
-        
-        pushNotification("🎉 Achievement Unlocked!", "You earned the ${def.name} badge.")
+        if (!isInitialSync) {
+            newlyUnlockedAchievement = def
+            pushNotification("🎉 Achievement Unlocked!", "You earned the ${def.name} badge.")
+        }
         
         viewModelScope.launch {
             firebaseRepository.updateUserProfile(userId, mapOf("achievements.unlocked" to updatedUnlocked))

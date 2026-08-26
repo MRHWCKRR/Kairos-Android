@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
@@ -23,6 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.*
+import com.kairos.app.ui.components.PremiumButton
+import com.kairos.app.ui.components.PremiumCard
+import com.kairos.app.ui.components.PremiumSecondaryButton
 import com.kairos.app.ui.navigation.MainViewModel
 import com.kairos.app.utils.ConfettiCannon
 
@@ -50,60 +54,79 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
         wasFocusActive = activeSection != null
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(24.dp)
-            ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
+        ) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Welcome back,",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    text = profile.settings.profile.displayName.ifBlank { "Achiever" },
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    letterSpacing = (-1).sp
+                )
+                Spacer(modifier = Modifier.height(36.dp))
+            }
+
+            item {
+                FocusTimerWidget(viewModel)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            item {
+                MiniGoalsWidget(profile)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            item {
+                RoutineStatsCard(plan = plan)
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+
+            if (activeSection != null) {
                 item {
-                    FocusTimerWidget(viewModel)
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Focus Mode",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
                 }
 
                 item {
-                    MiniGoalsWidget(profile)
-                    Spacer(modifier = Modifier.height(24.dp))
+                    FocusModeCard(
+                        section = activeSection,
+                        onTaskToggle = { taskId, completed ->
+                            viewModel.toggleTask(taskId, completed)
+                        }
+                    )
                 }
-
+            } else {
                 item {
-                    RoutineStatsCard(plan = plan)
-                    Spacer(modifier = Modifier.height(32.dp))
-                }
-
-                if (activeSection != null) {
-                    item {
-                        Text(
-                            text = "Focus Mode",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    }
-
-                    item {
-                        FocusModeCard(
-                            section = activeSection,
-                            onTaskToggle = { taskId, completed ->
-                                viewModel.toggleTask(taskId, completed)
-                            }
-                        )
-                    }
-                } else {
-                    item {
-                        AllCaughtUpView()
-                    }
+                    AllCaughtUpView()
                 }
             }
             
-            ConfettiCannon(
-                trigger = showConfetti,
-                onFinished = { showConfetti = false }
-            )
+            // Final spacing to clear the floating dock
+            item { Spacer(modifier = Modifier.height(140.dp)) }
         }
+        
+        ConfettiCannon(
+            trigger = showConfetti,
+            onFinished = { showConfetti = false }
+        )
     }
 }
 
@@ -111,81 +134,57 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
 fun FocusTimerWidget(viewModel: MainViewModel) {
     val isRunning = viewModel.focusTimerRunning
     
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-    ) {
+    PremiumCard {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = if (isRunning) "FOCUS ACTIVE" else "TIMER READY",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 2.sp
+                style = MaterialTheme.typography.labelLarge,
+                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
             )
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            // Centered Timer Display
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = formatHMS(viewModel.focusSecondsActive),
-                    fontSize = 56.sp,
-                    fontWeight = FontWeight.Black,
-                    color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    letterSpacing = (-1).sp
-                )
-            }
+            Text(
+                text = formatHMS(viewModel.focusSecondsActive),
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 64.sp),
+                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (!isRunning) {
-                    Button(
+                    PremiumButton(
                         onClick = { viewModel.startFocusTimer() },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1.2f).height(52.dp)
+                        modifier = Modifier.weight(1.2f)
                     ) {
-                        Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Start", fontWeight = FontWeight.Bold)
+                        Text("Start Focus", fontWeight = FontWeight.Bold)
                     }
                 } else {
-                    // Refined Muted Pause Button
-                    Button(
+                    PremiumSecondaryButton(
                         onClick = { viewModel.pauseFocusTimer() },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1.2f).height(52.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
+                        modifier = Modifier.weight(1.2f)
                     ) {
-                        Icon(Icons.Default.Pause, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Pause, null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Pause", fontWeight = FontWeight.Bold)
                     }
                 }
                 
-                OutlinedButton(
+                PremiumSecondaryButton(
                     onClick = { viewModel.stopAndLogFocus() },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Text("Stop & Log", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text("Stop", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -198,18 +197,14 @@ fun MiniGoalsWidget(profile: KairosUserProfile) {
     
     if (goalIds.isEmpty()) return
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+    PremiumCard {
+        Column {
             Text(
                 text = "Active Goals", 
                 style = MaterialTheme.typography.titleMedium, 
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             
             goalIds.forEach { id ->
                 val def = KAIROS_ACHIEVEMENTS.find { it.id == id }
@@ -222,17 +217,18 @@ fun MiniGoalsWidget(profile: KairosUserProfile) {
                     }
                     val pct = if (unlocked) 100 else (progress * 100).toInt().coerceIn(0, 100)
 
-                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "${def.icon} ${def.name}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                            Text(text = "$pct%", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            Text(text = "${def.icon} ${def.name}", style = MaterialTheme.typography.bodyMedium)
+                            Text(text = "$pct%", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         LinearProgressIndicator(
                             progress = { (pct / 100f) },
-                            modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
+                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
                             color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                         )
                     }
                 }
@@ -258,12 +254,8 @@ fun RoutineStatsCard(plan: KairosPlan?) {
         Triple(pct, completed, total)
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+    PremiumCard {
+        Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -272,13 +264,11 @@ fun RoutineStatsCard(plan: KairosPlan?) {
                 Text(
                     text = "Routine Stats",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "${stats.first}%",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Black,
+                    style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
@@ -286,12 +276,12 @@ fun RoutineStatsCard(plan: KairosPlan?) {
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "${stats.second} / ${stats.third} tasks completed",
+                text = "${stats.second} of ${stats.third} tasks completed",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             
             LinearProgressIndicator(
                 progress = { stats.first / 100f },
@@ -312,27 +302,22 @@ fun FocusModeCard(
     section: KairosSection,
     onTaskToggle: (String, Boolean) -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+    PremiumCard {
+        Column {
             Text(
                 text = section.title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             
             section.tasks.filter { !it.archived }.forEach { task ->
                 RoutineTaskItem(
                     task = task,
                     onToggle = { onTaskToggle(task.id, it) }
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
     }
@@ -343,70 +328,74 @@ fun RoutineTaskItem(
     task: KairosTask,
     onToggle: (Boolean) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        onClick = { onToggle(!task.completed) },
+        color = Color.Transparent,
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Checkbox(
-            checked = task.completed,
-            onCheckedChange = onToggle,
-            colors = CheckboxDefaults.colors(
-                checkedColor = MaterialTheme.colorScheme.primary,
-                uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = task.completed,
+                onCheckedChange = onToggle,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                    uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
             )
-        )
-        
-        Spacer(modifier = Modifier.width(8.dp))
-        
-        Text(
-            text = task.title,
-            color = if (task.completed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyLarge,
-            textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
-        )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Text(
+                text = task.title,
+                color = if (task.completed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge,
+                textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
+            )
+        }
     }
 }
 
 @Composable
 fun AllCaughtUpView() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "✨",
-            fontSize = 64.sp
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "You're all caught up!",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Take a break or plan your next routine.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        OutlinedButton(
-            onClick = { /* Nav to tasks or something */ },
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.height(50.dp)
+    PremiumCard {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Create New Board")
+            Text(
+                text = "✨",
+                fontSize = 48.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "You're all caught up!",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Take a break or plan your next routine.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            PremiumButton(
+                onClick = { /* Nav to tasks */ },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Add, null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Create New Board", fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

@@ -9,13 +9,25 @@ sealed class KairosDestination(val route: String, val label: String, val icon: I
     data object Discovery : KairosDestination("discovery", "Discovery", Icons.Default.Explore)
     data object AiHelper : KairosDestination("ai_helper", "AI Coach", Icons.Default.AutoAwesome)
     data object Tasks : KairosDestination("tasks", "Tasks", Icons.Default.CheckCircle)
+    data object Plan : KairosDestination("plan", "Plan", Icons.Default.CalendarMonth)
     data object Schedule : KairosDestination("schedule", "Schedule", Icons.Default.Schedule)
     data object Calendar : KairosDestination("calendar", "Calendar", Icons.Default.CalendarMonth)
     data object Achievements : KairosDestination("achievements", "Achievements", Icons.Default.EmojiEvents)
     data object Statistics : KairosDestination("statistics", "Statistics", Icons.Default.BarChart)
     data object Settings : KairosDestination("settings", "Settings", Icons.Default.Settings)
+}
 
-    companion object {
-        val all = listOf(Dashboard, Discovery, AiHelper, Tasks, Schedule, Calendar, Achievements, Statistics, Settings)
-    }
+object KairosDestinations {
+    val all = listOf(
+        KairosDestination.Dashboard,
+        KairosDestination.Discovery,
+        KairosDestination.AiHelper,
+        KairosDestination.Tasks,
+        KairosDestination.Plan
+    )
+    val secondary = listOf(
+        KairosDestination.Achievements,
+        KairosDestination.Statistics,
+        KairosDestination.Settings
+    )
 }

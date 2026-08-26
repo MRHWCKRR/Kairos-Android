@@ -29,6 +29,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.ChatMessage
+import com.kairos.app.ui.components.PremiumCard
 import com.kairos.app.ui.navigation.MainViewModel
 import com.kairos.app.utils.MarkdownUtils
 
@@ -48,9 +49,10 @@ fun AiHelperScreen(
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // --- REFINED AI COACH HEADER ---
@@ -63,8 +65,7 @@ fun AiHelperScreen(
             ) {
                 Text(
                     text = "AI Coach",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 
@@ -79,7 +80,7 @@ fun AiHelperScreen(
                         modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                     ) {
                         DropdownMenuItem(
-                            text = { Text("📋 Create Board from Chat") },
+                            text = { Text("📋 Create Board", fontWeight = FontWeight.Medium) },
                             onClick = {
                                 showMenu = false
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -87,7 +88,7 @@ fun AiHelperScreen(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("✨ New Chat") },
+                            text = { Text("✨ Clear Chat", fontWeight = FontWeight.Medium) },
                             onClick = {
                                 showMenu = false
                                 viewModel.clearChat()
@@ -103,7 +104,7 @@ fun AiHelperScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 if (chatMessages.isEmpty()) {
@@ -117,9 +118,19 @@ fun AiHelperScreen(
                 if (viewModel.isLoading && !viewModel.isGeneratingBoard && !viewModel.showConfirmationDialog) {
                     item { TypingIndicator() }
                 }
+                
+                // Final spacing to clear the floating dock and input bar
+                item { Spacer(modifier = Modifier.height(180.dp)) }
             }
+        }
 
-            // --- INPUT BAR ---
+        // --- FLOATING INPUT BAR ---
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding()
+                .padding(bottom = 100.dp, start = 20.dp, end = 20.dp) // Lifted above dock
+        ) {
             ChatInputBar(
                 value = viewModel.userInput,
                 onValueChange = { viewModel.userInput = it },
@@ -133,10 +144,10 @@ fun AiHelperScreen(
 
         // --- ERROR SNACKBAR ---
         viewModel.errorMessage?.let { msg ->
-            Box(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp), contentAlignment = Alignment.BottomCenter) {
+            Box(modifier = Modifier.fillMaxSize().padding(bottom = 100.dp), contentAlignment = Alignment.BottomCenter) {
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(16.dp),
                     tonalElevation = 4.dp,
                     modifier = Modifier.padding(16.dp).clickable { viewModel.errorMessage = null }
                 ) {
@@ -154,18 +165,14 @@ fun AiHelperScreen(
     // --- LOADING OVERLAY ---
     if (viewModel.isGeneratingBoard) {
         Dialog(onDismissRequest = {}) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 4.dp
-            ) {
+            PremiumCard {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Generating your board...", fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text("Architecting your board...", style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
@@ -191,28 +198,27 @@ fun ChatBubble(message: ChatMessage) {
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
     ) {
         Surface(
-            color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+            color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
             shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = if (isUser) 16.dp else 4.dp,
-                bottomEnd = if (isUser) 4.dp else 16.dp
+                topStart = 20.dp,
+                topEnd = 20.dp,
+                bottomStart = if (isUser) 20.dp else 4.dp,
+                bottomEnd = if (isUser) 4.dp else 20.dp
             ),
-            tonalElevation = 2.dp
+            border = if (!isUser) BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)) else null
         ) {
             Text(
                 text = MarkdownUtils.parseMarkdown(message.content),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge
             )
         }
         Text(
-            text = if (isUser) "You" else "Coach",
-            fontSize = 10.sp,
+            text = if (isUser) "You" else "Kairos AI",
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-            modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)
+            modifier = Modifier.padding(top = 4.dp, start = if (isUser) 0.dp else 4.dp, end = if (isUser) 4.dp else 0.dp)
         )
     }
 }
@@ -225,47 +231,46 @@ fun ChatInputBar(
     isLoading: Boolean
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        tonalElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
+        shadowElevation = 12.dp
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .navigationBarsPadding()
-                .imePadding(),
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(24.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
                     modifier = Modifier.fillMaxWidth(),
-                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp),
+                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     decorationBox = { innerTextField ->
                         if (value.isEmpty()) {
-                            Text("Ask your coach anything...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), fontSize = 15.sp)
+                            Text("Ask anything...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 16.sp)
                         }
                         innerTextField()
                     }
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
             IconButton(
                 onClick = onSend,
                 enabled = value.isNotBlank() && !isLoading,
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                )
+                    disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                ),
+                modifier = Modifier.size(40.dp)
             ) {
                 if (isLoading && value.isNotEmpty()) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
