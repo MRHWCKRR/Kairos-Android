@@ -6,6 +6,7 @@ import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -72,24 +73,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = false
-        }
-        
-        // Brute force transparency & behavior
-        window.navigationBarColor = AndroidColor.TRANSPARENT
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            window.navigationBarDividerColor = AndroidColor.TRANSPARENT
-        }
-        
-        val controller = WindowCompat.getInsetsController(window, window.decorView)
-        controller.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
-            // FORCED DARK: The ultimate fix for the navigation bar background scrim
-            navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT)
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         )
         
         handleIntent(intent)
@@ -97,6 +83,31 @@ class MainActivity : ComponentActivity() {
         setContent {
             val mainViewModel: MainViewModel = viewModel()
             val profile by mainViewModel.profile.collectAsState()
+            val appearance = profile.settings.appearance
+
+            // REACTIVE EDGE-TO-EDGE: This is the definitive way to kill the white bar scrim
+            LaunchedEffect(appearance.mode) {
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
+                    // FORCE DARK icons (white) to prevent system from adding protection scrim
+                    navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT)
+                )
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    window.isNavigationBarContrastEnforced = false
+                }
+                
+                // Final brute force fallbacks
+                window.navigationBarColor = AndroidColor.TRANSPARENT
+                window.statusBarColor = AndroidColor.TRANSPARENT
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    window.navigationBarDividerColor = AndroidColor.TRANSPARENT
+                }
+                
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+
             val context = LocalContext.current
             val notificationHelper = remember { NotificationHelper(context) }
 
@@ -128,7 +139,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val appearance = profile.settings.appearance
             LaunchedEffect(appearance.ambientSound, appearance.ambientVolume) {
                 mainViewModel.syncAmbientAudio(context)
             }
@@ -315,7 +325,7 @@ fun KairosApp(viewModel: MainViewModel) {
                                                             showProfileMenu = false
                                                             navController.navigate(dest.route) {
                                                                 launchSingleTop = true
-                                                                restoreState = true
+                                                                // Removed restoreState = true to prevent nav stickiness
                                                             }
                                                         }
                                                     )
@@ -612,7 +622,8 @@ fun KairosBottomNav(navController: androidx.navigation.NavHostController) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
-                                restoreState = true
+                                // Only restore state for non-Dashboard destinations to prevent stickiness
+                                restoreState = dest.route != KairosDestination.Dashboard.route
                             }
                         }
                         .padding(vertical = 12.dp),

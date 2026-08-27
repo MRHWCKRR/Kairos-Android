@@ -98,7 +98,7 @@ fun SettingsMainView(
             fontSize = 32.sp,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp)
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 120.dp) // Increased to 120.dp
         )
         
         Spacer(modifier = Modifier.height(24.dp))
@@ -743,11 +743,12 @@ fun RecycleItemRow(title: String, type: String, onRestore: () -> Unit, onDelete:
 
 @Composable
 fun BunkerTabItem(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val primaryColor = MaterialTheme.colorScheme.primary
     Box(
         modifier = modifier.fillMaxHeight().clickable { onClick() }.drawBehind {
             if (selected) {
                 drawLine(
-                    color = Color(0xFFA855F7),
+                    color = primaryColor,
                     start = Offset(0f, size.height),
                     end = Offset(size.width, size.height),
                     strokeWidth = 3.dp.toPx()
