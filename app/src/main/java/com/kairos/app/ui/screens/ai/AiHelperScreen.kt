@@ -49,13 +49,12 @@ fun AiHelperScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // --- REFINED AI COACH HEADER ---
+            // --- HEADER ---
+            // Large top padding to let content scroll UNDER the top bar area
+            Spacer(modifier = Modifier.height(100.dp))
+            
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -104,7 +103,7 @@ fun AiHelperScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 220.dp), // Increased for higher bar (UX 11.0)
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 if (chatMessages.isEmpty()) {
@@ -118,9 +117,6 @@ fun AiHelperScreen(
                 if (viewModel.isLoading && !viewModel.isGeneratingBoard && !viewModel.showConfirmationDialog) {
                     item { TypingIndicator() }
                 }
-                
-                // Final spacing to clear the floating dock and input bar
-                item { Spacer(modifier = Modifier.height(180.dp)) }
             }
         }
 
@@ -129,7 +125,7 @@ fun AiHelperScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .imePadding()
-                .padding(bottom = 100.dp, start = 20.dp, end = 20.dp) // Lifted above dock
+                .padding(bottom = 160.dp, start = 20.dp, end = 20.dp) // Lifted to 160.dp for Premium UX 11.0
         ) {
             ChatInputBar(
                 value = viewModel.userInput,
@@ -144,7 +140,7 @@ fun AiHelperScreen(
 
         // --- ERROR SNACKBAR ---
         viewModel.errorMessage?.let { msg ->
-            Box(modifier = Modifier.fillMaxSize().padding(bottom = 100.dp), contentAlignment = Alignment.BottomCenter) {
+            Box(modifier = Modifier.fillMaxSize().padding(bottom = 220.dp), contentAlignment = Alignment.BottomCenter) {
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
                     shape = RoundedCornerShape(16.dp),

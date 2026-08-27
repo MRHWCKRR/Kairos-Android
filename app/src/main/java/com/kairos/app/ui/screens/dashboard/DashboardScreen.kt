@@ -45,8 +45,6 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
             }
     }
 
-    // Trigger confetti if Focus Mode was active and now is null (all completed)
-    var wasFocusActive by remember { mutableStateOf(false) }
     LaunchedEffect(activeSection) {
         if (activeSection == null && wasFocusActive && profile.settings.appearance.confetti) {
             showConfetti = true
@@ -54,30 +52,33 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
         wasFocusActive = activeSection != null
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
+            contentPadding = PaddingValues(
+                start = 24.dp,
+                end = 24.dp,
+                top = 100.dp, // Content starts beautifully below the status bar icons
+                bottom = 180.dp // Clear the dock
+            )
         ) {
             item {
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Welcome back,",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.titleLarge, // Enlarged from titleMedium
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                     letterSpacing = 0.5.sp
                 )
                 Text(
                     text = profile.settings.profile.displayName.ifBlank { "Achiever" },
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    letterSpacing = (-1).sp
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontSize = 64.sp, // Enlarged from 48.sp
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-2.5).sp // Tighter tracking for bold hero feel
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(44.dp))
             }
 
             item {
@@ -118,9 +119,6 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
                     AllCaughtUpView()
                 }
             }
-            
-            // Final spacing to clear the floating dock
-            item { Spacer(modifier = Modifier.height(140.dp)) }
         }
         
         ConfettiCannon(
@@ -129,6 +127,9 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
         )
     }
 }
+
+// Global state for Focus active tracking
+private var wasFocusActive = false
 
 @Composable
 fun FocusTimerWidget(viewModel: MainViewModel) {

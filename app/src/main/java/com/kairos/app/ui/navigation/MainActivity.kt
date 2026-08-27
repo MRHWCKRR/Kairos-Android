@@ -73,9 +73,23 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+        
+        // Brute force transparency & behavior
+        window.navigationBarColor = AndroidColor.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.navigationBarDividerColor = AndroidColor.TRANSPARENT
+        }
+        
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
+            // FORCED DARK: The ultimate fix for the navigation bar background scrim
+            navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT)
         )
         
         handleIntent(intent)
@@ -163,7 +177,7 @@ fun KairosApp(viewModel: MainViewModel) {
                 LoginScreen()
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // 1. Background Gradients
+                    // 1. Root Background (Pure pixels)
                     val isLightTheme = MaterialTheme.colorScheme.background.red > 0.5f
                     Box(modifier = Modifier.fillMaxSize()) {
                         Box(
@@ -197,135 +211,21 @@ fun KairosApp(viewModel: MainViewModel) {
                         }
                     }
 
-                    // 2. Main Scaffold Shell
+                    // 2. Main Navigation Shell
                     Scaffold(
                         containerColor = Color.Transparent,
-                        contentWindowInsets = WindowInsets(0, 0, 0, 0), // Allow full-screen content
-                        topBar = {
-                            CenterAlignedTopAppBar(
-                                modifier = Modifier.statusBarsPadding(),
-                                title = { 
-                                    Text(
-                                        "KAIROS", 
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onBackground,
-                                        letterSpacing = 2.sp
-                                    ) 
-                                },
-                                actions = {
-                                    IconButton(onClick = { 
-                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        showNotifPanel = true 
-                                        viewModel.markNotificationsRead()
-                                    }) {
-                                        BadgedBox(
-                                            badge = {
-                                                if (unreadCount > 0) {
-                                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                                        Text(text = if (unreadCount > 9) "9+" else unreadCount.toString())
-                                                    }
-                                                }
-                                            }
-                                        ) {
-                                            Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = MaterialTheme.colorScheme.onBackground)
-                                        }
-                                    }
-                                    
-                                    var showProfileMenu by remember { mutableStateOf(false) }
-                                    val userName = profile.settings.profile.displayName.ifBlank { user?.displayName ?: "User" }
-                                    val userPhoto = profile.settings.profile.avatarURL.ifBlank { user?.photoUrl?.toString() ?: "" }
-
-                                    Box {
-                                        IconButton(onClick = { 
-                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            showProfileMenu = true 
-                                        }) {
-                                            ProfileImage(
-                                                imageUrl = userPhoto,
-                                                userName = userName,
-                                                modifier = Modifier.size(32.dp)
-                                            )
-                                        }
-
-                                        DropdownMenu(
-                                            expanded = showProfileMenu,
-                                            onDismissRequest = { showProfileMenu = false },
-                                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(16.dp).width(220.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                ProfileImage(
-                                                    imageUrl = userPhoto,
-                                                    userName = userName,
-                                                    modifier = Modifier.size(44.dp)
-                                                )
-                                                Column(modifier = Modifier.padding(start = 12.dp)) {
-                                                    Text(text = userName, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                    Text(text = user?.email ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                }
-                                            }
-
-                                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-
-                                            KairosDestinations.secondary.forEach { dest ->
-                                                DropdownMenuItem(
-                                                    text = { Text(dest.label, fontWeight = FontWeight.Medium) },
-                                                    leadingIcon = { Icon(dest.icon, null, modifier = Modifier.size(20.dp)) },
-                                                    onClick = {
-                                                        showProfileMenu = false
-                                                        navController.navigate(dest.route) {
-                                                            launchSingleTop = true
-                                                            restoreState = true
-                                                        }
-                                                    }
-                                                )
-                                            }
-
-                                            DropdownMenuItem(
-                                                text = { 
-                                                    val isDark = profile.settings.appearance.mode == "dark"
-                                                    Text(if (isDark) "Light Mode" else "Dark Mode", fontWeight = FontWeight.Medium) 
-                                                },
-                                                leadingIcon = { 
-                                                    val isDark = profile.settings.appearance.mode == "dark"
-                                                    Icon(if (isDark) Icons.Default.WbSunny else Icons.Outlined.ModeNight, null, modifier = Modifier.size(20.dp)) 
-                                                },
-                                                onClick = {
-                                                    showProfileMenu = false
-                                                    viewModel.toggleAppearanceMode()
-                                                }
-                                            )
-
-                                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-
-                                            DropdownMenuItem(
-                                                text = { Text("Sign Out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) },
-                                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
-                                                onClick = {
-                                                    showProfileMenu = false
-                                                    viewModel.signOut()
-                                                }
-                                            )
-                                        }
-                                    }
-                                },
-                                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                                    containerColor = Color.Transparent
-                                )
-                            )
-                        }
+                        contentWindowInsets = WindowInsets(0, 0, 0, 0)
                     ) { innerPadding ->
                         Box(modifier = Modifier.fillMaxSize()) {
+                            // 3. Navigation Layer (Truly Full Screen)
                             NavHost(
                                 navController = navController,
                                 startDestination = KairosDestination.Dashboard.route,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(top = innerPadding.calculateTopPadding())
+                                modifier = Modifier.fillMaxSize() 
                             ) {
-                                composable(KairosDestination.Dashboard.route) { DashboardScreen(viewModel) }
+                                composable(KairosDestination.Dashboard.route) { 
+                                    DashboardScreen(viewModel = viewModel) 
+                                }
                                 composable(KairosDestination.Discovery.route) { DiscoveryScreen(viewModel) }
                                 composable(KairosDestination.AiHelper.route) { AiHelperScreen(viewModel) }
                                 composable(KairosDestination.Tasks.route) { TasksScreen(viewModel) }
@@ -336,20 +236,140 @@ fun KairosApp(viewModel: MainViewModel) {
                                 composable(KairosDestination.Settings.route) { SettingsScreen(viewModel) }
                             }
 
-                            // 4. Floating Bottom Dock (INSIDE THE OVERLAY)
+                            // Use the innerPadding to add a tiny spacer at the bottom to satisfy Lint if needed,
+                            // but actually we want to floating dock to handle it.
+                            Spacer(modifier = Modifier.padding(innerPadding).size(0.dp))
+
+                            // 4. Floating Overlay Components
                             Box(
                                 modifier = Modifier
-                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .statusBarsPadding()
+                            ) {
+                                CenterAlignedTopAppBar(
+                                    title = { 
+                                        // Branding removed as requested
+                                    },
+                                    actions = {
+                                        IconButton(onClick = { 
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            showNotifPanel = true 
+                                            viewModel.markNotificationsRead()
+                                        }) {
+                                            BadgedBox(
+                                                badge = {
+                                                    if (unreadCount > 0) {
+                                                        Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                                            Text(text = if (unreadCount > 9) "9+" else unreadCount.toString())
+                                                        }
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = MaterialTheme.colorScheme.onBackground)
+                                            }
+                                        }
+                                        
+                                        var showProfileMenu by remember { mutableStateOf(false) }
+                                        val userName = profile.settings.profile.displayName.ifBlank { user?.displayName ?: "User" }
+                                        val userPhoto = profile.settings.profile.avatarURL.ifBlank { user?.photoUrl?.toString() ?: "" }
+
+                                        Box {
+                                            IconButton(onClick = { 
+                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                showProfileMenu = true 
+                                            }) {
+                                                ProfileImage(
+                                                    imageUrl = userPhoto,
+                                                    userName = userName,
+                                                    modifier = Modifier.size(32.dp)
+                                                )
+                                            }
+
+                                            DropdownMenu(
+                                                expanded = showProfileMenu,
+                                                onDismissRequest = { showProfileMenu = false },
+                                                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(16.dp).width(220.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    ProfileImage(
+                                                        imageUrl = userPhoto,
+                                                        userName = userName,
+                                                        modifier = Modifier.size(44.dp)
+                                                    )
+                                                    Column(modifier = Modifier.padding(start = 12.dp)) {
+                                                        Text(text = userName, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                        Text(text = user?.email ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                    }
+                                                }
+
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+
+                                                KairosDestinations.secondary.forEach { dest ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(dest.label, fontWeight = FontWeight.Medium) },
+                                                        leadingIcon = { Icon(dest.icon, null, modifier = Modifier.size(20.dp)) },
+                                                        onClick = {
+                                                            showProfileMenu = false
+                                                            navController.navigate(dest.route) {
+                                                                launchSingleTop = true
+                                                                restoreState = true
+                                                            }
+                                                        }
+                                                    )
+                                                }
+
+                                                DropdownMenuItem(
+                                                    text = { 
+                                                        val isDark = profile.settings.appearance.mode == "dark"
+                                                        Text(if (isDark) "Light Mode" else "Dark Mode", fontWeight = FontWeight.Medium) 
+                                                    },
+                                                    leadingIcon = { 
+                                                        val isDark = profile.settings.appearance.mode == "dark"
+                                                        Icon(if (isDark) Icons.Default.WbSunny else Icons.Outlined.ModeNight, null, modifier = Modifier.size(20.dp)) 
+                                                    },
+                                                    onClick = {
+                                                        showProfileMenu = false
+                                                        viewModel.toggleAppearanceMode()
+                                                    }
+                                                )
+
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+
+                                                DropdownMenuItem(
+                                                    text = { Text("Sign Out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) },
+                                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
+                                                    onClick = {
+                                                        showProfileMenu = false
+                                                        viewModel.signOut()
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    },
+                                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                                        containerColor = Color.Transparent
+                                    )
+                                )
+                            }
+
+                            // 5. Floating Bottom Dock Overlay
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
                                     .padding(horizontal = 20.dp)
                                     .windowInsetsPadding(WindowInsets.navigationBars)
-                                    .padding(bottom = 12.dp)
+                                    .padding(bottom = 12.dp),
+                                contentAlignment = Alignment.BottomCenter
                             ) {
                                 KairosBottomNav(navController) 
                             }
                         }
                     }
 
-                    // 5. Global Modals
+                    // 6. Global Modals
                     if (showNotifPanel) {
                         ModalBottomSheet(
                             onDismissRequest = { showNotifPanel = false },

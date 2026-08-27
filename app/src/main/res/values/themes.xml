@@ -4,7 +4,7 @@
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:windowIsTranslucent">true</item>
+        <!-- Definitve background fix: Set a solid dark color to hide any white lines -->
+        <item name="android:windowBackground">#0A0A0B</item>
     </style>
 </resources>
