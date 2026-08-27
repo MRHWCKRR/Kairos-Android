@@ -32,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.KairosSharedRoutine
 import com.kairos.app.ui.components.ProfileImage
 import com.kairos.app.ui.navigation.MainViewModel
+import com.kairos.app.utils.MarkdownUtils
 
 @Composable
 fun DiscoveryScreen(
@@ -327,7 +328,7 @@ fun BoardPreviewContent(routine: KairosSharedRoutine, onClose: () -> Unit, onAdo
             Text(text = routine.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(text = routine.category, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
             Spacer(modifier = Modifier.height(16.dp))
-            Text(text = routine.description, style = MaterialTheme.typography.bodyLarge)
+            Text(text = MarkdownUtils.parseMarkdown(routine.description), style = MaterialTheme.typography.bodyLarge)
 
             Spacer(modifier = Modifier.height(40.dp))
             Text(text = "What's Inside", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -454,7 +455,7 @@ fun RoutineMarketplaceCard(
             )
             
             Text(
-                text = routine.description,
+                text = MarkdownUtils.parseMarkdown(routine.description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 maxLines = 2,

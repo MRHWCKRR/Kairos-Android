@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.sp
 
 fun getKairosTypography(font: String): Typography {
     val family = when (font) {
-        "round" -> FontFamily.SansSerif // Fallback for round if no custom font
+        "round" -> FontFamily.SansSerif
         "mono" -> FontFamily.Monospace
         else -> FontFamily.Default
     }
@@ -16,23 +16,48 @@ fun getKairosTypography(font: String): Typography {
     return Typography(
         headlineLarge = TextStyle(
             fontFamily = family,
-            fontWeight = FontWeight.ExtraBold, 
-            fontSize = 32.sp
+            fontWeight = FontWeight.Black, 
+            fontSize = 36.sp,
+            letterSpacing = (-1).sp
+        ),
+        headlineMedium = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold, 
+            fontSize = 28.sp,
+            letterSpacing = (-0.5).sp
+        ),
+        titleLarge = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold, 
+            fontSize = 22.sp
         ),
         titleMedium = TextStyle(
             fontFamily = family,
-            fontWeight = FontWeight.Bold, 
+            fontWeight = FontWeight.SemiBold, 
             fontSize = 18.sp
+        ),
+        bodyLarge = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Normal, 
+            fontSize = 16.sp,
+            lineHeight = 24.sp
         ),
         bodyMedium = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Normal, 
-            fontSize = 14.sp
+            fontSize = 14.sp,
+            lineHeight = 20.sp
+        ),
+        labelLarge = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            letterSpacing = 1.sp
         ),
         labelMedium = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Medium,
-            fontSize = 12.sp
+            fontSize = 11.sp
         )
     )
 }

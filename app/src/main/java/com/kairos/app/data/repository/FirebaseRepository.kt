@@ -46,6 +46,19 @@ class FirebaseRepository {
     }
 
     /**
+     * Fetches the latest study plan once (one-time fetch).
+     */
+    suspend fun getPlanOnce(userId: String): KairosPlan? {
+        val query = plansCollection
+            .whereEqualTo("userID", userId)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(1)
+            .get()
+            .await()
+        return query.documents.firstOrNull()?.toObject(KairosPlan::class.java)
+    }
+
+    /**
      * Listens for the user's profile data (achievements, focusData, settings).
      */
     fun getUserProfile(userId: String): Flow<KairosUserProfile?> = callbackFlow {
