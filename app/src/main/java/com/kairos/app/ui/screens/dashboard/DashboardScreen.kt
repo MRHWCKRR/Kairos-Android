@@ -135,7 +135,7 @@ private var wasFocusActive = false
 fun FocusTimerWidget(viewModel: MainViewModel) {
     val isRunning = viewModel.focusTimerRunning
     
-    PremiumCard {
+    PremiumCard(contentPadding = PaddingValues(16.dp)) { // ULTRA COMPACT
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -143,49 +143,57 @@ fun FocusTimerWidget(viewModel: MainViewModel) {
             Text(
                 text = if (isRunning) "FOCUS ACTIVE" else "TIMER READY",
                 style = MaterialTheme.typography.labelLarge,
-                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                fontSize = 10.sp, 
+                letterSpacing = 1.sp
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             Text(
                 text = formatHMS(viewModel.focusSecondsActive),
-                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 64.sp),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontSize = 40.sp, 
+                    fontWeight = FontWeight.Bold
+                ),
                 color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (!isRunning) {
                     PremiumButton(
                         onClick = { viewModel.startFocusTimer() },
-                        modifier = Modifier.weight(1.2f)
+                        modifier = Modifier.weight(1.2f),
+                        height = 42.dp // Ultra compact height
                     ) {
-                        Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Start Focus", fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Start Focus", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 } else {
                     PremiumSecondaryButton(
                         onClick = { viewModel.pauseFocusTimer() },
-                        modifier = Modifier.weight(1.2f)
+                        modifier = Modifier.weight(1.2f),
+                        height = 42.dp
                     ) {
-                        Icon(Icons.Default.Pause, null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Pause", fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Pause, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Pause", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
                 
                 PremiumSecondaryButton(
                     onClick = { viewModel.stopAndLogFocus() },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    height = 42.dp
                 ) {
-                    Text("Stop", fontWeight = FontWeight.SemiBold)
+                    Text("Stop", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }

@@ -92,13 +92,17 @@ fun SettingsMainView(
 ) {
     val tabs = listOf("Personal", "Accessibility", "Security", "Appearance", "AI Engine", "Privacy & Data")
     
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
         Text(
             text = "Settings",
             fontSize = 32.sp,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 120.dp) // Increased to 120.dp
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 40.dp)
         )
         
         Spacer(modifier = Modifier.height(24.dp))

@@ -18,6 +18,7 @@ import com.kairos.app.ui.theme.*
 fun PremiumCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 24.dp,
+    contentPadding: PaddingValues = PaddingValues(24.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isLightTheme = MaterialTheme.colorScheme.background.red > 0.5f 
@@ -36,7 +37,7 @@ fun PremiumCard(
         border = BorderStroke(1.dp, if (isLightTheme) GlassBorderLight else GlassBorder)
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.padding(contentPadding),
             content = content
         )
     }
@@ -47,11 +48,14 @@ fun PremiumButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    height: Dp = 56.dp,
     content: @Composable RowScope.() -> Unit
 ) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    
     Button(
         onClick = onClick,
-        modifier = modifier.height(56.dp),
+        modifier = modifier.height(height),
         enabled = enabled,
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
@@ -65,7 +69,7 @@ fun PremiumButton(
                 .fillMaxSize()
                 .background(
                     Brush.horizontalGradient(
-                        listOf(PremiumGradientStart, PremiumGradientEnd)
+                        listOf(primaryColor, primaryColor.copy(alpha = 0.7f)) // More distinct gradient
                     )
                 )
                 .padding(horizontal = 24.dp),
@@ -85,13 +89,14 @@ fun PremiumButton(
 fun PremiumSecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    height: Dp = 56.dp,
     content: @Composable RowScope.() -> Unit
 ) {
     val isLightTheme = MaterialTheme.colorScheme.background.red > 0.5f
     
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.height(56.dp),
+        modifier = modifier.height(height),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, if (isLightTheme) GlassBorderLight else GlassBorder),
         colors = ButtonDefaults.outlinedButtonColors(
