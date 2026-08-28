@@ -143,7 +143,12 @@ class MainViewModel @JvmOverloads constructor(
             viewModelScope.launch {
                 delay(2000) // Stabilize
                 isInitialSync = false // Toggle BEFORE checking background completions
+                
+                // MANDATORY RE-CHECK: Force evaluation of all thresholds against current stats
+                val currentProfile = _profile.value
+                checkAchievements(currentProfile.achievements, currentProfile.focusData)
                 checkBackgroundCompletions(_plan.value)
+                
                 Log.d("MainViewModel", "Initial Achievement Sync Complete")
             }
         }

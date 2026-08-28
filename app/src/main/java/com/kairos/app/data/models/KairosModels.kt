@@ -160,40 +160,41 @@ data class AchievementDef(
     val type: String, // 'focus_seconds', 'tasks_completed', 'event'
     val threshold: Long = 0,
     val event: String? = null,
-    val limitedAvailability: Boolean = false
+    val limitedAvailability: Boolean = false,
+    val rarity: String = "Common"
 )
 
 val KAIROS_ACHIEVEMENTS = listOf(
     // Focus time achievements
-    AchievementDef("focus_25m", "focus", "Novice", "Log 25 minutes of focus time", "🔥", "focus_seconds", 25 * 60L),
-    AchievementDef("focus_1h", "focus", "Apprentice", "Log 1 hour of focus time", "⚡", "focus_seconds", 3600L),
-    AchievementDef("focus_2h", "focus", "Adept", "Log 2 hours of focus time", "🌀", "focus_seconds", 2 * 3600L),
-    AchievementDef("focus_5h", "focus", "Specialist", "Log 5 hours of focus time", "🎯", "focus_seconds", 5 * 3600L),
-    AchievementDef("focus_10h", "focus", "Expert", "Log 10 hours of focus time", "🛡️", "focus_seconds", 10 * 3600L),
-    AchievementDef("focus_20h", "focus", "Veteran", "Log 20 hours of focus time", "🏅", "focus_seconds", 20 * 3600L),
-    AchievementDef("focus_50h", "focus", "Master", "Log 50 hours of focus time", "👑", "focus_seconds", 50 * 3600L),
-    AchievementDef("focus_100h", "focus", "Grandmaster", "Log 100 hours of focus time", "💎", "focus_seconds", 100 * 3600L),
-    AchievementDef("focus_300h", "focus", "Legend", "Log 300 hours of focus time", "⭐", "focus_seconds", 300 * 3600L),
-    AchievementDef("focus_500h", "focus", "Mythic", "Log 500 hours of focus time", "🌟", "focus_seconds", 500 * 3600L),
-    AchievementDef("focus_1000h", "focus", "DEVELOPER???", "Log 1000 hours of focus time", "🧠", "focus_seconds", 1000 * 3600L),
+    AchievementDef("focus_25m", "focus", "Novice", "Log 25 minutes of focus time", "🔥", "focus_seconds", 25 * 60L, rarity = "Common"),
+    AchievementDef("focus_1h", "focus", "Apprentice", "Log 1 hour of focus time", "⚡", "focus_seconds", 3600L, rarity = "Common"),
+    AchievementDef("focus_2h", "focus", "Adept", "Log 2 hours of focus time", "🌀", "focus_seconds", 2 * 3600L, rarity = "Rare"),
+    AchievementDef("focus_5h", "focus", "Specialist", "Log 5 hours of focus time", "🎯", "focus_seconds", 5 * 3600L, rarity = "Rare"),
+    AchievementDef("focus_10h", "focus", "Expert", "Log 10 hours of focus time", "🛡️", "focus_seconds", 10 * 3600L, rarity = "Epic"),
+    AchievementDef("focus_20h", "focus", "Veteran", "Log 20 hours of focus time", "🏅", "focus_seconds", 20 * 3600L, rarity = "Epic"),
+    AchievementDef("focus_50h", "focus", "Master", "Log 50 hours of focus time", "👑", "focus_seconds", 50 * 3600L, rarity = "Legendary"),
+    AchievementDef("focus_100h", "focus", "Grandmaster", "Log 100 hours of focus time", "💎", "focus_seconds", 100 * 3600L, rarity = "Legendary"),
+    AchievementDef("focus_300h", "focus", "Legend", "Log 300 hours of focus time", "⭐", "focus_seconds", 300 * 3600L, rarity = "Mythic"),
+    AchievementDef("focus_500h", "focus", "Mythic", "Log 500 hours of focus time", "🌟", "focus_seconds", 500 * 3600L, rarity = "Mythic"),
+    AchievementDef("focus_1000h", "focus", "DEVELOPER???", "Log 1000 hours of focus time", "🧠", "focus_seconds", 1000 * 3600L, rarity = "Mythic"),
     
     // Tasks achievements
-    AchievementDef("tasks_5", "tasks", "Getting Started", "Complete 5 tasks", "📝", "tasks_completed", 5),
-    AchievementDef("tasks_15", "tasks", "Warming Up", "Complete 15 tasks", "📋", "tasks_completed", 15),
-    AchievementDef("tasks_30", "tasks", "Task Tackler", "Complete 30 tasks", "✅", "tasks_completed", 30),
-    AchievementDef("tasks_50", "tasks", "On A Roll", "Complete 50 tasks", "🎲", "tasks_completed", 50),
-    AchievementDef("tasks_100", "tasks", "Centurion of Checkboxes", "Complete 100 tasks", "🏆", "tasks_completed", 100),
-    AchievementDef("tasks_200", "tasks", "Double Century", "Complete 200 tasks", "🎖️", "tasks_completed", 200),
-    AchievementDef("tasks_500", "tasks", "Half-K Hero", "Complete 500 tasks", "🚀", "tasks_completed", 500),
-    AchievementDef("tasks_800", "tasks", "Almost There...", "Complete 800 tasks", "🔟", "tasks_completed", 800),
-    AchievementDef("tasks_1000", "tasks", "Kilo-Tasker", "Complete 1,000 tasks", "🗻", "tasks_completed", 1000),
-    AchievementDef("tasks_20000", "tasks", "Task Titan", "Complete 20,000 tasks", "🗿", "tasks_completed", 20000),
-    AchievementDef("tasks_50000", "tasks", "CHECKLIST MASTER", "Complete 50,000 tasks", "👑", "tasks_completed", 50000),
+    AchievementDef("tasks_5", "tasks", "Getting Started", "Complete 5 tasks", "📝", "tasks_completed", 5, rarity = "Common"),
+    AchievementDef("tasks_15", "tasks", "Warming Up", "Complete 15 tasks", "📋", "tasks_completed", 15, rarity = "Common"),
+    AchievementDef("tasks_30", "tasks", "Task Tackler", "Complete 30 tasks", "✅", "tasks_completed", 30, rarity = "Rare"),
+    AchievementDef("tasks_50", "tasks", "On A Roll", "Complete 50 tasks", "🎲", "tasks_completed", 50, rarity = "Rare"),
+    AchievementDef("tasks_100", "tasks", "Centurion of Checkboxes", "Complete 100 tasks", "🏆", "tasks_completed", 100, rarity = "Epic"),
+    AchievementDef("tasks_200", "tasks", "Double Century", "Complete 200 tasks", "🎖️", "tasks_completed", 200, rarity = "Epic"),
+    AchievementDef("tasks_500", "tasks", "Half-K Hero", "Complete 500 tasks", "🚀", "tasks_completed", 500, rarity = "Legendary"),
+    AchievementDef("tasks_800", "tasks", "Almost There...", "Complete 800 tasks", "🔟", "tasks_completed", 800, rarity = "Legendary"),
+    AchievementDef("tasks_1000", "tasks", "Kilo-Tasker", "Complete 1,000 tasks", "🗻", "tasks_completed", 1000, rarity = "Mythic"),
+    AchievementDef("tasks_20000", "tasks", "Task Titan", "Complete 20,000 tasks", "🗿", "tasks_completed", 20000, rarity = "Mythic"),
+    AchievementDef("tasks_50000", "tasks", "CHECKLIST MASTER", "Complete 50,000 tasks", "👑", "tasks_completed", 50000, rarity = "Mythic"),
     
     // Milestones
-    AchievementDef("misc_welcome", "misc", "Welcome to Kairos", "Join Kairos", "👋", "event", event = "signup"),
-    AchievementDef("misc_og", "misc", "OG", "One of the original Kairos users", "🥇", "event", event = "og", limitedAvailability = true),
-    AchievementDef("misc_lofi", "misc", "LOFIIII", "Turn on the Lo-fi ambient sound", "🎧", "event", event = "lofi"),
-    AchievementDef("misc_light", "misc", "Come To the Light", "Switch to Light mode", "☀️", "event", event = "light_mode"),
-    AchievementDef("misc_busy", "misc", "Real Busy", "Schedule more than 10 tasks on a single day", "📅", "event", event = "busy_day")
+    AchievementDef("misc_welcome", "misc", "Welcome to Kairos", "Join Kairos", "👋", "event", event = "signup", rarity = "Common"),
+    AchievementDef("misc_og", "misc", "OG", "One of the original Kairos users", "🥇", "event", event = "og", limitedAvailability = true, rarity = "Rare"),
+    AchievementDef("misc_lofi", "misc", "LOFIIII", "Turn on the Lo-fi ambient sound", "🎧", "event", event = "lofi", rarity = "Rare"),
+    AchievementDef("misc_light", "misc", "Come To the Light", "Switch to Light mode", "☀️", "event", event = "light_mode", rarity = "Rare"),
+    AchievementDef("misc_busy", "misc", "Real Busy", "Schedule more than 10 tasks on a single day", "📅", "event", event = "busy_day", rarity = "Epic")
 )
