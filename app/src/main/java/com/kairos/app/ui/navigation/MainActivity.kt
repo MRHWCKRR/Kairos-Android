@@ -602,8 +602,8 @@ fun KairosBottomNav(navController: androidx.navigation.NavHostController) {
         color = if (isLightTheme) GlassSurfaceLight else GlassSurface,
         shape = RoundedCornerShape(32.dp),
         border = BorderStroke(1.dp, if (isLightTheme) GlassBorderLight else GlassBorder.copy(alpha = 0.1f)),
-        // REMOVING SHADOW IN LIGHT MODE: Shadows on semitransparent components trigger the OS scrim.
-        tonalElevation = if (isLightTheme) 0.dp else 12.dp,
+        // FORCE 0 ELEVATION: Tonal elevation and shadows trigger the OS scrim on semitransparent docks.
+        tonalElevation = 0.dp,
         shadowElevation = if (isLightTheme) 0.dp else 16.dp
     ) {
         Row(

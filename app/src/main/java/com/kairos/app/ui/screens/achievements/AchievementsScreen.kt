@@ -11,6 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,6 +27,7 @@ import com.kairos.app.utils.ConfettiCannon
 fun AchievementsScreen(mainViewModel: MainViewModel = viewModel()) {
     val profile by mainViewModel.profile.collectAsState()
     val scrollState = rememberScrollState()
+    val haptics = LocalHapticFeedback.current
     var showConfetti by remember { mutableStateOf(false) }
 
     Surface(
@@ -65,7 +68,10 @@ fun AchievementsScreen(mainViewModel: MainViewModel = viewModel()) {
                     (0..2).forEach { index ->
                         GoalSelector(
                             selectedId = profile.achievements.goals.getOrNull(index),
-                            onSelect = { mainViewModel.setGoal(index, it) },
+                            onSelect = { 
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                mainViewModel.setGoal(index, it) 
+                            },
                             modifier = Modifier.weight(1f)
                         )
                     }
