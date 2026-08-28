@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.kairos.app.ui.components.PremiumButton
 import com.kairos.app.ui.components.PremiumCard
 import com.kairos.app.ui.navigation.MainViewModel
+import com.kairos.app.utils.ConfettiCannon
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -46,6 +47,8 @@ fun OnboardingScreen(mainViewModel: MainViewModel) {
     var selectedCountry by remember { mutableStateOf<CountryInfo?>(null) }
     var language by remember { mutableStateOf("English") }
     var timezone by remember { mutableStateOf("UTC") }
+    
+    var showConfetti by remember { mutableStateOf(false) }
     
     Box(
         modifier = Modifier
@@ -92,7 +95,7 @@ fun OnboardingScreen(mainViewModel: MainViewModel) {
                             timezone = timezone, 
                             onTimezoneChange = { timezone = it }
                         )
-                        3 -> TutorialPage()
+                        3 -> TutorialPage(onComplete = { if (it) showConfetti = true })
                     }
                 }
             }
@@ -187,6 +190,11 @@ fun OnboardingScreen(mainViewModel: MainViewModel) {
                 }
             }
         }
+
+        ConfettiCannon(
+            trigger = showConfetti,
+            onFinished = { showConfetti = false }
+        )
     }
 }
 
@@ -463,7 +471,7 @@ fun OnboardingDropdown(
 }
 
 @Composable
-fun TutorialPage() {
+fun TutorialPage(onComplete: (Boolean) -> Unit) {
     var mockTaskCompleted by remember { mutableStateOf(false) }
     
     // Pulse animation for the mock task
@@ -498,12 +506,18 @@ fun TutorialPage() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
                         checked = mockTaskCompleted,
-                        onCheckedChange = { mockTaskCompleted = it }
+                        onCheckedChange = { 
+                            mockTaskCompleted = it
+                            onComplete(it)
+                        }
                     )
                     Text(
                         text = "Complete your first task!",
                         style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.clickable { mockTaskCompleted = !mockTaskCompleted }
+                        modifier = Modifier.clickable { 
+                            mockTaskCompleted = !mockTaskCompleted
+                            onComplete(mockTaskCompleted)
+                        }
                     )
                 }
                 
