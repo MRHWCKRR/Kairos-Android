@@ -60,6 +60,7 @@ import com.kairos.app.ui.screens.settings.SettingsScreen
 import com.kairos.app.ui.screens.statistics.StatisticsScreen
 import com.kairos.app.ui.screens.tasks.TasksScreen
 import com.kairos.app.ui.screens.login.LoginScreen
+import com.kairos.app.ui.screens.onboarding.OnboardingScreen
 import com.kairos.app.ui.screens.splash.SplashScreen
 import com.kairos.app.ui.theme.*
 import com.kairos.app.utils.NotificationHelper
@@ -184,6 +185,8 @@ fun KairosApp(viewModel: MainViewModel) {
         } else {
             if (user == null) {
                 LoginScreen()
+            } else if (!profile.onboardingCompleted) {
+                OnboardingScreen(viewModel)
             } else {
                 // --- SCAFFOLD LIBERATION ---
                 // Using a raw Box stack to ensure no hidden backgrounds or insets trigger the OS scrim.
@@ -600,17 +603,20 @@ fun KairosBottomNav(navController: androidx.navigation.NavHostController) {
 
     Surface(
         color = if (isLightTheme) GlassSurfaceLight else GlassSurface,
-        shape = RoundedCornerShape(32.dp),
-        border = BorderStroke(1.dp, if (isLightTheme) GlassBorderLight else GlassBorder.copy(alpha = 0.1f)),
-        // FORCE 0 ELEVATION: Tonal elevation and shadows trigger the OS scrim on semitransparent docks.
+        shape = RoundedCornerShape(30.dp), // Adjusted for 60dp height
+        border = BorderStroke(
+            1.dp, 
+            if (isLightTheme) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) 
+            else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+        ),
         tonalElevation = 0.dp,
-        shadowElevation = if (isLightTheme) 0.dp else 16.dp
+        shadowElevation = if (isLightTheme) 4.dp else 12.dp // Restoring subtle shadow for premium lift
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(76.dp)
-                .padding(horizontal = 16.dp),
+                .fillMaxWidth(0.9f) // Premium Island Effect
+                .height(60.dp) // Ultra Slim
+                .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -628,25 +634,24 @@ fun KairosBottomNav(navController: androidx.navigation.NavHostController) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
-                                // Only restore state for non-Dashboard destinations to prevent stickiness
                                 restoreState = dest.route != KairosDestination.Dashboard.route
                             }
                         }
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 6.dp), // Tighter padding
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             imageVector = dest.icon,
                             contentDescription = dest.label,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(22.dp), // Scaled for 60dp height
                             tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
                         )
                         if (selected) {
                             Box(
                                 modifier = Modifier
-                                    .padding(top = 6.dp)
-                                    .size(5.dp)
+                                    .padding(top = 4.dp)
+                                    .size(4.dp) // Smaller dot
                                     .background(MaterialTheme.colorScheme.primary, CircleShape)
                             )
                         }

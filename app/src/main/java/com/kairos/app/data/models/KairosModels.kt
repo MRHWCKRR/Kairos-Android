@@ -68,7 +68,8 @@ data class ProfileSettings(
     val displayName: String = "",
     val avatarURL: String = "",
     val birthday: String = "",
-    val timezone: String = "UTC"
+    val timezone: String = "UTC",
+    val country: String = ""
 )
 
 @IgnoreExtraProperties
@@ -125,7 +126,8 @@ data class KairosUserProfile(
     val notifications: List<KairosNotification> = emptyList(),
     val achievements: KairosAchievementsData = KairosAchievementsData(),
     val focusData: KairosFocusData = KairosFocusData(),
-    val aiChatHistory: List<ChatMessage> = emptyList()
+    val aiChatHistory: List<ChatMessage> = emptyList(),
+    val onboardingCompleted: Boolean = false
 )
 
 @IgnoreExtraProperties

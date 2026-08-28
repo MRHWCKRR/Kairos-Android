@@ -795,6 +795,32 @@ class MainViewModel @JvmOverloads constructor(
     fun clearError() {
         errorMessage = null
     }
+
+    fun completeOnboarding(displayName: String, birthday: String, country: String, language: String, timezone: String) {
+        val userId = _user.value?.uid ?: return
+        val currentProfile = _profile.value
+        val newSettings = currentProfile.settings.copy(
+            profile = currentProfile.settings.profile.copy(
+                displayName = displayName,
+                birthday = birthday,
+                country = country,
+                timezone = timezone
+            ),
+            accessibility = currentProfile.settings.accessibility.copy(
+                language = language
+            )
+        )
+        
+        _profile.value = currentProfile.copy(
+            settings = newSettings,
+            onboardingCompleted = true
+        )
+        
+        updateProfileInternal(mapOf(
+            "settings" to newSettings,
+            "onboardingCompleted" to true
+        ))
+    }
     
     fun setGoal(index: Int, achievementId: String?) {
         val userId = _user.value?.uid ?: return
