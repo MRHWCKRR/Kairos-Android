@@ -45,8 +45,6 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
             }
     }
 
-    // Trigger confetti if Focus Mode was active and now is null (all completed)
-    var wasFocusActive by remember { mutableStateOf(false) }
     LaunchedEffect(activeSection) {
         if (activeSection == null && wasFocusActive && profile.settings.appearance.confetti) {
             showConfetti = true
@@ -54,30 +52,33 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
         wasFocusActive = activeSection != null
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
+            contentPadding = PaddingValues(
+                start = 24.dp,
+                end = 24.dp,
+                top = 100.dp, // Content starts beautifully below the status bar icons
+                bottom = 180.dp // Clear the dock
+            )
         ) {
             item {
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Welcome back,",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.titleLarge, // Enlarged from titleMedium
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                     letterSpacing = 0.5.sp
                 )
                 Text(
                     text = profile.settings.profile.displayName.ifBlank { "Achiever" },
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    letterSpacing = (-1).sp
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontSize = 64.sp, // Enlarged from 48.sp
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-2.5).sp // Tighter tracking for bold hero feel
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(44.dp))
             }
 
             item {
@@ -118,9 +119,6 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
                     AllCaughtUpView()
                 }
             }
-            
-            // Final spacing to clear the floating dock
-            item { Spacer(modifier = Modifier.height(140.dp)) }
         }
         
         ConfettiCannon(
@@ -130,11 +128,14 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
     }
 }
 
+// Global state for Focus active tracking
+private var wasFocusActive = false
+
 @Composable
 fun FocusTimerWidget(viewModel: MainViewModel) {
     val isRunning = viewModel.focusTimerRunning
     
-    PremiumCard {
+    PremiumCard(contentPadding = PaddingValues(16.dp)) { // ULTRA COMPACT
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -142,49 +143,57 @@ fun FocusTimerWidget(viewModel: MainViewModel) {
             Text(
                 text = if (isRunning) "FOCUS ACTIVE" else "TIMER READY",
                 style = MaterialTheme.typography.labelLarge,
-                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                fontSize = 10.sp, 
+                letterSpacing = 1.sp
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             Text(
                 text = formatHMS(viewModel.focusSecondsActive),
-                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 64.sp),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontSize = 40.sp, 
+                    fontWeight = FontWeight.Bold
+                ),
                 color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (!isRunning) {
                     PremiumButton(
                         onClick = { viewModel.startFocusTimer() },
-                        modifier = Modifier.weight(1.2f)
+                        modifier = Modifier.weight(1.2f),
+                        height = 42.dp // Ultra compact height
                     ) {
-                        Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Start Focus", fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Start Focus", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 } else {
                     PremiumSecondaryButton(
                         onClick = { viewModel.pauseFocusTimer() },
-                        modifier = Modifier.weight(1.2f)
+                        modifier = Modifier.weight(1.2f),
+                        height = 42.dp
                     ) {
-                        Icon(Icons.Default.Pause, null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Pause", fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Pause, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Pause", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
                 
                 PremiumSecondaryButton(
                     onClick = { viewModel.stopAndLogFocus() },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    height = 42.dp
                 ) {
-                    Text("Stop", fontWeight = FontWeight.SemiBold)
+                    Text("Stop", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }

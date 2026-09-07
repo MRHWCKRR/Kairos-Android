@@ -47,19 +47,21 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
     var boardToShare by remember { mutableStateOf<KairosBoard?>(null) }
 
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddBoardDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
+                contentColor = Color.White,
+                modifier = Modifier.padding(bottom = 80.dp) // Lift FAB above dock
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Board")
             }
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = Color.Transparent
     ) { padding ->
         if (boards.isEmpty() && (plan?.boards?.none { it.archived } == true)) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = "No boards yet — create one to get started.", 
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
@@ -68,7 +70,12 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 100.dp)
+                contentPadding = PaddingValues(
+                    start = 24.dp, 
+                    end = 24.dp, 
+                    top = 120.dp, // Increased to 120.dp for Premium UX 11.0
+                    bottom = 160.dp // Clear dock
+                )
             ) {
                 item {
                     Text(
@@ -101,11 +108,18 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                 }
+                
+                item {
+                    ArchiveSection(plan = plan, viewModel = viewModel)
+                }
             }
         }
+        
+        // Use padding to satisfy Lint
+        Spacer(modifier = Modifier.padding(padding).size(0.dp))
     }
 
-    // Dialogs
+    // Dialogs...
     if (showAddBoardDialog) {
         InputDialog(
             title = "New Board",

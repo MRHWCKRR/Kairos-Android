@@ -24,12 +24,16 @@ enum class PlanTab { CALENDAR, SCHEDULE }
 fun PlanScreen(mainViewModel: MainViewModel) {
     var selectedTab by remember { mutableStateOf(PlanTab.CALENDAR) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
         // --- CUSTOM SEGMENTED TOGGLE ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = 24.dp)
+                .padding(top = 120.dp, bottom = 16.dp), // Increased to 120.dp for Premium UX 11.0
             contentAlignment = Alignment.Center
         ) {
             Surface(
@@ -61,7 +65,7 @@ fun PlanScreen(mainViewModel: MainViewModel) {
         Box(
             modifier = Modifier
                 .weight(1f)
-                .padding(bottom = 100.dp) // Spacing for floating dock
+                .padding(bottom = 120.dp) // Spacing for floating dock
         ) {
             if (selectedTab == PlanTab.CALENDAR) {
                 CalendarScreen(mainViewModel = mainViewModel)

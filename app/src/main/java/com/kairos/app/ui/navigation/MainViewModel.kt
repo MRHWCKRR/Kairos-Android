@@ -81,6 +81,11 @@ class MainViewModel @JvmOverloads constructor(
     // Achievement Toast State
     var newlyUnlockedAchievement by mutableStateOf<AchievementDef?>(null)
     private var isInitialSync = true
+    private var planReady = false
+    private var profileReady = false
+    
+    // Stability Lock State
+    private var lastLocalUpdateTimestamp = 0L
 
     init {
         viewModelScope.launch {
@@ -92,12 +97,9 @@ class MainViewModel @JvmOverloads constructor(
                             .catch { e -> errorMessage = e.localizedMessage }
                             .collect { 
                                 _plan.value = it
-                                checkBackgroundCompletions(it) // Ensure achievements sync
+                                planReady = it != null
+                                checkInitialAchievementSync()
                                 processPendingActions()
-                                if (isInitialSync) {
-                                    delay(1000) // Grace period for initial sync popups
-                                    isInitialSync = false
-                                }
                             }
                     }
                     launch {
@@ -108,11 +110,14 @@ class MainViewModel @JvmOverloads constructor(
                             }
                             .collect { 
                                 if (it != null) {
-                                    _profile.value = it
-                                    // Once profile is in, we can allow achievement checks
-                                    if (isInitialSync) {
-                                        delay(1000) // 1 second stability delay
-                                        isInitialSync = false
+                                    // STABILITY LOCK: Skip cloud update if we just made a local change
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastLocalUpdateTimestamp > 2000) {
+                                        _profile.value = it
+                                        profileReady = true
+                                        checkInitialAchievementSync()
+                                    } else {
+                                        Log.d("MainViewModel", "Skipping cloud profile sync due to local stability lock")
                                     }
                                 }
                                 isInitializing = false
@@ -129,6 +134,22 @@ class MainViewModel @JvmOverloads constructor(
                     _profile.value = KairosUserProfile()
                     isInitializing = false
                 }
+            }
+        }
+    }
+
+    private fun checkInitialAchievementSync() {
+        if (planReady && profileReady && isInitialSync) {
+            viewModelScope.launch {
+                delay(2000) // Stabilize
+                isInitialSync = false // Toggle BEFORE checking background completions
+                
+                // MANDATORY RE-CHECK: Force evaluation of all thresholds against current stats
+                val currentProfile = _profile.value
+                checkAchievements(currentProfile.achievements, currentProfile.focusData)
+                checkBackgroundCompletions(_plan.value)
+                
+                Log.d("MainViewModel", "Initial Achievement Sync Complete")
             }
         }
     }
@@ -258,6 +279,7 @@ class MainViewModel @JvmOverloads constructor(
                 }
 
                 if (isUnlocked) {
+                    Log.d("MainViewModel", "Unlocking achievement: ${def.id}")
                     unlockAchievement(def)
                 }
             }
@@ -266,8 +288,15 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun unlockAchievement(def: AchievementDef) {
         val userId = _user.value?.uid ?: return
-        val updatedUnlocked = _profile.value.achievements.unlocked.toMutableMap()
+        val currentProfile = _profile.value
+        val updatedUnlocked = currentProfile.achievements.unlocked.toMutableMap()
         updatedUnlocked[def.id] = System.currentTimeMillis()
+        
+        // INSTANT FEEDBACK & LOCK
+        lastLocalUpdateTimestamp = System.currentTimeMillis()
+        _profile.value = currentProfile.copy(
+            achievements = currentProfile.achievements.copy(unlocked = updatedUnlocked)
+        )
         
         if (!isInitialSync) {
             newlyUnlockedAchievement = def
@@ -275,7 +304,11 @@ class MainViewModel @JvmOverloads constructor(
         }
         
         viewModelScope.launch {
-            firebaseRepository.updateUserProfile(userId, mapOf("achievements.unlocked" to updatedUnlocked))
+            try {
+                firebaseRepository.updateUserProfile(userId, mapOf("achievements.unlocked" to updatedUnlocked))
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to update unlocked achievements", e)
+            }
         }
     }
 
@@ -762,15 +795,59 @@ class MainViewModel @JvmOverloads constructor(
     fun clearError() {
         errorMessage = null
     }
+
+    fun completeOnboarding(displayName: String, birthday: String, country: String, language: String, timezone: String) {
+        val userId = _user.value?.uid ?: return
+        val currentProfile = _profile.value
+        val newSettings = currentProfile.settings.copy(
+            profile = currentProfile.settings.profile.copy(
+                displayName = displayName,
+                birthday = birthday,
+                country = country,
+                timezone = timezone
+            ),
+            accessibility = currentProfile.settings.accessibility.copy(
+                language = language
+            )
+        )
+        
+        _profile.value = currentProfile.copy(
+            settings = newSettings,
+            onboardingCompleted = true
+        )
+        
+        updateProfileInternal(mapOf(
+            "settings" to newSettings,
+            "onboardingCompleted" to true
+        ))
+    }
     
     fun setGoal(index: Int, achievementId: String?) {
         val userId = _user.value?.uid ?: return
-        val currentGoals = _profile.value.achievements.goals.toMutableList()
-        if (index < currentGoals.size) {
-            currentGoals[index] = achievementId
+        val currentProfile = _profile.value
+        val achievements = currentProfile.achievements
+        
+        // Robust Goal List Management
+        val currentGoals = achievements.goals.toMutableList()
+        while (currentGoals.size <= index) {
+            currentGoals.add(null)
         }
+        currentGoals[index] = achievementId
+        
+        // INSTANT UI FEEDBACK & STABILITY LOCK
+        lastLocalUpdateTimestamp = System.currentTimeMillis()
+        _profile.value = currentProfile.copy(
+            achievements = achievements.copy(goals = currentGoals)
+        )
+        
+        Log.d("MainViewModel", "Setting goal at index $index to $achievementId. New list: $currentGoals")
+        
         viewModelScope.launch {
-            firebaseRepository.updateUserProfile(userId, mapOf("achievements.goals" to currentGoals))
+            try {
+                firebaseRepository.updateUserProfile(userId, mapOf("achievements.goals" to currentGoals))
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to set goal", e)
+            }
         }
     }
 }

@@ -66,88 +66,7 @@ fun DiscoveryScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // --- HEADER & SEARCH ---
-        Column(modifier = Modifier.padding(24.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Discovery",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                
-                // --- REFINED FEED TOGGLE ---
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.height(36.dp)
-                ) {
-                    Row(modifier = Modifier.padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        TabToggleItem("Global", !showOnlyMyRoutines) { discoveryViewModel.toggleFilter(false); discoveryViewModel.filterByCreator(null) }
-                        TabToggleItem("My Shared", showOnlyMyRoutines) { discoveryViewModel.toggleFilter(true); discoveryViewModel.filterByCreator(null) }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search Bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = { discoveryViewModel.onSearchQueryChange(it) },
-                        modifier = Modifier.weight(1f),
-                        textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        singleLine = true,
-                        decorationBox = { innerTextField ->
-                            if (searchQuery.isEmpty()) {
-                                Text("Search community boards...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), fontSize = 14.sp)
-                            }
-                            innerTextField()
-                        }
-                    )
-                    if (searchQuery.isNotEmpty() || filterCreatorId != null) {
-                        IconButton(onClick = { 
-                            discoveryViewModel.onSearchQueryChange("")
-                            discoveryViewModel.filterByCreator(null)
-                        }, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
-                        }
-                    }
-                }
-            }
-
-            if (filterCreatorId != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                AssistChip(
-                    onClick = { discoveryViewModel.filterByCreator(null) },
-                    label = { Text("Filter: Creator Profile") },
-                    trailingIcon = { Icon(Icons.Default.Close, null, modifier = Modifier.size(14.dp)) },
-                    shape = RoundedCornerShape(8.dp)
-                )
-            }
-        }
-
+    Box(modifier = Modifier.fillMaxSize()) {
         if (errorMessage != null) {
             DiscoveryErrorView(errorMessage) { discoveryViewModel.loadRoutines() }
         } else if (isRefreshing && allRoutines.isEmpty()) {
@@ -156,10 +75,94 @@ fun DiscoveryScreen(
             }
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 0.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 24.dp,
+                    end = 24.dp,
+                    top = 120.dp, // Increased to 120.dp for Premium UX 11.0
+                    bottom = 160.dp // Clear the floating dock
+                ),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
+                item {
+                    // --- HEADER & SEARCH ---
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Discovery",
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            
+                            // --- REFINED FEED TOGGLE ---
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Row(modifier = Modifier.padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    TabToggleItem("Global", !showOnlyMyRoutines) { discoveryViewModel.toggleFilter(false); discoveryViewModel.filterByCreator(null) }
+                                    TabToggleItem("My Shared", showOnlyMyRoutines) { discoveryViewModel.toggleFilter(true); discoveryViewModel.filterByCreator(null) }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Search Bar
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { discoveryViewModel.onSearchQueryChange(it) },
+                                    modifier = Modifier.weight(1f),
+                                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    singleLine = true,
+                                    decorationBox = { innerTextField ->
+                                        if (searchQuery.isEmpty()) {
+                                            Text("Search community boards...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), fontSize = 14.sp)
+                                        }
+                                        innerTextField()
+                                    }
+                                )
+                                if (searchQuery.isNotEmpty() || filterCreatorId != null) {
+                                    IconButton(onClick = { 
+                                        discoveryViewModel.onSearchQueryChange("")
+                                        discoveryViewModel.filterByCreator(null)
+                                    }, modifier = Modifier.size(24.dp)) {
+                                        Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                                    }
+                                }
+                            }
+                        }
+
+                        if (filterCreatorId != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            AssistChip(
+                                onClick = { discoveryViewModel.filterByCreator(null) },
+                                label = { Text("Filter: Creator Profile") },
+                                trailingIcon = { Icon(Icons.Default.Close, null, modifier = Modifier.size(14.dp)) },
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                        }
+                    }
+                }
+
                 item { MarketplaceHeader() }
 
                 if (filteredRoutines.isEmpty() && !isRefreshing) {
@@ -191,8 +194,6 @@ fun DiscoveryScreen(
                         )
                     }
                 }
-                
-                item { Spacer(modifier = Modifier.height(100.dp)) }
             }
         }
     }

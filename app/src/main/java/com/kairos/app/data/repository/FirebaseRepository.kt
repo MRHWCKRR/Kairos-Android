@@ -3,7 +3,6 @@ package com.kairos.app.data.repository
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.SetOptions
 import com.kairos.app.data.models.KairosPlan
 import com.kairos.app.data.models.KairosUserProfile
 import kotlinx.coroutines.channels.awaitClose
@@ -150,9 +149,9 @@ class FirebaseRepository {
     }
 
     /**
-     * Updates specific fields in the user profile (merge).
+     * Updates specific fields in the user profile using dot notation for nested fields.
      */
     suspend fun updateUserProfile(userId: String, data: Map<String, Any>) {
-        usersCollection.document(userId).set(data, SetOptions.merge()).await()
+        usersCollection.document(userId).update(data).await()
     }
 }

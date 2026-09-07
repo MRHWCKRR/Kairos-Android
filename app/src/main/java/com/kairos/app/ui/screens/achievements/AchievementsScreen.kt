@@ -9,8 +9,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,7 +28,10 @@ import com.kairos.app.utils.ConfettiCannon
 fun AchievementsScreen(mainViewModel: MainViewModel = viewModel()) {
     val profile by mainViewModel.profile.collectAsState()
     val scrollState = rememberScrollState()
+    val haptics = LocalHapticFeedback.current
     var showConfetti by remember { mutableStateOf(false) }
+    
+    var selectedAchievementForDetail by remember { mutableStateOf<AchievementDef?>(null) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -65,7 +71,10 @@ fun AchievementsScreen(mainViewModel: MainViewModel = viewModel()) {
                     (0..2).forEach { index ->
                         GoalSelector(
                             selectedId = profile.achievements.goals.getOrNull(index),
-                            onSelect = { mainViewModel.setGoal(index, it) },
+                            onSelect = { 
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                mainViewModel.setGoal(index, it) 
+                            },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -74,11 +83,17 @@ fun AchievementsScreen(mainViewModel: MainViewModel = viewModel()) {
                 Spacer(modifier = Modifier.height(40.dp))
 
                 // Achievement Categories
-                AchievementCategoryBlock("Locked In Time", "focus", profile)
+                AchievementCategoryBlock("Locked In Time", "focus", profile) {
+                    selectedAchievementForDetail = it
+                }
                 Spacer(modifier = Modifier.height(40.dp))
-                AchievementCategoryBlock("Tasks Completed", "tasks", profile)
+                AchievementCategoryBlock("Tasks Completed", "tasks", profile) {
+                    selectedAchievementForDetail = it
+                }
                 Spacer(modifier = Modifier.height(40.dp))
-                AchievementCategoryBlock("Milestones", "misc", profile)
+                AchievementCategoryBlock("Milestones", "misc", profile) {
+                    selectedAchievementForDetail = it
+                }
                 
                 Spacer(modifier = Modifier.height(100.dp))
             }
@@ -88,6 +103,15 @@ fun AchievementsScreen(mainViewModel: MainViewModel = viewModel()) {
                 onFinished = { showConfetti = false }
             )
         }
+    }
+
+    // Achievement Detail Popup
+    selectedAchievementForDetail?.let { def ->
+        AchievementDetailDialog(
+            def = def,
+            unlockedTimestamp = profile.achievements.unlocked[def.id],
+            onDismiss = { selectedAchievementForDetail = null }
+        )
     }
 
     // Achievement Unlock Overlay
@@ -155,7 +179,8 @@ fun GoalSelector(
 fun AchievementCategoryBlock(
     title: String,
     category: String,
-    profile: KairosUserProfile
+    profile: KairosUserProfile,
+    onDetailRequest: (AchievementDef) -> Unit
 ) {
     val items = KAIROS_ACHIEVEMENTS.filter { it.category == category }
     
@@ -175,6 +200,7 @@ fun AchievementCategoryBlock(
                     BadgeCard(
                         def = def,
                         profile = profile,
+                        onClick = { onDetailRequest(def) },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -189,9 +215,12 @@ fun AchievementCategoryBlock(
 fun BadgeCard(
     def: AchievementDef,
     profile: KairosUserProfile,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val unlocked = profile.achievements.unlocked.containsKey(def.id)
+    val isLightTheme = MaterialTheme.colorScheme.background.red > 0.5f
+    
     val progress = remember(def, profile) {
         when (def.type) {
             "focus_seconds" -> profile.focusData.totalSeconds.toFloat() / def.threshold
@@ -201,58 +230,209 @@ fun BadgeCard(
     }
 
     Card(
-        modifier = modifier.height(180.dp),
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier
+            .height(160.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (unlocked) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
+            containerColor = if (unlocked) {
+                MaterialTheme.colorScheme.primary.copy(alpha = if (isLightTheme) 0.12f else 0.08f)
+            } else {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f)
+            }
         ),
-        border = if (unlocked) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+        // THEMED BORDER: 2.dp border in theme color when completed
+        border = if (unlocked) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+        }
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(60.dp)
-                    .background(if (unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), CircleShape),
+                    .size(52.dp)
+                    .background(
+                        if (unlocked) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) 
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), 
+                        CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = def.icon, fontSize = 32.sp)
+                Text(
+                    text = def.icon, 
+                    fontSize = 28.sp,
+                    modifier = Modifier.alpha(if (unlocked) 1f else 0.3f)
+                )
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             
             Text(
                 text = def.name,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = if (unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
+                fontWeight = FontWeight.ExtraBold,
+                color = if (unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                textAlign = TextAlign.Center,
+                fontSize = 13.sp,
+                maxLines = 1
             )
             
-            Text(
-                text = def.desc,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center,
-                lineHeight = 12.sp,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-
             if (!unlocked && def.type != "event") {
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
                     progress = { progress.coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(3.dp)
+                        .clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
                     strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
+            } else if (unlocked) {
+                Text(
+                    text = "Unlocked",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
     }
+}
+
+@Composable
+fun AchievementDetailDialog(
+    def: AchievementDef,
+    unlockedTimestamp: Long?,
+    onDismiss: () -> Unit
+) {
+    val isLightTheme = MaterialTheme.colorScheme.background.red > 0.5f
+    val dateText = remember(unlockedTimestamp) {
+        if (unlockedTimestamp != null) {
+            val sdf = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.getDefault())
+            sdf.format(java.util.Date(unlockedTimestamp))
+        } else null
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Text("Got it")
+            }
+        },
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.padding(24.dp),
+        shape = RoundedCornerShape(28.dp),
+        containerColor = if (isLightTheme) Color.White else Color(0xFF161618),
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Large Glowing Icon
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape)
+                        .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = def.icon, fontSize = 48.sp)
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    text = def.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                )
+                
+                Surface(
+                    color = when (def.rarity) {
+                        "Mythic" -> Color(0xFFFACC15).copy(alpha = 0.1f)
+                        "Legendary" -> Color(0xFFC084FC).copy(alpha = 0.1f)
+                        "Epic" -> Color(0xFF60A5FA).copy(alpha = 0.1f)
+                        "Rare" -> Color(0xFF4ADE80).copy(alpha = 0.1f)
+                        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                    },
+                    shape = CircleShape,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = def.rarity.uppercase(),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = when (def.rarity) {
+                            "Mythic" -> Color(0xFFFACC15)
+                            "Legendary" -> Color(0xFFC084FC)
+                            "Epic" -> Color(0xFF60A5FA)
+                            "Rare" -> Color(0xFF4ADE80)
+                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    text = def.desc,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+
+                if (dateText != null) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                                RoundedCornerShape(16.dp)
+                            )
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = "EARNED ON",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = dateText,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "NOT YET EARNED",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                    )
+                }
+            }
+        }
+    )
 }
 
 @Composable
