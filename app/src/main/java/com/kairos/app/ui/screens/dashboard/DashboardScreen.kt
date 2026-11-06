@@ -1,418 +1,183 @@
 package com.kairos.app.ui.screens.dashboard
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.*
-import com.kairos.app.ui.components.PremiumButton
-import com.kairos.app.ui.components.PremiumCard
-import com.kairos.app.ui.components.PremiumSecondaryButton
+import com.kairos.app.ui.components.*
 import com.kairos.app.ui.navigation.MainViewModel
-import com.kairos.app.utils.ConfettiCannon
+import kotlinx.coroutines.delay
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
-fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
+fun DashboardScreen(viewModel: MainViewModel = viewModel(), onNavigate: (String) -> Unit = {}) {
     val plan by viewModel.plan.collectAsState()
     val profile by viewModel.profile.collectAsState()
-
-    var showConfetti by remember { mutableStateOf(false) }
-
-    val activeSection = remember(plan) {
-        plan?.boards?.filter { !it.archived }
-            ?.flatMap { it.sections }
-            ?.firstOrNull { section ->
-                !section.archived && section.tasks.any { !it.archived && !it.completed }
-            }
+    val zone = remember(profile.settings.profile.timezone) {
+        runCatching { ZoneId.of(profile.settings.profile.timezone) }.getOrDefault(ZoneId.systemDefault())
     }
-
-    LaunchedEffect(activeSection) {
-        if (activeSection == null && wasFocusActive && profile.settings.appearance.confetti) {
-            showConfetti = true
-        }
-        wasFocusActive = activeSection != null
+    val now by produceState(ZonedDateTime.now(zone), zone) {
+        while (true) { value = ZonedDateTime.now(zone); delay(60_000) }
     }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 20.dp,
-                bottom = 20.dp
-            )
-        ) {
-            item {
-                Text(
-                    text = "Welcome back,",
-                    style = MaterialTheme.typography.titleLarge, // Enlarged from titleMedium
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    text = profile.settings.profile.displayName.ifBlank { "Achiever" },
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontSize = 38.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-1.2).sp // Tighter tracking for bold hero feel
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(44.dp))
-            }
-
-            item {
-                FocusTimerWidget(viewModel)
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            item {
-                MiniGoalsWidget(profile)
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            item {
-                RoutineStatsCard(plan = plan)
-                Spacer(modifier = Modifier.height(32.dp))
-            }
-
-            if (activeSection != null) {
-                item {
-                    Text(
-                        text = "Focus Mode",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                }
-
-                item {
-                    FocusModeCard(
-                        section = activeSection,
-                        onTaskToggle = { taskId, completed ->
-                            viewModel.toggleTask(taskId, completed)
-                        }
-                    )
-                }
-            } else {
-                item {
-                    AllCaughtUpView()
-                }
-            }
-        }
-
-        ConfettiCannon(
-            trigger = showConfetti,
-            onFinished = { showConfetti = false }
-        )
-    }
+    HomeContent(
+        plan, profile, now, viewModel.focusSecondsActive, viewModel.focusTimerRunning,
+        onStart = { viewModel.startFocusTimer() }, onPause = { viewModel.pauseFocusTimer() },
+        onStop = { viewModel.stopAndLogFocus() }, onNavigate = onNavigate,
+        onToggleTask = { id, completed -> viewModel.toggleTask(id, completed) }
+    )
 }
 
-// Global state for Focus active tracking
-private var wasFocusActive = false
-
+/** The live Home layout is also used for previews and screenshot verification. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FocusTimerWidget(viewModel: MainViewModel) {
-    val isRunning = viewModel.focusTimerRunning
-
-    PremiumCard(contentPadding = PaddingValues(16.dp)) { // ULTRA COMPACT
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = if (isRunning) "FOCUS ACTIVE" else "TIMER READY",
-                style = MaterialTheme.typography.labelLarge,
-                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                fontSize = 10.sp,
-                letterSpacing = 1.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = formatHMS(viewModel.focusSecondsActive),
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.Bold
-                ),
-                color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                if (!isRunning) {
-                    PremiumButton(
-                        onClick = { viewModel.startFocusTimer() },
-                        modifier = Modifier.weight(1.2f),
-                        height = 42.dp // Ultra compact height
-                    ) {
-                        Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Start Focus", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                } else {
-                    PremiumSecondaryButton(
-                        onClick = { viewModel.pauseFocusTimer() },
-                        modifier = Modifier.weight(1.2f),
-                        height = 42.dp
-                    ) {
-                        Icon(Icons.Default.Pause, null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Pause", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
-
-                PremiumSecondaryButton(
-                    onClick = { viewModel.stopAndLogFocus() },
-                    modifier = Modifier.weight(1f),
-                    height = 42.dp
-                ) {
-                    Text("Stop", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MiniGoalsWidget(profile: KairosUserProfile) {
-    val goalIds = profile.achievements.goals.filterNotNull().take(3)
-
-    if (goalIds.isEmpty()) return
-
-    PremiumCard {
-        Column {
-            Text(
-                text = "Active Goals",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-
-            goalIds.forEach { id ->
-                val def = KAIROS_ACHIEVEMENTS.find { it.id == id }
-                if (def != null) {
-                    val unlocked = profile.achievements.unlocked.containsKey(id)
-                    val progress = when (def.type) {
-                        "focus_seconds" -> profile.focusData.totalSeconds.toFloat() / def.threshold
-                        "tasks_completed" -> profile.achievements.lifetimeTasksCompleted.toFloat() / def.threshold
-                        else -> 0f
-                    }
-                    val pct = if (unlocked) 100 else (progress * 100).toInt().coerceIn(0, 100)
-
-                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "${def.icon} ${def.name}", style = MaterialTheme.typography.bodyMedium)
-                            Text(text = "$pct%", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            progress = { (pct / 100f) },
-                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun RoutineStatsCard(plan: KairosPlan?) {
-    val stats = remember(plan) {
-        var total = 0
-        var completed = 0
-        plan?.boards?.filter { !it.archived }?.forEach { board ->
-            board.sections.filter { !it.archived }.forEach { section ->
-                section.tasks.filter { !it.archived }.forEach { task ->
-                    total++
-                    if (task.completed) completed++
-                }
-            }
-        }
-        val pct = if (total == 0) 0 else (completed * 100) / total
-        Triple(pct, completed, total)
-    }
-
-    PremiumCard {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Routine Stats",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "${stats.first}%",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "${stats.second} of ${stats.third} tasks completed",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            LinearProgressIndicator(
-                progress = { stats.first / 100f },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(CircleShape),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
-            )
-        }
-    }
-}
-
-@Composable
-fun FocusModeCard(
-    section: KairosSection,
-    onTaskToggle: (String, Boolean) -> Unit
+fun HomeContent(
+    plan: KairosPlan?, profile: KairosUserProfile, now: ZonedDateTime,
+    focusSeconds: Long, focusRunning: Boolean,
+    onStart: () -> Unit, onPause: () -> Unit, onStop: () -> Unit,
+    onNavigate: (String) -> Unit, onToggleTask: (String, Boolean) -> Unit
 ) {
-    PremiumCard {
-        Column {
-            Text(
-                text = section.title,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+    val tasks = remember(plan) { plan?.boards?.filter { !it.archived }?.flatMap { board ->
+        board.sections.filter { !it.archived }.flatMap { section -> section.tasks.filter { !it.archived } }
+    }.orEmpty() }
+    val completed = tasks.count { it.completed }
+    val today = now.toLocalDate()
+    val todayTasks = tasks.filter { !it.completed && it.date == today.toString() }
+    val overdue = tasks.filter { task -> !task.completed && task.date?.let { runCatching { LocalDate.parse(it).isBefore(today) }.getOrDefault(false) } == true }
+    val unscheduled = tasks.count { !it.completed && it.date.isNullOrBlank() }
+    val greeting = when (now.hour) { in 5..11 -> "Good morning"; in 12..17 -> "Good afternoon"; in 18..22 -> "Good evening"; else -> "Welcome back" }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            section.tasks.filter { !it.archived }.forEach { task ->
-                RoutineTaskItem(
-                    task = task,
-                    onToggle = { onTaskToggle(task.id, it) }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun RoutineTaskItem(
-    task: KairosTask,
-    onToggle: (Boolean) -> Unit
-) {
-    Surface(
-        onClick = { onToggle(!task.completed) },
-        color = Color.Transparent,
-        shape = RoundedCornerShape(12.dp)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = task.completed,
-                onCheckedChange = onToggle,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = MaterialTheme.colorScheme.primary,
-                    uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                )
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Text(
-                text = task.title,
-                color = if (task.completed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyLarge,
-                textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
-            )
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(greeting.uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelMedium,
+                    letterSpacing = 1.4.sp, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                Text(profile.settings.profile.displayName.ifBlank { "Welcome to Kairos" },
+                    style = MaterialTheme.typography.displaySmall, letterSpacing = (-1.2).sp)
+                Text(now.format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault())),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-    }
-}
-
-@Composable
-fun AllCaughtUpView() {
-    PremiumCard {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "✨",
-                fontSize = 48.sp
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "You're all caught up!",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Take a break or plan your next routine.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-
-            PremiumButton(
-                onClick = { /* Nav to tasks */ },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Add, null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Create New Board", fontWeight = FontWeight.Bold)
+        item {
+            KairosCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Today", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    KairosTextButton(onClick = { onNavigate("plan") }) { Text("Open schedule", color = MaterialTheme.colorScheme.secondary) }
+                }
+                Text("${todayTasks.size} planned · ${overdue.size} overdue · $unscheduled unscheduled",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(12.dp))
+                val visible = (overdue.take(2) + todayTasks).take(3)
+                if (visible.isEmpty()) {
+                    Text("Nothing scheduled today", style = MaterialTheme.typography.titleSmall)
+                    Text(if (unscheduled > 0) "You have $unscheduled tasks ready to plan." else "Make room for what matters to you.",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp))
+                } else visible.forEach { task ->
+                    KairosTaskRow(task.title, task.completed, { onToggleTask(task.id, it) }, { onNavigate("tasks") })
+                }
+            }
+        }
+        item { FocusSessionCard(focusSeconds, focusRunning, onStart, onPause, onStop) }
+        item {
+            KairosCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Your momentum", style = MaterialTheme.typography.titleLarge)
+                        Text("Small wins compound.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = { onNavigate("achievements") }) { Icon(Icons.Default.NorthEast, "Open goals", tint = MaterialTheme.colorScheme.secondary) }
+                }
+                Spacer(Modifier.height(18.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    HomeMetric(if (tasks.isEmpty()) "0%" else "${completed * 100 / tasks.size}%", "Tasks complete", Modifier.weight(1f))
+                    HomeMetric(completed.toString(), "Completed", Modifier.weight(1f))
+                    HomeMetric(profile.achievements.unlocked.size.toString(), "Unlocked", Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(18.dp))
+                LinearProgressIndicator(progress = { if (tasks.isEmpty()) 0f else completed.toFloat() / tasks.size },
+                    modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primaryContainer)
+            }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Workspace", style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    listOf(Triple("Boards", Icons.Default.Checklist, "tasks"), Triple("Calendar", Icons.Default.CalendarMonth, "plan"), Triple("Goals", Icons.Default.EmojiEvents, "achievements")).forEach { (label, icon, route) ->
+                        OutlinedCard(onClick = { onNavigate(route) }, modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.large, colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                            Column(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+                                Text(label, style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-private fun formatHMS(totalSeconds: Long): String {
-    val h = totalSeconds / 3600
-    val m = (totalSeconds % 3600) / 60
-    val s = totalSeconds % 60
-    return String.format(java.util.Locale.getDefault(), "%02d:%02d:%02d", h, m, s)
+@Composable
+private fun HomeMetric(value: String, label: String, modifier: Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(value, style = MaterialTheme.typography.headlineSmall)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
+@Composable
+fun FocusSessionCard(seconds: Long, running: Boolean, onStart: () -> Unit, onPause: () -> Unit, onStop: () -> Unit) {
+    KairosCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Default.Timer, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
+            Text("FOCUS SESSION", style = MaterialTheme.typography.labelMedium, letterSpacing = 1.1.sp,
+                color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(18.dp))
+        BoxWithConstraints {
+            val compact = maxWidth < 310.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
+            val timer: @Composable () -> Unit = {
+                Column {
+                    Text(formatHMS(seconds), style = MaterialTheme.typography.displayLarge, letterSpacing = (-1.5).sp)
+                    Text(if (running) "Stay in the zone." else "Ready when you are.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            val controls: @Composable () -> Unit = {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FilledIconButton(onClick = if (running) onPause else onStart, modifier = Modifier.size(50.dp), shape = CircleShape) {
+                        Icon(if (running) Icons.Default.Pause else Icons.Default.PlayArrow, if (running) "Pause focus" else "Start focus")
+                    }
+                    if (running || seconds > 0) OutlinedIconButton(onClick = onStop, modifier = Modifier.size(48.dp), shape = CircleShape) { Icon(Icons.Default.Stop, "Stop and log focus") }
+                }
+            }
+            if (compact) Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { timer(); controls() }
+            else Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.weight(1f)) { timer() }; controls() }
+        }
+    }
+}
+
+fun formatHMS(totalSeconds: Long): String {
+    val seconds = totalSeconds.coerceAtLeast(0L)
+    return String.format(Locale.ROOT, "%02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
+}

@@ -1,5 +1,7 @@
 package com.kairos.app.ui.screens.ai
 
+import com.kairos.app.ui.components.KairosOutlinedButton
+import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,7 +10,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,20 +20,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.ChatMessage
 import com.kairos.app.ui.components.PremiumCard
-import com.kairos.app.ui.components.KairosStateMessage
 import com.kairos.app.ui.components.KairosErrorFeedback
-import com.kairos.app.ui.components.KairosPageHeader
 import com.kairos.app.ui.components.KairosOverflowMenu
 import com.kairos.app.ui.navigation.MainViewModel
 import com.kairos.app.utils.MarkdownUtils
@@ -44,73 +40,26 @@ fun AiHelperScreen(
 ) {
     val chatMessages by viewModel.chatMessages.collectAsState()
     val plan by mainViewModel.plan.collectAsState()
-    val listState = rememberLazyListState()
     val haptics = LocalHapticFeedback.current
 
-    LaunchedEffect(chatMessages.size) {
-        if (chatMessages.isNotEmpty()) {
-            listState.animateScrollToItem(chatMessages.size - 1)
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                KairosPageHeader("Kairos AI") {
-                    KairosOverflowMenu("Chat actions") { dismiss ->
-                        DropdownMenuItem(
-                            text = { Text("Create board") },
-                            onClick = {
-                                dismiss()
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                viewModel.createPlanFromChat(plan)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Clear chat") },
-                            onClick = { dismiss(); viewModel.clearChat() }
-                        )
-                    }
-                }
-            }
-
-            // --- CHAT FEED ---
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (chatMessages.isEmpty()) {
-                    item { ChatEmptyState() }
-                }
-
-                items(chatMessages) { message ->
-                    ChatBubble(message)
-                }
-
-                if (viewModel.isLoading && !viewModel.isGeneratingBoard && !viewModel.showConfirmationDialog) {
-                    item { TypingIndicator() }
-                }
-            }
-            viewModel.errorMessage?.let { message ->
-                KairosErrorFeedback(message, onDismiss = { viewModel.errorMessage = null })
-            }
-            Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-                ChatInputBar(
-                    value = viewModel.userInput,
-                    onValueChange = { viewModel.userInput = it },
-                    onSend = {
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        viewModel.handleSend()
-                    },
-                    isLoading = viewModel.isLoading
-                )
-            }
-        }
-    }
+    AiConversationContent(
+        messages = chatMessages,
+        draft = viewModel.userInput,
+        isLoading = viewModel.isLoading,
+        showThinking = viewModel.isLoading && !viewModel.isGeneratingBoard && !viewModel.showConfirmationDialog,
+        error = viewModel.errorMessage,
+        onDraftChange = { viewModel.userInput = it },
+        onSend = {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            viewModel.handleSend()
+        },
+        onClear = { viewModel.clearChat() },
+        onCreateBoard = {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            viewModel.createPlanFromChat(plan)
+        },
+        onDismissError = { viewModel.errorMessage = null }
+    )
 
     // --- LOADING OVERLAY ---
     if (viewModel.isGeneratingBoard) {
@@ -122,7 +71,7 @@ fun AiHelperScreen(
                 ) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(20.dp))
-                    Text("Architecting your board...", style = MaterialTheme.typography.titleMedium)
+                    Text("Preparing plan…", style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
@@ -140,36 +89,103 @@ fun AiHelperScreen(
     }
 }
 
+/** The production conversation surface, independent of authentication and persistence. */
+@Composable
+fun AiConversationContent(
+    messages: List<ChatMessage>,
+    draft: String,
+    isLoading: Boolean,
+    error: String?,
+    onDraftChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onClear: () -> Unit,
+    onCreateBoard: () -> Unit,
+    onDismissError: () -> Unit,
+    modifier: Modifier = Modifier,
+    showThinking: Boolean = isLoading
+) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(messages.size, showThinking) {
+        val count = messages.size.coerceAtLeast(1) + if (showThinking) 1 else 0
+        if (count > 0) listState.animateScrollToItem(count - 1)
+    }
+    Column(modifier.fillMaxSize().imePadding()) {
+        Box(Modifier.fillMaxWidth().height(48.dp)) {
+            Text(
+                "Kairos AI",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.Center)
+            )
+            Box(Modifier.align(Alignment.CenterEnd).padding(end = 6.dp)) {
+                KairosOverflowMenu("Chat actions") { dismiss ->
+                    DropdownMenuItem(
+                        text = { Text("Create board") },
+                        enabled = messages.isNotEmpty() && !isLoading,
+                        onClick = { dismiss(); onCreateBoard() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Clear chat") },
+                        enabled = messages.isNotEmpty() && !isLoading,
+                        onClick = { dismiss(); onClear() }
+                    )
+                }
+            }
+        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            if (messages.isEmpty()) item { ChatEmptyState() }
+            items(messages) { ChatBubble(it) }
+            if (showThinking) item { TypingIndicator() }
+        }
+        error?.let { KairosErrorFeedback(it, onDismiss = onDismissError) }
+        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp)) {
+            ChatInputBar(draft, onDraftChange, onSend, isLoading)
+        }
+    }
+}
+
 @Composable
 fun ChatBubble(message: ChatMessage) {
     val isUser = message.role == "user"
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
-    ) {
-        Surface(
-            color = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(
-                topStart = 20.dp,
-                topEnd = 20.dp,
-                bottomStart = if (isUser) 20.dp else 4.dp,
-                bottomEnd = if (isUser) 4.dp else 20.dp
-            ),
-            border = if (!isUser) BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)) else null
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
+        if (isUser) Spacer(Modifier.width(40.dp))
+        Column(
+            modifier = Modifier.weight(1f, fill = false),
+            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
         ) {
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                if (isUser) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Text(
+                            text = message.content,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                } else {
+                    Text(
+                        text = MarkdownUtils.parseMarkdown(message.content),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp)
+                    )
+                }
+            }
             Text(
-                text = MarkdownUtils.parseMarkdown(message.content),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyLarge
+                text = if (isUser) "You" else "Kairos AI",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 5.dp, start = if (isUser) 0.dp else 2.dp, end = if (isUser) 4.dp else 0.dp)
             )
         }
-        Text(
-            text = if (isUser) "You" else "Kairos AI",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-            modifier = Modifier.padding(top = 4.dp, start = if (isUser) 0.dp else 4.dp, end = if (isUser) 4.dp else 0.dp)
-        )
     }
 }
 
@@ -180,53 +196,52 @@ fun ChatInputBar(
     onSend: () -> Unit,
     isLoading: Boolean
 ) {
+    val canSend = value.isNotBlank() && !isLoading
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(28.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
-        shadowElevation = 0.dp
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(24.dp)
     ) {
         Row(
-            modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                    maxLines = 5,
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    decorationBox = { innerTextField ->
-                        if (value.isEmpty()) {
-                            Text("Ask anything...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 16.sp)
-                        }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f).padding(start = 8.dp, top = 10.dp, bottom = 10.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                minLines = 1,
+                maxLines = 6,
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (value.isEmpty()) Text(
+                            "Message Kairos",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                         innerTextField()
                     }
-                )
-            }
+                }
+            )
             IconButton(
                 onClick = onSend,
-                enabled = value.isNotBlank() && !isLoading,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                ),
+                enabled = canSend,
                 modifier = Modifier.size(48.dp)
             ) {
-                if (isLoading && value.isNotEmpty()) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", modifier = Modifier.size(20.dp))
+                Box(
+                    modifier = Modifier.size(38.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = if (canSend) 1f else 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.ArrowUpward,
+                        contentDescription = "Send message",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }
@@ -235,30 +250,38 @@ fun ChatInputBar(
 
 @Composable
 fun ChatEmptyState() {
-    KairosStateMessage(
-        title = "Kairos AI",
-        message = "Ask about your tasks or plan your next assignment."
-    )
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 70.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            "What can I help with?",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            "Study, planning, organisation, and ideas.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
 }
 
 @Composable
 fun TypingIndicator() {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.Start
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shape = RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
-        ) {
-            Text(
-                text = "...",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                fontWeight = FontWeight.Bold
-            )
-        }
+        CircularProgressIndicator(
+            modifier = Modifier.size(16.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            strokeWidth = 1.5.dp
+        )
+        Text("Thinking…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -287,6 +310,7 @@ fun AiPlanConfirmationDialog(
 
                 if (viewModel.targetBoardMode == TargetBoardMode.NEW) {
                     OutlinedTextField(
+            colors = OutlinedTextFieldDefaults.colors(focusedLabelColor = MaterialTheme.colorScheme.secondary),
                         value = viewModel.newBoardName,
                         onValueChange = { viewModel.newBoardName = it },
                         placeholder = { Text("Board name (e.g. Math Study)") },
@@ -313,7 +337,7 @@ fun AiPlanConfirmationDialog(
                 if (viewModel.targetBoardMode == TargetBoardMode.EXISTING) {
                     var expanded by remember { mutableStateOf(false) }
                     Box(modifier = Modifier.padding(start = 32.dp)) {
-                        OutlinedButton(
+                        KairosOutlinedButton(
                             onClick = { expanded = true },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -370,7 +394,7 @@ fun AiPlanConfirmationDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = { viewModel.dismissDialog() }) {
+            KairosTextButton(onClick = { viewModel.dismissDialog() }) {
                 Text("Cancel")
             }
         }

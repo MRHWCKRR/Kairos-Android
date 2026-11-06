@@ -4,7 +4,7 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
-        <!-- Grounding the app as "Dark" at the system level to prevent white scrim -->
-        <item name="android:windowBackground">#0A0A0B</item>
+        <!-- Match the initial dark canvas; Compose applies the saved appearance. -->
+        <item name="android:windowBackground">#000000</item>
     </style>
 </resources>

@@ -39,9 +39,9 @@ class FocusWidget : GlanceAppWidget() {
             val prefs = currentState<Preferences>()
             val isRunning = prefs[WidgetManager.KEY_FOCUS_RUNNING] ?: false
             val seconds = prefs[WidgetManager.KEY_FOCUS_SECONDS] ?: 0L
-            val accentHex = prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FFA855F7"
+            val accentHex = prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FF7D45F5"
             
-            val accentColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFFA855F7) }
+            val accentColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFF7D45F5) }
             
             val colorProviders = ColorProviders(
                 light = lightColorScheme(

@@ -11,7 +11,7 @@ object KairosMetrics {
     val itemSpacing = 12.dp
     val compactSpacing = 8.dp
     val cardRadius = 26.dp
-    val controlRadius = 12.dp
+    val controlRadius = 16.dp
     val minimumTouchTarget = 48.dp
 }
 

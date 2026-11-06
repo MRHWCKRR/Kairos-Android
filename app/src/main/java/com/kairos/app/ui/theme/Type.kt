@@ -1,5 +1,7 @@
 package com.kairos.app.ui.theme
 
+import android.graphics.Typeface
+
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -7,7 +9,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 fun getKairosTypography(font: String): Typography {
+    val rounded = FontFamily(Typeface.create("sans-serif-rounded", Typeface.NORMAL))
     val family = when (font) {
+        "round", "rounded" -> rounded
         "mono", "monospaced" -> FontFamily.Monospace
         "serif" -> FontFamily.Serif
         // Native sans substitutes for web fonts and Apple-only system fonts.
@@ -17,10 +21,10 @@ fun getKairosTypography(font: String): Typography {
         fontFamily = family, fontSize = size.sp, lineHeight = line.sp, fontWeight = weight
     )
     return Typography(
-        displayLarge = style(44, 52, FontWeight.Bold),
-        displayMedium = style(40, 48, FontWeight.Bold),
-        displaySmall = style(38, 46, FontWeight.Bold),
-        headlineLarge = style(32, 40, FontWeight.Bold),
+        displayLarge = style(44, 52, FontWeight.Bold).copy(fontFamily = rounded),
+        displayMedium = style(40, 48, FontWeight.Bold).copy(fontFamily = rounded),
+        displaySmall = style(38, 46, FontWeight.Bold).copy(fontFamily = rounded),
+        headlineLarge = style(34, 42, FontWeight.Bold).copy(fontFamily = rounded),
         headlineMedium = style(28, 36, FontWeight.Bold),
         headlineSmall = style(24, 32, FontWeight.Bold),
         titleLarge = style(22, 30, FontWeight.Bold),

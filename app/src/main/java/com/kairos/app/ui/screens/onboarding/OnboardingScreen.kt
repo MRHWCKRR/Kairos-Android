@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.onboarding
 
+import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -145,7 +146,7 @@ fun OnboardingScreen(mainViewModel: MainViewModel) {
                 if (pagerState.currentPage < 3) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         // Skip only shown if field is empty or just as a general alternative
-                        TextButton(
+                        KairosTextButton(
                             onClick = { 
                                 scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } 
                             }
@@ -215,6 +216,7 @@ fun PersonalizationPage(name: String, onNameChange: (String) -> Unit) {
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
+                focusedLabelColor = MaterialTheme.colorScheme.secondary,
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
             )
@@ -254,7 +256,7 @@ fun DateOfBirthPage(birthday: String, onBirthdayChange: (String) -> Unit) {
             DatePickerDialog(
                 onDismissRequest = { showDatePicker = false },
                 confirmButton = {
-                    TextButton(onClick = {
+                    KairosTextButton(onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
                             val date = java.time.Instant.ofEpochMilli(millis)
                                 .atZone(java.time.ZoneId.of("UTC"))
@@ -265,7 +267,7 @@ fun DateOfBirthPage(birthday: String, onBirthdayChange: (String) -> Unit) {
                     }) { Text("OK") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                    KairosTextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
                 }
             ) {
                 DatePicker(state = datePickerState)
@@ -371,6 +373,7 @@ fun <T> OnboardingSearchableDropdown(
             placeholder = { if (expanded) Text("Search...") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                focusedLabelColor = MaterialTheme.colorScheme.secondary,
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
             ),
@@ -437,6 +440,7 @@ fun OnboardingDropdown(
             placeholder = { if (placeholder.isNotEmpty()) Text(placeholder) },
             trailingIcon = { if (enabled) ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                focusedLabelColor = MaterialTheme.colorScheme.secondary,
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                 disabledBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
@@ -536,7 +540,6 @@ fun TutorialPage(onComplete: (Boolean) -> Unit) {
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 TutorialItem(Icons.Default.Schedule, "Focus Timer", "Log sessions to earn deep work rewards.")
-                TutorialItem(Icons.Default.Explore, "Discovery", "Adopt routines from the global community.")
                 TutorialItem(Icons.Default.EmojiEvents, "Achievements", "Unlock badges as you level up your life.")
             }
         }

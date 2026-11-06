@@ -1,7 +1,12 @@
 package com.kairos.app.ui.screens.settings
 
+import com.kairos.app.ui.components.KairosOutlinedButton
+import com.kairos.app.ui.components.KairosTextButton
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -19,8 +24,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
@@ -50,93 +53,132 @@ import java.util.Locale
 import java.util.TimeZone
 
 @Composable
-fun SettingsScreen(mainViewModel: MainViewModel = viewModel()) {
+fun SettingsScreen(
+    mainViewModel: MainViewModel = viewModel(),
+    onNavigate: (String) -> Unit = {}
+) {
     val profile by mainViewModel.profile.collectAsState()
     val user by mainViewModel.user.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
-    var isEditingProfile by remember { mutableStateOf(false) }
-
-    // --- ZERO-WINDOW CONTENT SWAP ---
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        if (isEditingProfile) {
-            PersonalEditBunker(
-                profile = profile,
-                viewModel = mainViewModel,
-                onDismiss = { isEditingProfile = false }
-            )
+    var section by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingProfile by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = editingProfile || section != null) {
+        if (editingProfile) editingProfile = false else section = null
+    }
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        if (editingProfile) {
+            PersonalEditBunker(profile, mainViewModel) { editingProfile = false }
+        } else if (section != null) {
+            Column(Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { section = null }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Settings")
+                    }
+                    Text(section.orEmpty(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 16.dp)) {
+                    when (section) {
+                        "Profile" -> PersonalTabView(profile) { editingProfile = true }
+                        "Accessibility" -> AccessibilityTabContent(profile.settings, mainViewModel)
+                        "Notifications" -> NotificationSettingsContent(profile.settings, mainViewModel)
+                        "Security" -> SecurityTabContent(user, mainViewModel)
+                        "Appearance" -> AppearanceTabContent(profile.settings, mainViewModel)
+                        "AI Coach" -> AiTabSafe(mainViewModel)
+                        "Privacy & Data" -> PrivacyTabContent(profile, mainViewModel)
+                    }
+                    Spacer(Modifier.height(32.dp))
+                }
+            }
         } else {
-            SettingsMainView(
-                profile = profile,
-                user = user,
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it },
-                onEditRequest = { isEditingProfile = true },
-                mainViewModel = mainViewModel
-            )
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
+                Text("Settings", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 24.dp, bottom = 24.dp))
+                SettingsGroup {
+                    Row(Modifier.fillMaxWidth().clickable { section = "Profile" }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        ProfileImage(imageUrl = profile.settings.profile.avatarURL, userName = profile.settings.profile.displayName, modifier = Modifier.size(48.dp))
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(profile.settings.profile.displayName.ifBlank { "Your profile" }, fontWeight = FontWeight.SemiBold)
+                            Text(user?.email.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+                SettingsGroup {
+                    SettingsNavigationRow("Accessibility", Icons.Default.Accessibility) { section = "Accessibility" }
+                    SettingsNavigationRow("Notifications", Icons.Default.Notifications) { section = "Notifications" }
+                    SettingsNavigationRow("Appearance", Icons.Default.Contrast, divider = false) { section = "Appearance" }
+                }
+                SettingsGroupLabel("Progress")
+                SettingsGroup {
+                    SettingsNavigationRow("Goals & Achievements", Icons.Default.EmojiEvents) { onNavigate("achievements") }
+                    SettingsNavigationRow("Statistics", Icons.Default.BarChart, divider = false) { onNavigate("statistics") }
+                }
+                SettingsGroupLabel("Account")
+                SettingsGroup {
+                    SettingsNavigationRow("Security", Icons.Default.Lock) { section = "Security" }
+                    SettingsNavigationRow("AI Coach", Icons.Default.AutoAwesome) { section = "AI Coach" }
+                    SettingsNavigationRow("Privacy & Data", Icons.Default.Shield, divider = false) { section = "Privacy & Data" }
+                }
+                Spacer(Modifier.height(24.dp))
+                SettingsGroup {
+                    Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                        Spacer(Modifier.width(14.dp))
+                        Column {
+                            Text("Kairos", fontWeight = FontWeight.SemiBold)
+                            Text("Your time, intentionally spent.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(32.dp))
+            }
         }
     }
 }
 
 @Composable
-fun SettingsMainView(
-    profile: KairosUserProfile,
-    user: com.google.firebase.auth.FirebaseUser?,
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit,
-    onEditRequest: () -> Unit,
-    mainViewModel: MainViewModel
-) {
-    val tabs = listOf("Personal", "Accessibility", "Security", "Appearance", "AI Engine", "Privacy & Data")
+private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
+    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+        Column(content = content)
+    }
+}
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        Text(
-            text = "Settings",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 40.dp)
-        )
+@Composable
+private fun SettingsGroupLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp))
+}
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Basic Tab Row - Scrollable if too many tabs
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-        ) {
-            tabs.forEachIndexed { index, title ->
-                BunkerTabItem(
-                    text = title,
-                    selected = selectedTab == index,
-                    onClick = { onTabSelected(index) },
-                    modifier = Modifier.width(100.dp) // Fixed width for scrollable tabs
-                )
-            }
+@Composable
+private fun SettingsNavigationRow(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, divider: Boolean = true, onClick: () -> Unit) {
+    Column {
+        Row(Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 54.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.secondary)
+            Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(horizontal = 14.dp))
+            Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        if (divider) HorizontalDivider(Modifier.padding(start = 52.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    }
+}
 
-        Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp)
-        ) {
-            when (selectedTab) {
-                0 -> PersonalTabView(profile, onEditRequest)
-                1 -> AccessibilityTabContent(profile.settings, mainViewModel)
-                2 -> SecurityTabContent(user, mainViewModel)
-                3 -> AppearanceTabContent(profile.settings, mainViewModel)
-                4 -> AiTabSafe(mainViewModel)
-                5 -> PrivacyTabContent(profile, mainViewModel)
-            }
-            Spacer(modifier = Modifier.height(20.dp))
+@Composable
+private fun NotificationSettingsContent(settings: KairosSettings, viewModel: MainViewModel) {
+    val notifications = settings.notifications
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Stay in the loop", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Choose the updates that help you keep your day on track.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        SettingsGroup {
+            NotificationToggle("Notifications", notifications.enabled) { viewModel.updateSettings(settings.copy(notifications = notifications.copy(enabled = it))) }
+            NotificationToggle("Board completion", notifications.boardCompletion) { viewModel.updateSettings(settings.copy(notifications = notifications.copy(boardCompletion = it))) }
+            NotificationToggle("Bedtime reminders", notifications.bedtimeReminders) { viewModel.updateSettings(settings.copy(notifications = notifications.copy(bedtimeReminders = it))) }
         }
+    }
+}
+
+@Composable
+private fun NotificationToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -229,9 +271,9 @@ fun PersonalEditBunker(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onBackground) }
+            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Cancel profile editing", tint = MaterialTheme.colorScheme.onBackground) }
             Text(text = "Edit Profile", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-            TextButton(onClick = {
+            KairosTextButton(onClick = {
                 viewModel.updateSettings(profile.settings.copy(
                     profile = profile.settings.profile.copy(
                         displayName = nameDraft,
@@ -241,7 +283,7 @@ fun PersonalEditBunker(
                 ))
                 onDismiss()
             }) {
-                Text("Save", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text("Save", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -266,7 +308,7 @@ fun PersonalEditBunker(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Row {
-                        OutlinedButton(
+                        KairosOutlinedButton(
                             onClick = { launcher.launch("image/*") },
                             shape = RoundedCornerShape(8.dp),
                             enabled = !viewModel.isUploadingAvatar,
@@ -275,7 +317,7 @@ fun PersonalEditBunker(
                             Text(if (viewModel.isUploadingAvatar) "Processing..." else "Upload")
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        OutlinedButton(
+                        KairosOutlinedButton(
                             onClick = { viewModel.removeAvatar() },
                             shape = RoundedCornerShape(8.dp),
                             enabled = !viewModel.isUploadingAvatar && profile.settings.profile.avatarURL.isNotEmpty(),
@@ -380,7 +422,7 @@ fun PersonalEditBunker(
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = {
+                KairosTextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
                         val date = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
                         birthdayDraft = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
@@ -389,7 +431,7 @@ fun PersonalEditBunker(
                 }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                KairosTextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
             }
         ) {
             DatePicker(state = datePickerState)
@@ -475,7 +517,7 @@ fun SecurityTabContent(user: com.google.firebase.auth.FirebaseUser?, viewModel: 
 fun SecurityCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -535,12 +577,14 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
         Column {
             Text(text = "Theme Accent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
-            Row {
+            Row(Modifier.horizontalScroll(rememberScrollState())) {
                 listOf(
-                    "default" to Color(0xFFA855F7),
-                    "fairyfloss" to Color(0xFFFF8FC9),
-                    "poseidon" to Color(0xFF38BDF8),
-                    "peacefulplains" to Color(0xFF4ADE80)
+                    "default" to Color(red = 0.49f, green = 0.27f, blue = 0.96f),
+                    "blue" to Color(0xFF3373F2),
+                    "green" to Color(0xFF2E9E66),
+                    "orange" to Color(0xFFF26B29),
+                    "pink" to Color(0xFFE64094),
+                    "red" to Color(0xFFEB3D47)
                 ).forEach { (id, color) ->
                     Box(
                         modifier = Modifier.size(44.dp).clip(CircleShape).background(color).border(2.dp, if (settings.appearance.theme == id) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape).clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(theme = id))) }
@@ -555,7 +599,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
             Text(text = "Background Style", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                listOf("none", "glass", "mesh", "custom").forEach { b ->
+                listOf("solid", "minimal", "gradient", "custom").forEach { b ->
                     BunkerOptionButton(b, settings.appearance.background == b, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(background = b))) }, Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
                 }
@@ -648,10 +692,10 @@ fun PrivacyTabContent(profile: KairosUserProfile, viewModel: MainViewModel) {
 
         // Legal
         SecurityCard(title = "Legal") {
-            TextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            KairosTextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                 Text("Terms of Service", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             }
-            TextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            KairosTextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                 Text("Privacy Policy", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             }
         }
@@ -681,12 +725,12 @@ fun PrivacyTabContent(profile: KairosUserProfile, viewModel: MainViewModel) {
             title = { Text("Delete Account?") },
             text = { Text("Are you absolutely sure? This cannot be undone.") },
             confirmButton = {
-                TextButton(onClick = { viewModel.deleteAccount(); showDeleteConfirm = false }) {
+                KairosTextButton(onClick = { viewModel.deleteAccount(); showDeleteConfirm = false }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
+                KairosTextButton(onClick = { showDeleteConfirm = false }) {
                     Text("Cancel")
                 }
             }
@@ -745,31 +789,6 @@ fun RecycleItemRow(title: String, type: String, onRestore: () -> Unit, onDelete:
 }
 
 @Composable
-fun BunkerTabItem(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    Box(
-        modifier = modifier.fillMaxHeight().clickable { onClick() }.drawBehind {
-            if (selected) {
-                drawLine(
-                    color = primaryColor,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 3.dp.toPx()
-                )
-            }
-        },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-        )
-    }
-}
-
-@Composable
 fun BunkerInputSafe(
     label: String,
     value: String,
@@ -814,7 +833,7 @@ fun BunkerOptionButton(text: String, selected: Boolean, onClick: () -> Unit, mod
         border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(text = text.replaceFirstChar { it.uppercase() }, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
+            Text(text = text.replaceFirstChar { it.uppercase() }, color = if (selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
         }
     }
 }

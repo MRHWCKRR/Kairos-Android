@@ -5,14 +5,13 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class KairosDestination(val route: String, val label: String, val icon: ImageVector) {
-    data object Dashboard : KairosDestination("dashboard", "Dashboard", Icons.Default.Home)
-    data object Discovery : KairosDestination("discovery", "Discovery", Icons.Default.Explore)
-    data object AiHelper : KairosDestination("ai_helper", "AI Coach", Icons.Default.AutoAwesome)
-    data object Tasks : KairosDestination("tasks", "Tasks", Icons.Default.CheckCircle)
-    data object Plan : KairosDestination("plan", "Plan", Icons.Default.CalendarMonth)
+    data object Dashboard : KairosDestination("dashboard", "Home", Icons.Default.Home)
+    data object AiHelper : KairosDestination("ai_helper", "AI", Icons.Default.ChatBubble)
+    data object Tasks : KairosDestination("tasks", "Boards", Icons.Default.Checklist)
+    data object Plan : KairosDestination("plan", "Schedule", Icons.Default.CalendarMonth)
     data object Schedule : KairosDestination("schedule", "Schedule", Icons.Default.Schedule)
     data object Calendar : KairosDestination("calendar", "Calendar", Icons.Default.CalendarMonth)
-    data object Achievements : KairosDestination("achievements", "Achievements", Icons.Default.EmojiEvents)
+    data object Achievements : KairosDestination("achievements", "Goals", Icons.Default.EmojiEvents)
     data object Statistics : KairosDestination("statistics", "Statistics", Icons.Default.BarChart)
     data object Settings : KairosDestination("settings", "Settings", Icons.Default.Settings)
 }
@@ -20,13 +19,12 @@ sealed class KairosDestination(val route: String, val label: String, val icon: I
 object KairosDestinations {
     val all = listOf(
         KairosDestination.Dashboard,
-        KairosDestination.Discovery,
-        KairosDestination.AiHelper,
         KairosDestination.Tasks,
-        KairosDestination.Plan
+        KairosDestination.AiHelper,
+        KairosDestination.Plan,
+        KairosDestination.Achievements
     )
     val secondary = listOf(
-        KairosDestination.Achievements,
         KairosDestination.Statistics,
         KairosDestination.Settings
     )

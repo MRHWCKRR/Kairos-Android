@@ -59,9 +59,14 @@ jobs:
           api-level: 29
           arch: x86_64
           profile: pixel_2
-          script: ./gradlew :app:connectedDebugAndroidTest --stacktrace
+          script: bash tools/verify-ui.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: android-foundation-ui
           path: app/build/reports/androidTests/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-parity-screenshots
+          path: app/build/visual-parity/

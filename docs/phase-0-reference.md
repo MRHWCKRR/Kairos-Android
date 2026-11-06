@@ -1,5 +1,7 @@
 # Phase 0: reference and visual foundation
 
+> Updated direction: iOS is now the primary Android visual reference. Use its exact RGB purple (0.49, 0.27, 0.96), screen hierarchy and layouts with solid surfaces. Discovery and sharing are permanently retired. The baseline comparison below is historical; see the iOS visual parity specification for current design choices.
+
 ## Baseline and scope
 
 Recorded 6 November 2026. Source references are immutable commits, not moving branch names.
@@ -32,7 +34,7 @@ Web references below are modules in MRHWCKRR/Kairos at the pinned commit. iOS re
 | Login / verification | login/LoginScreen.kt; no main verified-email gate | login/verification flow, verify-email.js | Views/LoginView.swift, Views/EmailVerificationView.swift | Verification and complete deletion, phase 2 |
 | Notifications | MainActivity notification sheet, NotificationHelper | notifications/settings | Views/NotificationSettingsView.swift, Services/KairosTaskReminderScheduler.swift | Scheduling/permission parity and deep links, phase 6 |
 | Onboarding | onboarding/OnboardingScreen.kt | getting-started modules | ContentView.swift / initial session flow | Match shared first-run semantics, phase 6 |
-| Achievements / Discovery | achievements/ and discovery/ remain accessible | achievements and community/routine functions where supported | Views/AchievementsView.swift; no equivalent Discovery tab in reviewed iOS shell | Preserve Android functionality; no invented iOS counterpart |
+| Goals | achievements/AchievementsScreen.kt | achievements | Views/AchievementsView.swift | Main navigation now matches iOS Goals; Discovery and all Android sharing code have been removed |
 | Widgets | ui/widgets/FocusWidget.kt, TasksWidget.kt | No launcher widget equivalent | KairosWidgets targets | Safe shared data and account isolation, phase 1/6 |
 
 ## Shared data contract to preserve
@@ -69,7 +71,7 @@ The reference is iOS Core/KairosAIContract.swift and web cloudflare/worker.js / 
 
 ## Visual specification and provenance
 
-The references are not pixel-identical: web uses neutral surfaces and #a855f7; iOS uses dynamic system surfaces and approximately #7d45f5. Android adopts web shared neutrals/theme names and iOS mobile hierarchy, with native Material controls. Dynamic wallpaper colours are intentionally not used because they would replace the Kairos palette.
+The original references differed. The product owner has since selected iOS as the primary visual reference, approximately #7D45F5, with solid Android surfaces. The following table records the earlier baseline and is superseded by the iOS parity specification.
 
 | Token | Android target | Provenance / adaptation |
 |---|---|---|
@@ -99,7 +101,7 @@ Keep existing logo artwork. Do not recreate it or add emoji/sparkle decorations.
 - ui/components/KairosComponents.kt: measured scaffold, card, button, field, task row, input dialog, overflow menu, sheet, state message and error feedback.
 - PremiumComponents preserves existing function signatures and delegates to the same visual roles; buttons grow for large text and keep disabled styling.
 - MainActivity uses measured Scaffold content padding. NavHost consumes it once; navigation is a labelled Material bar with selected semantics. Icons react to the light/dark appearance.
-- Dashboard/Tasks/Discovery/Plan drop the old 100–180dp shell offsets. Settings drops its duplicate status inset. Tasks' inner Scaffold uses zero additional system insets and applies its own padding to real content.
+- Dashboard/Tasks/Plan drop the old 100–180dp shell offsets. Settings drops its duplicate status inset. Tasks' inner Scaffold uses zero additional system insets and applies its own padding to real content.
 - AI feed, error and composer are in one measured Column; the shell owns IME padding. No floating composer lift is required.
 - Existing task rows and rename dialogs use shared components. Rich task-details previews are a visual contract only; production persistence remains phase 3.
 
