@@ -455,7 +455,9 @@ fun KairosBottomNav(navController: androidx.navigation.NavHostController, onSear
         navController.navigate(destination) {
             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
             launchSingleTop = true
-            restoreState = true
+            // A secondary screen can be saved under the start destination.
+            // Home must open the dashboard rather than replay that saved stack.
+            restoreState = destination != KairosDestination.Dashboard.route
         }
     }, onSearch = onSearch, reduceMotion = reduceMotion)
 }
