@@ -1,12 +1,13 @@
 package com.kairos.app.ui.screens.settings
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import com.kairos.app.ui.components.KairosOutlinedButton
 import com.kairos.app.ui.components.KairosTextButton
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -16,9 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -71,7 +69,7 @@ fun SettingsScreen(
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { section = null }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Settings")
+                        Icon(KairosIcons.ArrowBack, contentDescription = "Back to Settings")
                     }
                     Text(section.orEmpty(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 }
@@ -99,30 +97,30 @@ fun SettingsScreen(
                             Text(profile.settings.profile.displayName.ifBlank { "Your profile" }, fontWeight = FontWeight.SemiBold)
                             Text(user?.email.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(KairosIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Spacer(Modifier.height(24.dp))
                 SettingsGroup {
-                    SettingsNavigationRow("Accessibility", Icons.Default.Accessibility) { section = "Accessibility" }
-                    SettingsNavigationRow("Notifications", Icons.Default.Notifications) { section = "Notifications" }
-                    SettingsNavigationRow("Appearance", Icons.Default.Contrast, divider = false) { section = "Appearance" }
+                    SettingsNavigationRow("Accessibility", KairosIcons.Accessibility) { section = "Accessibility" }
+                    SettingsNavigationRow("Notifications", KairosIcons.symbol("bell.badge")) { section = "Notifications" }
+                    SettingsNavigationRow("Appearance", KairosIcons.Contrast, divider = false) { section = "Appearance" }
                 }
                 SettingsGroupLabel("Progress")
                 SettingsGroup {
-                    SettingsNavigationRow("Goals & Achievements", Icons.Default.EmojiEvents) { onNavigate("achievements") }
-                    SettingsNavigationRow("Statistics", Icons.Default.BarChart, divider = false) { onNavigate("statistics") }
+                    SettingsNavigationRow("Goals & Achievements", KairosIcons.EmojiEvents) { onNavigate("achievements") }
+                    SettingsNavigationRow("Statistics", KairosIcons.symbol("chart.bar.xaxis"), divider = false) { onNavigate("statistics") }
                 }
                 SettingsGroupLabel("Account")
                 SettingsGroup {
-                    SettingsNavigationRow("Security", Icons.Default.Lock) { section = "Security" }
-                    SettingsNavigationRow("AI Coach", Icons.Default.AutoAwesome) { section = "AI Coach" }
-                    SettingsNavigationRow("Privacy & Data", Icons.Default.Shield, divider = false) { section = "Privacy & Data" }
+                    SettingsNavigationRow("Security", KairosIcons.Lock) { section = "Security" }
+                    SettingsNavigationRow("AI Coach", KairosIcons.AutoAwesome) { section = "AI Coach" }
+                    SettingsNavigationRow("Privacy & Data", KairosIcons.Shield, divider = false) { section = "Privacy & Data" }
                 }
                 Spacer(Modifier.height(24.dp))
                 SettingsGroup {
                     Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                        Icon(KairosIcons.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                         Spacer(Modifier.width(14.dp))
                         Column {
                             Text("Kairos", fontWeight = FontWeight.SemiBold)
@@ -154,7 +152,7 @@ private fun SettingsNavigationRow(text: String, icon: androidx.compose.ui.graphi
         Row(Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 54.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.secondary)
             Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(horizontal = 14.dp))
-            Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(KairosIcons.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (divider) HorizontalDivider(Modifier.padding(start = 52.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     }
@@ -217,7 +215,7 @@ fun PersonalTabView(profile: KairosUserProfile, onEditRequest: () -> Unit) {
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth().height(56.dp)
         ) {
-            Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+            Icon(KairosIcons.Edit, null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text("Edit Profile Details")
         }
@@ -271,7 +269,7 @@ fun PersonalEditBunker(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Cancel profile editing", tint = MaterialTheme.colorScheme.onBackground) }
+            IconButton(onClick = onDismiss) { Icon(KairosIcons.Close, "Cancel profile editing", tint = MaterialTheme.colorScheme.onBackground) }
             Text(text = "Edit Profile", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             KairosTextButton(onClick = {
                 viewModel.updateSettings(profile.settings.copy(
@@ -378,7 +376,7 @@ fun PersonalEditBunker(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = timezoneDraft, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
-                            Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                            Icon(KairosIcons.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         }
                     }
 
@@ -626,7 +624,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
             }
             Spacer(modifier = Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.AutoMirrored.Filled.VolumeUp, null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                Icon(KairosIcons.VolumeUp, null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 Slider(
                     value = settings.appearance.ambientVolume.toFloat(),
                     onValueChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(ambientVolume = it.toInt()))) },
@@ -782,8 +780,8 @@ fun RecycleItemRow(title: String, type: String, onRestore: () -> Unit, onDelete:
             Text(text = type, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
         }
         Row {
-            IconButton(onClick = onRestore) { Icon(Icons.Default.Restore, null, tint = MaterialTheme.colorScheme.primary) }
-            IconButton(onClick = onDelete) { Icon(Icons.Default.DeleteForever, null, tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)) }
+            IconButton(onClick = onRestore) { Icon(KairosIcons.Restore, null, tint = MaterialTheme.colorScheme.primary) }
+            IconButton(onClick = onDelete) { Icon(KairosIcons.DeleteForever, null, tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)) }
         }
     }
 }
@@ -837,4 +835,5 @@ fun BunkerOptionButton(text: String, selected: Boolean, onClick: () -> Unit, mod
         }
     }
 }
+
 

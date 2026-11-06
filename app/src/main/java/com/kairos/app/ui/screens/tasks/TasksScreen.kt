@@ -1,5 +1,7 @@
 package com.kairos.app.ui.screens.tasks
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import com.kairos.app.ui.components.KairosTextButton
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -9,13 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -70,7 +65,7 @@ fun TasksScreen(viewModel: MainViewModel = viewModel(), requestedTaskId: String?
                 shape = CircleShape,
                 modifier = Modifier.size(58.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Board")
+                Icon(KairosIcons.Add, contentDescription = "Add Board")
             }
         },
         containerColor = Color.Transparent
@@ -100,7 +95,7 @@ fun TasksScreen(viewModel: MainViewModel = viewModel(), requestedTaskId: String?
             }
             if (boards.isEmpty()) item {
                 KairosCard {
-                    Icon(Icons.Default.Checklist, null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(KairosIcons.Checklist, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(12.dp))
                     Text("Your checklist is empty", style = MaterialTheme.typography.titleMedium)
                     Text("Use the + button to create your first board.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -256,7 +251,7 @@ fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: Main
                 }
             }
             Icon(
-                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                imageVector = if (expanded) KairosIcons.KeyboardArrowUp else KairosIcons.KeyboardArrowDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
             )
@@ -401,7 +396,7 @@ fun BoardCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                    Icon(Icons.Default.Checklist, null, Modifier.padding(9.dp).size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                    Icon(KairosIcons.Checklist, null, Modifier.padding(9.dp).size(20.dp), tint = MaterialTheme.colorScheme.primary)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -418,7 +413,7 @@ fun BoardCard(
                 var showMenu by remember { mutableStateOf(false) }
                 Box {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreHoriz, contentDescription = "Board Options", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(KairosIcons.MoreHoriz, contentDescription = "Board Options", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRename() })
@@ -483,7 +478,7 @@ fun SectionBlock(
             var showMenu by remember { mutableStateOf(false) }
             Box {
                 IconButton(onClick = { showMenu = true }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Default.MoreHoriz, contentDescription = "Section Options", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Icon(KairosIcons.MoreHoriz, contentDescription = "Section Options", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRename() })
@@ -569,3 +564,4 @@ fun TasksSummary(boards: List<KairosBoard>) {
         }
     }
 }
+

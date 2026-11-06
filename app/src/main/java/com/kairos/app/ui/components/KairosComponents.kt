@@ -1,13 +1,10 @@
 package com.kairos.app.ui.components
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -109,7 +106,7 @@ fun KairosTaskRow(
             checked = completed, onCheckedChange = onToggle,
             modifier = Modifier.size(48.dp).semantics { contentDescription = "Complete $title"; role = Role.Checkbox }
         ) {
-            Icon(if (completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+            Icon(if (completed) KairosIcons.CheckCircle else KairosIcons.RadioButtonUnchecked,
                 contentDescription = null, modifier = Modifier.size(24.dp),
                 tint = if (completed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -149,7 +146,7 @@ fun KairosOverflowMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreHoriz, label) }
+        IconButton(onClick = { expanded = true }) { Icon(KairosIcons.MoreHoriz, label) }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             content { expanded = false }
         }
@@ -194,3 +191,4 @@ fun KairosErrorFeedback(message: String, onDismiss: () -> Unit) {
         action = { KairosTextButton(onClick = onDismiss) { Text("Dismiss", color = MaterialTheme.colorScheme.onErrorContainer) } }
     ) { Text(message) }
 }
+

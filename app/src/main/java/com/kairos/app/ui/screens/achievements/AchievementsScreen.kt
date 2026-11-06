@@ -1,13 +1,13 @@
 package com.kairos.app.ui.screens.achievements
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -159,7 +159,7 @@ fun GoalSelector(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 } else {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                    Icon(KairosIcons.Add, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                     Text(text = "Select", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                 }
             }
@@ -463,7 +463,8 @@ fun AchievementUnlockOverlay(
 }
 
 private fun achievementIcon(def: AchievementDef): androidx.compose.ui.graphics.vector.ImageVector = when (def.category) {
-    "focus" -> Icons.Default.Timer
-    "tasks" -> Icons.Default.CheckCircle
-    else -> Icons.Default.EmojiEvents
+    "focus" -> KairosIcons.Timer
+    "tasks" -> KairosIcons.CheckCircle
+    else -> KairosIcons.EmojiEvents
 }
+

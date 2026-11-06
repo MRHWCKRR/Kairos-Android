@@ -1,11 +1,11 @@
 package com.kairos.app.ui.components
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -78,7 +78,7 @@ fun ProfileImage(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.Person,
+                            imageVector = KairosIcons.Person,
                             contentDescription = null,
                             tint = Color.White
                         )
@@ -88,3 +88,4 @@ fun ProfileImage(
         }
     }
 }
+

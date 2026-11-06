@@ -1,5 +1,7 @@
 package com.kairos.app.ui.screens.ai
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import com.kairos.app.ui.components.KairosOutlinedButton
 import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.foundation.*
@@ -9,8 +11,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -237,7 +237,7 @@ fun ChatInputBar(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Default.ArrowUpward,
+                        KairosIcons.ArrowUpward,
                         contentDescription = "Send message",
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(22.dp)
@@ -379,7 +379,7 @@ fun AiPlanConfirmationDialog(
                         Text(text = section.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         section.tasks.forEach { task ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp, top = 4.dp)) {
-                                Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                Icon(KairosIcons.Check, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = task.title, fontSize = 13.sp)
                             }
@@ -400,4 +400,5 @@ fun AiPlanConfirmationDialog(
         }
     )
 }
+
 
