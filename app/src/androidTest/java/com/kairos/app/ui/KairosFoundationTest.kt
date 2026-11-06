@@ -2,8 +2,11 @@ package com.kairos.app.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.testTag
@@ -12,12 +15,31 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
 import com.kairos.app.ui.components.*
 import com.kairos.app.ui.theme.KairosTheme
+import com.kairos.app.data.models.AppearanceSettings
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
 class KairosFoundationTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun transparentShellUsesReadableThemeForeground() {
+        var mode by mutableStateOf("dark")
+        var actual = Color.Transparent
+        var expected = Color.Transparent
+        compose.setContent {
+            KairosTheme(AppearanceSettings(mode = mode)) {
+                val themeForeground = MaterialTheme.colorScheme.onBackground
+                KairosScaffold {
+                    val foreground = LocalContentColor.current
+                    SideEffect { actual = foreground; expected = themeForeground }
+                }
+            }
+        }
+        compose.runOnIdle { assertEquals(expected, actual); mode = "light" }
+        compose.runOnIdle { assertEquals(expected, actual) }
+    }
 
     @Test fun contentFitsBetweenMeasuredBars() {
         compose.setContent {

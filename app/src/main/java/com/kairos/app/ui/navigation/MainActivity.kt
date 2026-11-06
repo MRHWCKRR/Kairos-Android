@@ -77,10 +77,9 @@ class MainActivity : ComponentActivity() {
     private var incomingTaskId by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // --- 1. ABSOLUTE EDGE-TO-EDGE AUTHORITY ---
+        // Draw edge to edge; Compose reserves system-bar space in the shell.
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
-            // FORCE DARK (White Icons) + 0 SCRIM: The definitive fix for Light Mode white bar
             navigationBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
         )
         super.onCreate(savedInstanceState)
@@ -99,7 +98,7 @@ class MainActivity : ComponentActivity() {
             val systemDark = isSystemInDarkTheme()
             val darkSystemIcons = appearance.mode == "light" || (appearance.mode == "system" && !systemDark)
 
-            // REACTIVE STABILIZATION: Keep the system bars behaving
+            // Keep icon contrast aligned with the selected appearance.
             LaunchedEffect(darkSystemIcons) {
                 enableEdgeToEdge(
                     statusBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),

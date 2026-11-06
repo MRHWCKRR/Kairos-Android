@@ -30,6 +30,7 @@ fun KairosScaffold(
         bottomBar = bottomBar,
         snackbarHost = snackbar,
         containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = WindowInsets.safeDrawing,
         content = content
     )
