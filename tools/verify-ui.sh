@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Collect while android-emulator-runner still has a running emulator.
 set -u
-./gradlew :app:connectedDebugAndroidTest --stacktrace
+# Keep the app's private screenshots until collection finishes.
+./gradlew :app:connectedDebugAndroidTest -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true --stacktrace
 test_status=$?
 mkdir -p app/build/visual-parity
 # Avoid a nested shell: adb otherwise loses the quoting around sh -c.
