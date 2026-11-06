@@ -34,14 +34,14 @@ import com.kairos.app.utils.ConfettiCannon
 fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
     val plan by viewModel.plan.collectAsState()
     val profile by viewModel.profile.collectAsState()
-    
+
     var showConfetti by remember { mutableStateOf(false) }
-    
+
     val activeSection = remember(plan) {
         plan?.boards?.filter { !it.archived }
             ?.flatMap { it.sections }
-            ?.firstOrNull { section -> 
-                !section.archived && section.tasks.any { !it.archived && !it.completed } 
+            ?.firstOrNull { section ->
+                !section.archived && section.tasks.any { !it.archived && !it.completed }
             }
     }
 
@@ -56,25 +56,25 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = 24.dp,
-                end = 24.dp,
-                top = 100.dp, // Content starts beautifully below the status bar icons
-                bottom = 180.dp // Clear the dock
+                start = 20.dp,
+                end = 20.dp,
+                top = 20.dp,
+                bottom = 20.dp
             )
         ) {
             item {
                 Text(
                     text = "Welcome back,",
                     style = MaterialTheme.typography.titleLarge, // Enlarged from titleMedium
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
                     letterSpacing = 0.5.sp
                 )
                 Text(
                     text = profile.settings.profile.displayName.ifBlank { "Achiever" },
                     style = MaterialTheme.typography.headlineLarge.copy(
-                        fontSize = 64.sp, // Enlarged from 48.sp
+                        fontSize = 38.sp,
                         fontWeight = FontWeight.Black,
-                        letterSpacing = (-2.5).sp // Tighter tracking for bold hero feel
+                        letterSpacing = (-1.2).sp // Tighter tracking for bold hero feel
                     ),
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -120,7 +120,7 @@ fun DashboardScreen(viewModel: MainViewModel = viewModel()) {
                 }
             }
         }
-        
+
         ConfettiCannon(
             trigger = showConfetti,
             onFinished = { showConfetti = false }
@@ -134,7 +134,7 @@ private var wasFocusActive = false
 @Composable
 fun FocusTimerWidget(viewModel: MainViewModel) {
     val isRunning = viewModel.focusTimerRunning
-    
+
     PremiumCard(contentPadding = PaddingValues(16.dp)) { // ULTRA COMPACT
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -144,24 +144,24 @@ fun FocusTimerWidget(viewModel: MainViewModel) {
                 text = if (isRunning) "FOCUS ACTIVE" else "TIMER READY",
                 style = MaterialTheme.typography.labelLarge,
                 color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                fontSize = 10.sp, 
+                fontSize = 10.sp,
                 letterSpacing = 1.sp
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = formatHMS(viewModel.focusSecondsActive),
                 style = MaterialTheme.typography.headlineLarge.copy(
-                    fontSize = 40.sp, 
+                    fontSize = 40.sp,
                     fontWeight = FontWeight.Bold
                 ),
                 color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -187,7 +187,7 @@ fun FocusTimerWidget(viewModel: MainViewModel) {
                         Text("Pause", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
-                
+
                 PremiumSecondaryButton(
                     onClick = { viewModel.stopAndLogFocus() },
                     modifier = Modifier.weight(1f),
@@ -203,18 +203,18 @@ fun FocusTimerWidget(viewModel: MainViewModel) {
 @Composable
 fun MiniGoalsWidget(profile: KairosUserProfile) {
     val goalIds = profile.achievements.goals.filterNotNull().take(3)
-    
+
     if (goalIds.isEmpty()) return
 
     PremiumCard {
         Column {
             Text(
-                text = "Active Goals", 
-                style = MaterialTheme.typography.titleMedium, 
+                text = "Active Goals",
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(20.dp))
-            
+
             goalIds.forEach { id ->
                 val def = KAIROS_ACHIEVEMENTS.find { it.id == id }
                 if (def != null) {
@@ -281,17 +281,17 @@ fun RoutineStatsCard(plan: KairosPlan?) {
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = "${stats.second} of ${stats.third} tasks completed",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
-            
+
             Spacer(modifier = Modifier.height(20.dp))
-            
+
             LinearProgressIndicator(
                 progress = { stats.first / 100f },
                 modifier = Modifier
@@ -318,9 +318,9 @@ fun FocusModeCard(
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            
+
             Spacer(modifier = Modifier.height(20.dp))
-            
+
             section.tasks.filter { !it.archived }.forEach { task ->
                 RoutineTaskItem(
                     task = task,
@@ -356,9 +356,9 @@ fun RoutineTaskItem(
                     uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                 )
             )
-            
+
             Spacer(modifier = Modifier.width(12.dp))
-            
+
             Text(
                 text = task.title,
                 color = if (task.completed) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface,
@@ -396,7 +396,7 @@ fun AllCaughtUpView() {
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             PremiumButton(
                 onClick = { /* Nav to tasks */ },
                 modifier = Modifier.fillMaxWidth()
@@ -415,3 +415,4 @@ private fun formatHMS(totalSeconds: Long): String {
     val s = totalSeconds % 60
     return String.format(java.util.Locale.getDefault(), "%02d:%02d:%02d", h, m, s)
 }
+

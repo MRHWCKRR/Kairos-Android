@@ -30,6 +30,10 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.ChatMessage
 import com.kairos.app.ui.components.PremiumCard
+import com.kairos.app.ui.components.KairosStateMessage
+import com.kairos.app.ui.components.KairosErrorFeedback
+import com.kairos.app.ui.components.KairosPageHeader
+import com.kairos.app.ui.components.KairosOverflowMenu
 import com.kairos.app.ui.navigation.MainViewModel
 import com.kairos.app.utils.MarkdownUtils
 
@@ -51,47 +55,20 @@ fun AiHelperScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // --- HEADER ---
-            // Large top padding to let content scroll UNDER the top bar area
-            Spacer(modifier = Modifier.height(100.dp))
-            
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "AI Coach",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                
-                var showMenu by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Menu")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                    ) {
+            Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                KairosPageHeader("Kairos AI") {
+                    KairosOverflowMenu("Chat actions") { dismiss ->
                         DropdownMenuItem(
-                            text = { Text("📋 Create Board", fontWeight = FontWeight.Medium) },
+                            text = { Text("Create board") },
                             onClick = {
-                                showMenu = false
+                                dismiss()
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 viewModel.createPlanFromChat(plan)
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("✨ Clear Chat", fontWeight = FontWeight.Medium) },
-                            onClick = {
-                                showMenu = false
-                                viewModel.clearChat()
-                            }
+                            text = { Text("Clear chat") },
+                            onClick = { dismiss(); viewModel.clearChat() }
                         )
                     }
                 }
@@ -103,7 +80,7 @@ fun AiHelperScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 220.dp), // Increased for higher bar (UX 11.0)
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 if (chatMessages.isEmpty()) {
@@ -118,42 +95,19 @@ fun AiHelperScreen(
                     item { TypingIndicator() }
                 }
             }
-        }
-
-        // --- FLOATING INPUT BAR ---
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .imePadding()
-                .padding(bottom = 160.dp, start = 20.dp, end = 20.dp) // Lifted to 160.dp for Premium UX 11.0
-        ) {
-            ChatInputBar(
-                value = viewModel.userInput,
-                onValueChange = { viewModel.userInput = it },
-                onSend = {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    viewModel.handleSend()
-                },
-                isLoading = viewModel.isLoading
-            )
-        }
-
-        // --- ERROR SNACKBAR ---
-        viewModel.errorMessage?.let { msg ->
-            Box(modifier = Modifier.fillMaxSize().padding(bottom = 220.dp), contentAlignment = Alignment.BottomCenter) {
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(16.dp),
-                    tonalElevation = 4.dp,
-                    modifier = Modifier.padding(16.dp).clickable { viewModel.errorMessage = null }
-                ) {
-                    Text(
-                        text = msg,
-                        modifier = Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+            viewModel.errorMessage?.let { message ->
+                KairosErrorFeedback(message, onDismiss = { viewModel.errorMessage = null })
+            }
+            Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+                ChatInputBar(
+                    value = viewModel.userInput,
+                    onValueChange = { viewModel.userInput = it },
+                    onSend = {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.handleSend()
+                    },
+                    isLoading = viewModel.isLoading
+                )
             }
         }
     }
@@ -178,7 +132,7 @@ fun AiHelperScreen(
         AiPlanConfirmationDialog(
             viewModel = viewModel,
             existingBoards = plan?.boards ?: emptyList(),
-            onConfirm = { 
+            onConfirm = {
                 val updatedPlan = viewModel.onConfirm(plan)
                 mainViewModel.updatePlan(updatedPlan)
             }
@@ -230,7 +184,7 @@ fun ChatInputBar(
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(28.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
-        shadowElevation = 12.dp
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
@@ -248,7 +202,8 @@ fun ChatInputBar(
                     value = value,
                     onValueChange = onValueChange,
                     modifier = Modifier.fillMaxWidth(),
-                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    maxLines = 5,
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     decorationBox = { innerTextField ->
                         if (value.isEmpty()) {
@@ -266,7 +221,7 @@ fun ChatInputBar(
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                     disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                 ),
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(48.dp)
             ) {
                 if (isLoading && value.isNotEmpty()) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
@@ -280,31 +235,10 @@ fun ChatInputBar(
 
 @Composable
 fun ChatEmptyState() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 64.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.AutoAwesome,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Your AI Study Coach",
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-        )
-        Text(
-            text = "Ask me anything — or tell me about an assignment.",
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-        )
-    }
+    KairosStateMessage(
+        title = "Kairos AI",
+        message = "Ask about your tasks or plan your next assignment."
+    )
 }
 
 @Composable
@@ -342,7 +276,7 @@ fun AiPlanConfirmationDialog(
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text("Where should we add these tasks?", style = MaterialTheme.typography.labelMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(
                         selected = viewModel.targetBoardMode == TargetBoardMode.NEW,
@@ -350,7 +284,7 @@ fun AiPlanConfirmationDialog(
                     )
                     Text("A new board", modifier = Modifier.clickable { viewModel.targetBoardMode = TargetBoardMode.NEW })
                 }
-                
+
                 if (viewModel.targetBoardMode == TargetBoardMode.NEW) {
                     OutlinedTextField(
                         value = viewModel.newBoardName,
@@ -368,14 +302,14 @@ fun AiPlanConfirmationDialog(
                         enabled = existingBoards.isNotEmpty()
                     )
                     Text(
-                        text = "An existing board", 
-                        modifier = Modifier.clickable(enabled = existingBoards.isNotEmpty()) { 
-                            viewModel.targetBoardMode = TargetBoardMode.EXISTING 
+                        text = "An existing board",
+                        modifier = Modifier.clickable(enabled = existingBoards.isNotEmpty()) {
+                            viewModel.targetBoardMode = TargetBoardMode.EXISTING
                         },
                         color = if (existingBoards.isEmpty()) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else Color.Unspecified
                     )
                 }
-                
+
                 if (viewModel.targetBoardMode == TargetBoardMode.EXISTING) {
                     var expanded by remember { mutableStateOf(false) }
                     Box(modifier = Modifier.padding(start = 32.dp)) {
@@ -403,9 +337,9 @@ fun AiPlanConfirmationDialog(
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 // --- TASK PREVIEW ---
                 Text(
                     text = "BOARD PREVIEW",
@@ -415,7 +349,7 @@ fun AiPlanConfirmationDialog(
                     letterSpacing = 1.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 viewModel.pendingResponse?.sections?.forEach { section ->
                     Column(modifier = Modifier.padding(bottom = 12.dp)) {
                         Text(text = section.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -442,3 +376,4 @@ fun AiPlanConfirmationDialog(
         }
     )
 }
+

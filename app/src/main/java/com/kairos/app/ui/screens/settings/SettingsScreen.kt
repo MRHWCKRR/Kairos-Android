@@ -91,11 +91,10 @@ fun SettingsMainView(
     mainViewModel: MainViewModel
 ) {
     val tabs = listOf("Personal", "Accessibility", "Security", "Appearance", "AI Engine", "Privacy & Data")
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
     ) {
         Text(
             text = "Settings",
@@ -104,7 +103,7 @@ fun SettingsMainView(
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 40.dp)
         )
-        
+
         Spacer(modifier = Modifier.height(24.dp))
 
         // Basic Tab Row - Scrollable if too many tabs
@@ -136,7 +135,7 @@ fun SettingsMainView(
                 4 -> AiTabSafe(mainViewModel)
                 5 -> PrivacyTabContent(profile, mainViewModel)
             }
-            Spacer(modifier = Modifier.height(100.dp))
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
@@ -146,7 +145,7 @@ fun PersonalTabView(profile: KairosUserProfile, onEditRequest: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(text = "Profile Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(80.dp)) {
                 ProfileImage(
@@ -161,16 +160,16 @@ fun PersonalTabView(profile: KairosUserProfile, onEditRequest: () -> Unit) {
                 Text(text = "Routine Manager", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             }
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         // Info Grid
         ProfileInfoRow(label = "Birthday", value = profile.settings.profile.birthday.ifBlank { "Not set" })
         Spacer(modifier = Modifier.height(16.dp))
         ProfileInfoRow(label = "Timezone", value = profile.settings.profile.timezone)
 
         Spacer(modifier = Modifier.height(40.dp))
-        
+
         Button(
             onClick = onEditRequest,
             shape = RoundedCornerShape(12.dp),
@@ -201,7 +200,7 @@ fun PersonalEditBunker(
     var nameDraft by remember { mutableStateOf(profile.settings.profile.displayName) }
     var birthdayDraft by remember { mutableStateOf(profile.settings.profile.birthday) }
     var timezoneDraft by remember { mutableStateOf(profile.settings.profile.timezone) }
-    
+
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimezoneMenu by remember { mutableStateOf(false) }
 
@@ -256,16 +255,16 @@ fun PersonalEditBunker(
                             userName = nameDraft,
                             modifier = Modifier.size(100.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
                         )
-                        
+
                         if (viewModel.isUploadingAvatar) {
                             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f), CircleShape), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
                             }
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Row {
                         OutlinedButton(
                             onClick = { launcher.launch("image/*") },
@@ -291,7 +290,7 @@ fun PersonalEditBunker(
             Spacer(modifier = Modifier.height(32.dp))
 
             BunkerInputSafe(label = "Display Name", value = nameDraft, onValueChange = { nameDraft = it })
-            
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Birthday with DatePicker
@@ -358,7 +357,7 @@ fun PersonalEditBunker(
                     }
                 }
             }
-            
+
             if (viewModel.settingsError != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(text = viewModel.settingsError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
@@ -402,7 +401,7 @@ fun PersonalEditBunker(
 fun SecurityTabContent(user: com.google.firebase.auth.FirebaseUser?, viewModel: MainViewModel) {
     var newEmail by remember { mutableStateOf(user?.email ?: "") }
     var emailPassword by remember { mutableStateOf("") }
-    
+
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -415,7 +414,7 @@ fun SecurityTabContent(user: com.google.firebase.auth.FirebaseUser?, viewModel: 
 
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(text = "Privacy & Security", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        
+
         // Change Email
         SecurityCard(title = "Change Email") {
             BunkerInputSafe(label = "New Email", value = newEmail, onValueChange = { newEmail = it })
@@ -440,7 +439,7 @@ fun SecurityTabContent(user: com.google.firebase.auth.FirebaseUser?, viewModel: 
             BunkerInputSafe(label = "Confirm new password", value = confirmPassword, onValueChange = { confirmPassword = it }, isPassword = true)
             Spacer(modifier = Modifier.height(24.dp))
             Button(
-                onClick = { 
+                onClick = {
                     if (newPassword == confirmPassword) {
                         viewModel.updatePassword(currentPassword, newPassword)
                     }
@@ -508,7 +507,7 @@ fun AccessibilityTabContent(settings: KairosSettings, viewModel: MainViewModel) 
 fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(text = "Appearance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        
+
         // Mode
         Column {
             Text(text = "Theme Mode", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
@@ -615,7 +614,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
 fun AiTabSafe(viewModel: MainViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(text = "AI Coach", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        
+
         SecurityCard(title = "Inbuilt Intelligence") {
             Text(
                 text = "Kairos features inbuilt AI coaching and routine generation powered by our community relay. No API keys or setup required.",
@@ -623,9 +622,9 @@ fun AiTabSafe(viewModel: MainViewModel) {
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
             text = "Your coaching history is synced across all your devices and the Kairos web app automatically.",
             style = MaterialTheme.typography.bodySmall,
@@ -641,7 +640,7 @@ fun PrivacyTabContent(profile: KairosUserProfile, viewModel: MainViewModel) {
 
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Text(text = "Privacy & Data", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        
+
         // Recycle Bin
         SecurityCard(title = "Recycle Bin") {
             RecycleBinContent(plan, viewModel)
@@ -700,7 +699,7 @@ fun RecycleBinContent(plan: KairosPlan?, viewModel: MainViewModel) {
     val archivedBoards = plan?.boards?.filter { it.archived } ?: emptyList()
     val archivedSections = mutableListOf<Pair<KairosBoard, KairosSection>>()
     val archivedTasks = mutableListOf<Triple<KairosBoard, KairosSection, KairosTask>>()
-    
+
     plan?.boards?.forEach { board ->
         board.sections.forEach { section ->
             if (section.archived && !board.archived) archivedSections.add(board to section)
@@ -772,8 +771,8 @@ fun BunkerTabItem(text: String, selected: Boolean, onClick: () -> Unit, modifier
 
 @Composable
 fun BunkerInputSafe(
-    label: String, 
-    value: String, 
+    label: String,
+    value: String,
     onValueChange: (String) -> Unit,
     isPassword: Boolean = false,
     placeholder: String = ""
@@ -819,3 +818,4 @@ fun BunkerOptionButton(text: String, selected: Boolean, onClick: () -> Unit, mod
         }
     }
 }
+

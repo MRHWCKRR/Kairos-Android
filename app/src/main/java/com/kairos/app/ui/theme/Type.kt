@@ -8,59 +8,32 @@ import androidx.compose.ui.unit.sp
 
 fun getKairosTypography(font: String): Typography {
     val family = when (font) {
-        "round" -> FontFamily.SansSerif
-        "mono" -> FontFamily.Monospace
-        else -> FontFamily.Default
+        "mono", "monospaced" -> FontFamily.Monospace
+        "serif" -> FontFamily.Serif
+        // Native sans substitutes for web fonts and Apple-only system fonts.
+        else -> FontFamily.SansSerif
     }
-
+    fun style(size: Int, line: Int, weight: FontWeight = FontWeight.Normal) = TextStyle(
+        fontFamily = family, fontSize = size.sp, lineHeight = line.sp, fontWeight = weight
+    )
     return Typography(
-        headlineLarge = TextStyle(
-            fontFamily = family,
-            fontWeight = FontWeight.Black, 
-            fontSize = 36.sp,
-            letterSpacing = (-1).sp
-        ),
-        headlineMedium = TextStyle(
-            fontFamily = family,
-            fontWeight = FontWeight.Bold, 
-            fontSize = 28.sp,
-            letterSpacing = (-0.5).sp
-        ),
-        titleLarge = TextStyle(
-            fontFamily = family,
-            fontWeight = FontWeight.Bold, 
-            fontSize = 22.sp
-        ),
-        titleMedium = TextStyle(
-            fontFamily = family,
-            fontWeight = FontWeight.SemiBold, 
-            fontSize = 18.sp
-        ),
-        bodyLarge = TextStyle(
-            fontFamily = family,
-            fontWeight = FontWeight.Normal, 
-            fontSize = 16.sp,
-            lineHeight = 24.sp
-        ),
-        bodyMedium = TextStyle(
-            fontFamily = family,
-            fontWeight = FontWeight.Normal, 
-            fontSize = 14.sp,
-            lineHeight = 20.sp
-        ),
-        labelLarge = TextStyle(
-            fontFamily = family,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            letterSpacing = 1.sp
-        ),
-        labelMedium = TextStyle(
-            fontFamily = family,
-            fontWeight = FontWeight.Medium,
-            fontSize = 11.sp
-        )
+        displayLarge = style(44, 52, FontWeight.Bold),
+        displayMedium = style(40, 48, FontWeight.Bold),
+        displaySmall = style(38, 46, FontWeight.Bold),
+        headlineLarge = style(32, 40, FontWeight.Bold),
+        headlineMedium = style(28, 36, FontWeight.Bold),
+        headlineSmall = style(24, 32, FontWeight.Bold),
+        titleLarge = style(22, 30, FontWeight.Bold),
+        titleMedium = style(18, 26, FontWeight.SemiBold),
+        titleSmall = style(16, 24, FontWeight.SemiBold),
+        bodyLarge = style(16, 24),
+        bodyMedium = style(14, 22),
+        bodySmall = style(12, 18),
+        labelLarge = style(14, 20, FontWeight.SemiBold),
+        labelMedium = style(12, 18, FontWeight.Medium),
+        labelSmall = style(11, 16, FontWeight.Medium)
     )
 }
 
-// Keep the old one for compatibility if needed elsewhere temporarily
 val KairosTypography = getKairosTypography("sans")
+

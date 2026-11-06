@@ -54,14 +54,14 @@ fun DiscoveryScreen(
 
     val filteredRoutines = remember(allRoutines, showOnlyMyRoutines, user, searchQuery, filterCreatorId) {
         allRoutines.filter { routine ->
-            val matchesSearch = routine.title.contains(searchQuery, ignoreCase = true) || 
+            val matchesSearch = routine.title.contains(searchQuery, ignoreCase = true) ||
                               routine.description.contains(searchQuery, ignoreCase = true) ||
                               routine.category.contains(searchQuery, ignoreCase = true)
-            
+
             val matchesCreator = filterCreatorId == null || routine.creatorId == filterCreatorId
-            
+
             val matchesTab = if (showOnlyMyRoutines) routine.creatorId == user?.uid else true
-            
+
             matchesSearch && matchesCreator && matchesTab
         }
     }
@@ -77,10 +77,10 @@ fun DiscoveryScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = 24.dp,
-                    end = 24.dp,
-                    top = 120.dp, // Increased to 120.dp for Premium UX 11.0
-                    bottom = 160.dp // Clear the floating dock
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 20.dp,
+                    bottom = 20.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
@@ -98,7 +98,7 @@ fun DiscoveryScreen(
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
-                            
+
                             // --- REFINED FEED TOGGLE ---
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
@@ -141,7 +141,7 @@ fun DiscoveryScreen(
                                     }
                                 )
                                 if (searchQuery.isNotEmpty() || filterCreatorId != null) {
-                                    IconButton(onClick = { 
+                                    IconButton(onClick = {
                                         discoveryViewModel.onSearchQueryChange("")
                                         discoveryViewModel.filterByCreator(null)
                                     }, modifier = Modifier.size(24.dp)) {
@@ -298,8 +298,8 @@ fun TabToggleItem(text: String, selected: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = text, 
-            fontSize = 11.sp, 
+            text = text,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
@@ -433,7 +433,7 @@ fun RoutineMarketplaceCard(
                     modifier = Modifier.clickable { onCreatorClick() }
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                
+
                 if (isOwner) {
                     IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
@@ -454,7 +454,7 @@ fun RoutineMarketplaceCard(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            
+
             Text(
                 text = MarkdownUtils.parseMarkdown(routine.description),
                 style = MaterialTheme.typography.bodyMedium,
@@ -487,7 +487,7 @@ fun RoutineMarketplaceCard(
                         Text("Edit", fontSize = 13.sp)
                     }
                 }
-                
+
                 OutlinedButton(
                     onClick = onPreview,
                     modifier = Modifier.weight(1f),
@@ -499,3 +499,4 @@ fun RoutineMarketplaceCard(
         }
     }
 }
+

@@ -33,7 +33,7 @@ fun PlanScreen(mainViewModel: MainViewModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(top = 120.dp, bottom = 16.dp), // Increased to 120.dp for Premium UX 11.0
+                .padding(top = 20.dp, bottom = 16.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
@@ -65,7 +65,6 @@ fun PlanScreen(mainViewModel: MainViewModel) {
         Box(
             modifier = Modifier
                 .weight(1f)
-                .padding(bottom = 120.dp) // Spacing for floating dock
         ) {
             if (selectedTab == PlanTab.CALENDAR) {
                 CalendarScreen(mainViewModel = mainViewModel)
@@ -105,3 +104,4 @@ fun PlanToggleItem(
         }
     }
 }
+
