@@ -27,6 +27,7 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "KAIROS_RELAY_SECRET", "\"$relaySecret\"")
     }
@@ -62,6 +63,7 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
+    implementation("androidx.compose.ui:ui-tooling-preview")
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.extended)
 
@@ -71,7 +73,12 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
 
     debugImplementation(libs.compose.ui.tooling)
-
-    // keep whatever testImplementation/androidTestImplementation lines
-    // Android Studio already generated here (junit, espresso, etc.)
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.1")
 }
+
+
