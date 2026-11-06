@@ -103,13 +103,13 @@ fun SettingsScreen(
                 Spacer(Modifier.height(24.dp))
                 SettingsGroup {
                     SettingsNavigationRow("Accessibility", KairosIcons.Accessibility) { section = "Accessibility" }
-                    SettingsNavigationRow("Notifications", KairosIcons.Notifications) { section = "Notifications" }
+                    SettingsNavigationRow("Notifications", KairosIcons.symbol("bell.badge")) { section = "Notifications" }
                     SettingsNavigationRow("Appearance", KairosIcons.Contrast, divider = false) { section = "Appearance" }
                 }
                 SettingsGroupLabel("Progress")
                 SettingsGroup {
                     SettingsNavigationRow("Goals & Achievements", KairosIcons.EmojiEvents) { onNavigate("achievements") }
-                    SettingsNavigationRow("Statistics", KairosIcons.BarChart, divider = false) { onNavigate("statistics") }
+                    SettingsNavigationRow("Statistics", KairosIcons.symbol("chart.bar.xaxis"), divider = false) { onNavigate("statistics") }
                 }
                 SettingsGroupLabel("Account")
                 SettingsGroup {

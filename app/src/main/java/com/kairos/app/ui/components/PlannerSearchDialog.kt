@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -37,6 +38,8 @@ fun PlannerSearchDialog(
     isLoading: Boolean = false,
     errorMessage: String? = null
 ) {
+    // Sheet dialogs create their own composition; retain the app's accessibility scale.
+    val inheritedDensity = LocalDensity.current
     var query by rememberSaveable { mutableStateOf("") }
     var status by rememberSaveable { mutableStateOf(PlannerSearchStatus.All) }
     var selectedBoard by remember { mutableStateOf<PlannerSearchTarget?>(null) }
@@ -71,61 +74,63 @@ fun PlannerSearchDialog(
         containerColor = MaterialTheme.colorScheme.background,
         dragHandle = null
     ) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.94f).imePadding().testTag("planner-search-sheet")) {
-            SearchSheetHeader("Search", onDismiss)
-            val focus = remember { FocusRequester() }
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it.take(PlannerSearch.QUERY_LIMIT) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).focusRequester(focus)
-                    .semantics { contentDescription = "Search planner" },
-                placeholder = { Text("Tasks, boards, assignments") },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                leadingIcon = { Icon(KairosIcons.Search, null) },
-                trailingIcon = {
-                    if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                        Icon(KairosIcons.Cancel, "Clear search")
-                    }
-                }
-            )
-            LaunchedEffect(Unit) { focus.requestFocus() }
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                PlannerSearchStatus.entries.forEachIndexed { position, option ->
-                    SegmentedButton(
-                        selected = status == option, onClick = { status = option },
-                        shape = SegmentedButtonDefaults.itemShape(position, PlannerSearchStatus.entries.size),
-                        icon = {},
-                        label = { Text(option.label, maxLines = 2, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall) }
-                    )
-                }
-            }
-            when {
-                plan == null -> SearchMessage(
-                    if (isLoading) "Loading planner" else "Search unavailable",
-                    errorMessage ?: "Search will be available when your planner has loaded.", isLoading
-                )
-                results == null -> SearchMessage("Searching your planner", loading = true)
-                else -> LazyColumn(
-                    Modifier.fillMaxWidth().weight(1f),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        Text(
-                            if (results.total > results.rows.size) "Showing ${results.rows.size} of ${results.total} matches. Refine your search to see more."
-                            else "${results.total} ${if (results.total == 1) "result" else "results"}",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (results.rows.isEmpty()) item {
-                        Column(Modifier.fillMaxWidth().padding(vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(KairosIcons.Search, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("No results", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
-                            Text(if (query.isBlank()) "No planner items match this filter." else "Try a different search or filter.", style = MaterialTheme.typography.bodyMedium)
+        CompositionLocalProvider(LocalDensity provides inheritedDensity) {
+            Column(Modifier.fillMaxWidth().fillMaxHeight(0.94f).imePadding().testTag("planner-search-sheet")) {
+                SearchSheetHeader("Search", onDismiss)
+                val focus = remember { FocusRequester() }
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it.take(PlannerSearch.QUERY_LIMIT) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).focusRequester(focus)
+                        .semantics { contentDescription = "Search planner" },
+                    placeholder = { Text("Tasks, boards, assignments") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    leadingIcon = { Icon(KairosIcons.Search, null) },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
+                            Icon(KairosIcons.Cancel, "Clear search")
                         }
                     }
-                    items(results.rows, key = { it.target.key }) { row -> SearchResultRow(row) { open(row) } }
+                )
+                LaunchedEffect(Unit) { focus.requestFocus() }
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    PlannerSearchStatus.entries.forEachIndexed { position, option ->
+                        SegmentedButton(
+                            selected = status == option, onClick = { status = option },
+                            shape = SegmentedButtonDefaults.itemShape(position, PlannerSearchStatus.entries.size),
+                            icon = {},
+                            label = { Text(option.label, maxLines = 2, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall) }
+                        )
+                    }
+                }
+                when {
+                    plan == null -> SearchMessage(
+                        if (isLoading) "Loading planner" else "Search unavailable",
+                        errorMessage ?: "Search will be available when your planner has loaded.", isLoading
+                    )
+                    results == null -> SearchMessage("Searching your planner", loading = true)
+                    else -> LazyColumn(
+                        Modifier.fillMaxWidth().weight(1f),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
+                            Text(
+                                if (results.total > results.rows.size) "Showing ${results.rows.size} of ${results.total} matches. Refine your search to see more."
+                                else "${results.total} ${if (results.total == 1) "result" else "results"}",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (results.rows.isEmpty()) item {
+                            Column(Modifier.fillMaxWidth().padding(vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(KairosIcons.Search, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("No results", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
+                                Text(if (query.isBlank()) "No planner items match this filter." else "Try a different search or filter.", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                        items(results.rows, key = { it.target.key }) { row -> SearchResultRow(row) { open(row) } }
+                    }
                 }
             }
         }
@@ -137,17 +142,19 @@ fun PlannerSearchDialog(
             onDismissRequest = { selectedBoard = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), dragHandle = null
         ) {
-            Column(Modifier.fillMaxWidth().fillMaxHeight(0.85f).testTag("planner-search-board")) {
-                SearchSheetHeader(boardRow?.title ?: "Board") { selectedBoard = null }
-                if (boardRow == null || board == null) SearchMessage("This board is no longer available.")
-                else LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    val sections = board.sections.filter { section -> !section.archived && board.sections.count { it.id == section.id } == 1 }
-                    if (sections.isEmpty()) item { Text("No sections yet") }
-                    sections.forEach { section ->
-                        item { Text(section.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
-                        val tasks = index.orEmpty().filter { it.target.boardId == target.boardId && it.target.sectionId == section.id }
-                        if (tasks.isEmpty()) item { Text("No tasks", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        items(tasks, key = { it.target.key }) { row -> SearchResultRow(row) { open(row) } }
+            CompositionLocalProvider(LocalDensity provides inheritedDensity) {
+                Column(Modifier.fillMaxWidth().fillMaxHeight(0.85f).testTag("planner-search-board")) {
+                    SearchSheetHeader(boardRow?.title ?: "Board") { selectedBoard = null }
+                    if (boardRow == null || board == null) SearchMessage("This board is no longer available.")
+                    else LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        val sections = board.sections.filter { section -> !section.archived && board.sections.count { it.id == section.id } == 1 }
+                        if (sections.isEmpty()) item { Text("No sections yet") }
+                        sections.forEach { section ->
+                            item { Text(section.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
+                            val tasks = index.orEmpty().filter { it.target.boardId == target.boardId && it.target.sectionId == section.id }
+                            if (tasks.isEmpty()) item { Text("No tasks", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            items(tasks, key = { it.target.key }) { row -> SearchResultRow(row) { open(row) } }
+                        }
                     }
                 }
             }
@@ -157,19 +164,21 @@ fun PlannerSearchDialog(
         // Resolve against the current index, so deleted, archived and ambiguous targets cannot be edited.
         val row = index?.singleOrNull { it.target == target }
         ModalBottomSheet(onDismissRequest = { selectedTask = null }, dragHandle = null) {
-            Column(Modifier.fillMaxWidth().padding(bottom = 32.dp).testTag("planner-search-task")) {
-                SearchSheetHeader("Task details") { selectedTask = null }
-                if (row == null) SearchMessage("This task is no longer available.")
-                else Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(row.title, style = MaterialTheme.typography.headlineSmall)
-                    Text(row.path, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    SearchResultDate(row)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconToggleButton(checked = row.completed, onCheckedChange = { completed -> onToggleTask(requireNotNull(target.taskId), completed) }) {
-                            Icon(if (row.completed) KairosIcons.CheckCircle else KairosIcons.RadioButtonUnchecked,
-                                if (row.completed) "Mark unfinished" else "Mark completed", tint = MaterialTheme.colorScheme.secondary)
+            CompositionLocalProvider(LocalDensity provides inheritedDensity) {
+                Column(Modifier.fillMaxWidth().padding(bottom = 32.dp).testTag("planner-search-task")) {
+                    SearchSheetHeader("Task details") { selectedTask = null }
+                    if (row == null) SearchMessage("This task is no longer available.")
+                    else Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(row.title, style = MaterialTheme.typography.headlineSmall)
+                        Text(row.path, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        SearchResultDate(row)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconToggleButton(checked = row.completed, onCheckedChange = { completed -> onToggleTask(requireNotNull(target.taskId), completed) }) {
+                                Icon(if (row.completed) KairosIcons.CheckCircle else KairosIcons.RadioButtonUnchecked,
+                                    if (row.completed) "Mark unfinished" else "Mark completed", tint = MaterialTheme.colorScheme.secondary)
+                            }
+                            Text(row.label)
                         }
-                        Text(row.label)
                     }
                 }
             }

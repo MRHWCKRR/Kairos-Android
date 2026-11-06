@@ -13,6 +13,7 @@ import com.kairos.app.data.models.*
 import com.kairos.app.ui.components.PlannerSearchDialog
 import com.kairos.app.ui.theme.KairosTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
@@ -54,13 +55,25 @@ class PlannerSearchUiTest {
         }
     }
 
+    private fun titleHeight(text: String, sheet: String): Float = compose.onNode(
+        hasText(text) and hasAnyAncestor(hasTestTag(sheet)), useUnmergedTree = true
+    ).fetchSemanticsNode().boundsInRoot.height
+
+    private fun assertLargerTitle(text: String, sheet: String, normalHeight: Float) {
+        compose.waitForIdle()
+        val largeHeight = titleHeight(text, sheet)
+        assertTrue("Title must grow at 2x font scale: normal=$normalHeight, large=$largeHeight", largeHeight > normalHeight * 1.5f)
+    }
+
     @Test fun populatedSearchSupportsAppearanceAndLargeText() {
         show()
         awaitText("3 results")
         capture("search-dark")
         compose.runOnIdle { appearance = "light" }
         capture("search-light")
+        val normalHeight = titleHeight("Biology", "planner-search-sheet")
         compose.runOnIdle { scale = 2f }
+        assertLargerTitle("Biology", "planner-search-sheet", normalHeight)
         compose.onNodeWithText("Done").assertIsDisplayed()
         compose.onNodeWithContentDescription("Search planner").assertIsDisplayed()
         capture("search-large-text")
@@ -91,9 +104,19 @@ class PlannerSearchUiTest {
         compose.onNodeWithText("Biology", substring = false).performClick()
         compose.onNodeWithTag("planner-search-board").assertExists()
         capture("search-board", "planner-search-board")
+        val boardTitleHeight = titleHeight("Prepare the first draft", "planner-search-board")
+        compose.runOnIdle { scale = 2f }
+        assertLargerTitle("Prepare the first draft", "planner-search-board", boardTitleHeight)
+        capture("search-board-large-text", "planner-search-board")
+        compose.runOnIdle { scale = 1f }
         compose.onNode(hasText("Prepare the first draft") and hasAnyAncestor(hasTestTag("planner-search-board"))).performClick()
         compose.onNodeWithText("Task details").assertExists()
         capture("search-task", "planner-search-task")
+        val taskTitleHeight = titleHeight("Prepare the first draft", "planner-search-task")
+        compose.runOnIdle { scale = 2f }
+        assertLargerTitle("Prepare the first draft", "planner-search-task", taskTitleHeight)
+        capture("search-task-large-text", "planner-search-task")
+        compose.runOnIdle { scale = 1f }
         compose.onNode(isToggleable() and hasAnyAncestor(hasTestTag("planner-search-task"))).performClick()
         compose.runOnIdle { assertEquals("past", completedId); assertEquals(true, completedValue) }
         compose.onNode(hasText("Done") and hasAnyAncestor(hasTestTag("planner-search-task"))).performClick()
