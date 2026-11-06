@@ -25,14 +25,12 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.kairos.app.R
-import com.kairos.app.ui.theme.BgCard
-import com.kairos.app.ui.theme.TextMuted
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
     val scrollState = rememberScrollState()
     val context = LocalContext.current
-    
+
     // Google Sign-In Setup
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -41,7 +39,7 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
             .build()
     }
     val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
-    
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -59,192 +57,53 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.Start
-        ) {
-            Spacer(modifier = Modifier.height(60.dp))
-
-            // Logo: PNG Image
-            Image(
-                painter = painterResource(id = R.drawable.ic_kairos_logo),
-                contentDescription = "Kairos Logo",
-                modifier = Modifier.size(64.dp)
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Text(
-                text = if (viewModel.isSignUpMode) "Create account" else "Welcome back",
-                fontSize = 36.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = if (viewModel.isSignUpMode) "Join Kairos to start your journey." else "Log in to access your intelligent schedule.",
-                fontSize = 16.sp,
-                color = TextMuted
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Social Logins
-            SocialLoginButton(
-                text = "Continue with Google", 
-                onClick = { launcher.launch(googleSignInClient.signInIntent) }
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            SocialLoginButton(
-                text = "Continue with GitHub", 
-                onClick = { 
-                    android.widget.Toast.makeText(context, "GitHub Sign-In coming soon! Use Email for now.", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            SocialLoginButton(
-                text = "Continue with Microsoft", 
-                onClick = { 
-                    android.widget.Toast.makeText(context, "Microsoft Sign-In coming soon! Use Email for now.", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Separator
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = "OR SECURELY WITH EMAIL",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextMuted,
-                    letterSpacing = 1.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Email Field
-            Text(
-                text = "Email Address",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            CustomTextField(
-                value = viewModel.email,
-                onValueChange = { viewModel.email = it },
-                placeholder = "you@example.com",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Password Field
-            Text(
-                text = "Password",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            CustomTextField(
-                value = viewModel.password,
-                onValueChange = { viewModel.password = it },
-                placeholder = "••••••••",
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-            )
-
-            if (viewModel.errorMessage != null) {
-                Text(
-                    text = viewModel.errorMessage!!,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Remember Me
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Box(Modifier.fillMaxSize().imePadding(), contentAlignment = Alignment.TopCenter) {
+            Column(
+                modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth().verticalScroll(scrollState).padding(horizontal = 24.dp).safeDrawingPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Checkbox(
-                    checked = viewModel.rememberMe,
-                    onCheckedChange = { viewModel.rememberMe = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primary,
-                        uncheckedColor = Color.White.copy(alpha = 0.6f)
-                    )
-                )
-                Text(
-                    text = "Remember me",
-                    fontSize = 14.sp,
-                    color = Color.White,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Action Button
-            Button(
-                onClick = { viewModel.onAction() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = !viewModel.isLoading,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                )
-            ) {
-                if (viewModel.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = if (viewModel.isSignUpMode) "Sign Up" else "Sign In",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                Spacer(Modifier.height(40.dp))
+                Image(painter = painterResource(R.drawable.ic_kairos_logo), contentDescription = "Kairos logo", modifier = Modifier.size(72.dp))
+                Spacer(Modifier.height(12.dp))
+                Text("Kairos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Spacer(Modifier.height(24.dp))
+                Text("Make time for what matters.", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Spacer(Modifier.height(8.dp))
+                Text(if (viewModel.isSignUpMode) "Let's get your schedule set up." else "Welcome back. Good to see you again.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Spacer(Modifier.height(28.dp))
+                Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))) {
+                    Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                        SocialLoginButton(text = "Continue with Google", onClick = { launcher.launch(googleSignInClient.signInIntent) })
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                            Text("OR", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Email address", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            CustomTextField(viewModel.email, { viewModel.email = it }, "you@example.com", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Password", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            CustomTextField(viewModel.password, { viewModel.password = it }, "••••••••", visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = viewModel.rememberMe, onCheckedChange = { viewModel.rememberMe = it })
+                            Text("Remember me", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        viewModel.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                        Button(onClick = { viewModel.onAction() }, enabled = !viewModel.isLoading, shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                            if (viewModel.isLoading) CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                            else Text(if (viewModel.isSignUpMode) "Sign Up" else "Sign In", fontWeight = FontWeight.SemiBold)
+                        }
+                        TextButton(onClick = { viewModel.toggleMode() }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                            Text(if (viewModel.isSignUpMode) "Already have an account? Sign In" else "New here? Create an account", color = MaterialTheme.colorScheme.secondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
+                Spacer(Modifier.height(32.dp))
             }
-
-            // Toggle Mode
-            TextButton(
-                onClick = { viewModel.toggleMode() },
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(vertical = 16.dp)
-            ) {
-                Text(
-                    text = if (viewModel.isSignUpMode) "Already have an account? Sign In" 
-                    else "Don't have an account? Sign Up",
-                    color = TextMuted,
-                    fontSize = 14.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }
@@ -256,10 +115,10 @@ fun SocialLoginButton(text: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF1E1E2E), // Dark button background from design
-            contentColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Text(
@@ -282,23 +141,23 @@ fun CustomTextField(
     TextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(text = placeholder, color = TextMuted) },
+        placeholder = { Text(text = placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant) },
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(14.dp),
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = BgCard,
-            unfocusedContainerColor = BgCard,
-            disabledContainerColor = BgCard,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
             disabledIndicatorColor = Color.Transparent,
-            cursorColor = Color.White
+            cursorColor = MaterialTheme.colorScheme.secondary
         ),
         singleLine = true
     )

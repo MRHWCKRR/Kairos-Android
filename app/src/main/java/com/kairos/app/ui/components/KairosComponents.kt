@@ -5,6 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -101,15 +104,19 @@ fun KairosTaskRow(
         modifier.fillMaxWidth().heightIn(min = KairosMetrics.minimumTouchTarget),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Checkbox(
+        IconToggleButton(
             checked = completed, onCheckedChange = onToggle,
-            modifier = Modifier.semantics { contentDescription = "Complete $title" }
-        )
+            modifier = Modifier.size(48.dp).semantics { contentDescription = "Complete $title"; role = Role.Checkbox }
+        ) {
+            Icon(if (completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                contentDescription = null, modifier = Modifier.size(24.dp),
+                tint = if (completed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         Text(
             title,
             modifier = Modifier.weight(1f).clickable(onClickLabel = "Open task", onClick = onOpen)
                 .padding(vertical = KairosMetrics.itemSpacing),
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             color = if (completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
             textDecoration = if (completed) TextDecoration.LineThrough else null
         )
@@ -141,7 +148,7 @@ fun KairosOverflowMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, label) }
+        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreHoriz, label) }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             content { expanded = false }
         }

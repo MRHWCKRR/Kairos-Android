@@ -7,6 +7,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,23 +37,24 @@ fun StatisticsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .padding(horizontal = 18.dp, vertical = 16.dp)
                 .verticalScroll(scrollState)
         ) {
             Text(
-                text = "Statistics",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.ExtraBold,
+                text = "Your progress",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Text("See how consistently you are showing up.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             // Range Toggle
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -61,13 +66,13 @@ fun StatisticsScreen(
                             .weight(1f)
                             .height(36.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                            .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent)
                             .clickable { viewModel.statsRange = range },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = range.name.lowercase().replaceFirstChar { it.uppercase() },
-                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                         )
@@ -75,7 +80,7 @@ fun StatisticsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             // Focus Time Chart
             ChartCard(
@@ -84,7 +89,7 @@ fun StatisticsScreen(
                 valueFormatter = { formatSecondsToHMS(it.toLong()) }
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             // Tasks Completed Chart
             ChartCard(
@@ -93,22 +98,17 @@ fun StatisticsScreen(
                 valueFormatter = { "${it.toInt()} tasks" }
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Summary Totals
-            Text(
-                text = "Lifetime Totals", 
-                style = MaterialTheme.typography.titleLarge, 
-                fontWeight = FontWeight.Bold, 
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            SummaryCard(label = "Total Focus Logged", value = formatSecondsToHMS(profile.focusData.totalSeconds))
-            Spacer(modifier = Modifier.height(12.dp))
-            SummaryCard(label = "Longest Session", value = formatSecondsToHMS(profile.focusData.longestSessionSeconds))
-            Spacer(modifier = Modifier.height(12.dp))
-            SummaryCard(label = "Total Tasks Completed", value = "${profile.achievements.lifetimeTasksCompleted}")
+            Card(shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("Lifetime totals", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(12.dp))
+                    SummaryCard("Total Focus Logged", formatSecondsToHMS(profile.focusData.totalSeconds))
+                    SummaryCard("Longest Session", formatSecondsToHMS(profile.focusData.longestSessionSeconds))
+                    SummaryCard("Tasks Completed", "${profile.achievements.lifetimeTasksCompleted}")
+                }
+            }
 
             Spacer(modifier = Modifier.height(100.dp))
         }
@@ -123,18 +123,18 @@ fun ChartCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = title, 
-                style = MaterialTheme.typography.titleMedium, 
-                fontWeight = FontWeight.Bold, 
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(if (title == "Focus Time") "Minutes logged" else "Completed each period", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Icon(if (title == "Focus Time") Icons.Default.Timer else Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+            }
+            Spacer(Modifier.height(12.dp))
             BarChart(data = data, valueFormatter = valueFormatter)
         }
     }
@@ -147,7 +147,7 @@ fun BarChart(
 ) {
     val maxVal = remember(data) { data.maxOfOrNull { it.value }?.coerceAtLeast(1f) ?: 1f }
     var selectedIndex by remember(data) { mutableStateOf(-1) }
-    
+
     Column {
         // Tooltip area
         Box(
@@ -191,6 +191,7 @@ fun BarChart(
                 Column(
                     modifier = Modifier
                         .weight(1f)
+                        .semantics { contentDescription = "${point.label}: ${valueFormatter(point.value)}" }
                         .clickable { selectedIndex = if (selectedIndex == index) -1 else index },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Bottom
@@ -205,22 +206,22 @@ fun BarChart(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .fillMaxHeight((point.value / maxVal).coerceAtLeast(0.05f))
+                                .fillMaxHeight((point.value / maxVal).coerceIn(0f, 1f))
                                 .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                                 .background(
-                                    if (selectedIndex == index) MaterialTheme.colorScheme.secondary 
+                                    if (selectedIndex == index) MaterialTheme.colorScheme.secondary
                                     else MaterialTheme.colorScheme.primary
                                 )
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     Text(
                         text = point.label,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (selectedIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        color = if (selectedIndex == index) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                 }
@@ -231,29 +232,16 @@ fun BarChart(
 
 @Composable
 fun SummaryCard(label: String, value: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label, 
-                style = MaterialTheme.typography.bodyMedium, 
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = value, 
-                style = MaterialTheme.typography.titleMedium, 
-                fontWeight = FontWeight.Black, 
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(when (label) {
+            "Total Focus Logged" -> Icons.Default.Timer
+            "Longest Session" -> Icons.Default.LocalFireDepartment
+            else -> Icons.Default.CheckCircle
+        }, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
     }
 }
 

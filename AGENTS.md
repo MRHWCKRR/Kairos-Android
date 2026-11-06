@@ -1,7 +1,7 @@
 # Kairos Android Agent Guide
 
 ## Product role
-Kairos Android is the native Android client for Kairos. It should feel like a polished Android application, not a web app wrapped in native chrome and not a copy of the iOS UI.
+Kairos Android is the native Android client for Kairos. It should closely match the Kairos iOS app in visual identity, screen hierarchy and layouts, as explicitly requested by the product owner. Use native Android interactions and solid surfaces instead of Apple Liquid Glass.
 
 ## Architecture
 - Keep the app native Android.
@@ -13,7 +13,8 @@ Kairos Android is the native Android client for Kairos. It should feel like a po
 
 ## Design principles
 - Follow Android interaction conventions and Material guidance where appropriate.
-- Kairos should have its own visual identity while still feeling native on Android.
+- Kairos iOS is the primary visual reference, including its exact RGB purple (0.49, 0.27, 0.96).
+- Discovery/community sharing is permanently retired; do not reintroduce it.
 - Prefer clear information hierarchy over decorative containers.
 - Avoid excessive cards, pills, gradients, shadows, oversized headings, and gratuitous rounded rectangles.
 - Do not add fake metrics, filler dashboards, or decorative UI that does not serve a user task.

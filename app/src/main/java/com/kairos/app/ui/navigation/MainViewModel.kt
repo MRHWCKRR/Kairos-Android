@@ -59,9 +59,6 @@ class MainViewModel @JvmOverloads constructor(
     var securitySuccess by mutableStateOf<String?>(null)
         private set
 
-    var shareSuccessMessage by mutableStateOf<String?>(null)
-        private set
-
     private var pendingWidgetAction: String? = null
     private var pendingWidgetTaskId: String? = null
     var lastApplicationContext: Context? = null
@@ -716,62 +713,6 @@ class MainViewModel @JvmOverloads constructor(
             }
         }
         syncWidgetsInternal(context)
-    }
-
-    fun shareBoard(board: KairosBoard, description: String, category: String) {
-        val userId = _user.value?.uid ?: return
-        val profile = _profile.value
-        
-        val sharedRoutine = KairosSharedRoutine(
-            id = "shared-${System.currentTimeMillis()}",
-            creatorId = userId,
-            creatorName = profile.settings.profile.displayName.ifBlank { "Anonymous" },
-            creatorAvatar = profile.settings.profile.avatarURL,
-            title = board.title,
-            description = description,
-            category = category,
-            boards = listOf(board),
-            createdAt = com.google.firebase.Timestamp.now()
-        )
-
-        viewModelScope.launch {
-            try {
-                firebaseRepository.shareRoutine(sharedRoutine)
-                shareSuccessMessage = "Board '${board.title}' Published!"
-                pushNotification("🚀 Board Published!", "Your board '${board.title}' is now live in Discovery.")
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to share board", e)
-                errorMessage = "Sharing failed: ${e.localizedMessage}"
-            }
-        }
-    }
-
-    fun clearShareSuccess() {
-        shareSuccessMessage = null
-    }
-
-    fun importRoutine(routine: KairosSharedRoutine) {
-        val currentPlan = _plan.value ?: return
-        
-        // Deep clone the routine to ensure all sections and tasks are carried over
-        val newBoards = routine.boards.map { board ->
-            board.copy(
-                id = "board-${System.currentTimeMillis()}-${(0..1000).random()}",
-                sections = board.sections.map { section ->
-                    section.copy(
-                        id = "sec-${System.currentTimeMillis()}-${(0..1000).random()}",
-                        tasks = section.tasks.map { task ->
-                            task.copy(
-                                id = "task-${System.currentTimeMillis()}-${(0..1000).random()}",
-                                completed = false // Reset completion for the new user
-                            )
-                        }
-                    )
-                }
-            )
-        }
-        
-        updatePlanInternal(currentPlan.copy(boards = currentPlan.boards + newBoards))
     }
 
     fun signOut() {

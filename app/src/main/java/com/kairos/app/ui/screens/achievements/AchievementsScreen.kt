@@ -6,10 +6,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -30,7 +31,7 @@ fun AchievementsScreen(mainViewModel: MainViewModel = viewModel()) {
     val scrollState = rememberScrollState()
     val haptics = LocalHapticFeedback.current
     var showConfetti by remember { mutableStateOf(false) }
-    
+
     var selectedAchievementForDetail by remember { mutableStateOf<AchievementDef?>(null) }
 
     Surface(
@@ -41,27 +42,28 @@ fun AchievementsScreen(mainViewModel: MainViewModel = viewModel()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp)
+                    .padding(horizontal = 18.dp, vertical = 16.dp)
                     .verticalScroll(scrollState)
             ) {
                 Text(
-                    text = "Achievements",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.ExtraBold,
+                    text = "Goals & Achievements",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                
-                Spacer(modifier = Modifier.height(32.dp))
+
+                Text("Small steps. Meaningful progress.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Goal Selection Section
                 Text(
-                    text = "Active Goals",
+                    text = "Your goals",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Pick 3 goals to track on your dashboard.",
+                    text = "Choose up to 3 goals to keep in focus.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
@@ -71,33 +73,33 @@ fun AchievementsScreen(mainViewModel: MainViewModel = viewModel()) {
                     (0..2).forEach { index ->
                         GoalSelector(
                             selectedId = profile.achievements.goals.getOrNull(index),
-                            onSelect = { 
+                            onSelect = {
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                mainViewModel.setGoal(index, it) 
+                                mainViewModel.setGoal(index, it)
                             },
                             modifier = Modifier.weight(1f)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Achievement Categories
-                AchievementCategoryBlock("Locked In Time", "focus", profile) {
+                AchievementCategoryBlock("Focus time", "focus", profile) {
                     selectedAchievementForDetail = it
                 }
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 AchievementCategoryBlock("Tasks Completed", "tasks", profile) {
                     selectedAchievementForDetail = it
                 }
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 AchievementCategoryBlock("Milestones", "misc", profile) {
                     selectedAchievementForDetail = it
                 }
-                
+
                 Spacer(modifier = Modifier.height(100.dp))
             }
-            
+
             ConfettiCannon(
                 trigger = showConfetti,
                 onFinished = { showConfetti = false }
@@ -136,7 +138,7 @@ fun GoalSelector(
     Box(modifier = modifier) {
         OutlinedCard(
             onClick = { showMenu = true },
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier.fillMaxWidth().height(80.dp),
             border = BorderStroke(1.dp, if (selected != null) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
@@ -147,17 +149,17 @@ fun GoalSelector(
                 verticalArrangement = Arrangement.Center
             ) {
                 if (selected != null) {
-                    Text(text = selected.icon, fontSize = 24.sp)
+                    Icon(achievementIcon(selected), contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.secondary)
                     Text(
-                        text = selected.name, 
-                        fontSize = 10.sp, 
-                        fontWeight = FontWeight.Bold, 
-                        maxLines = 1, 
+                        text = selected.name,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 } else {
-                    Text(text = "➕", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), fontSize = 16.sp)
+                    Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                     Text(text = "Select", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                 }
             }
@@ -167,7 +169,7 @@ fun GoalSelector(
             DropdownMenuItem(text = { Text("None") }, onClick = { onSelect(null); showMenu = false })
             trackable.forEach { def ->
                 DropdownMenuItem(
-                    text = { Text("${def.icon} ${def.name}") },
+                    text = { Text(def.name) },
                     onClick = { onSelect(def.id); showMenu = false }
                 )
             }
@@ -183,7 +185,7 @@ fun AchievementCategoryBlock(
     onDetailRequest: (AchievementDef) -> Unit
 ) {
     val items = KAIROS_ACHIEVEMENTS.filter { it.category == category }
-    
+
     Column {
         Text(
             text = title,
@@ -192,7 +194,7 @@ fun AchievementCategoryBlock(
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         val chunked = items.chunked(2)
         chunked.forEach { rowItems ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -219,8 +221,7 @@ fun BadgeCard(
     modifier: Modifier = Modifier
 ) {
     val unlocked = profile.achievements.unlocked.containsKey(def.id)
-    val isLightTheme = MaterialTheme.colorScheme.background.red > 0.5f
-    
+
     val progress = remember(def, profile) {
         when (def.type) {
             "focus_seconds" -> profile.focusData.totalSeconds.toFloat() / def.threshold
@@ -233,20 +234,9 @@ fun BadgeCard(
         modifier = modifier
             .height(160.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (unlocked) {
-                MaterialTheme.colorScheme.primary.copy(alpha = if (isLightTheme) 0.12f else 0.08f)
-            } else {
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f)
-            }
-        ),
-        // THEMED BORDER: 2.dp border in theme color when completed
-        border = if (unlocked) {
-            BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-        } else {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
-        }
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, if (unlocked) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -257,31 +247,28 @@ fun BadgeCard(
                 modifier = Modifier
                     .size(52.dp)
                     .background(
-                        if (unlocked) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) 
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), 
+                        if (unlocked) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = def.icon, 
-                    fontSize = 28.sp,
-                    modifier = Modifier.alpha(if (unlocked) 1f else 0.3f)
-                )
+                Icon(achievementIcon(def), contentDescription = null, modifier = Modifier.size(26.dp), tint = if (unlocked) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
+
             }
-            
+
             Spacer(modifier = Modifier.height(10.dp))
-            
+
             Text(
                 text = def.name,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = if (unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 fontSize = 13.sp,
-                maxLines = 1
+                maxLines = 2
             )
-            
+
             if (!unlocked && def.type != "event") {
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
@@ -298,7 +285,7 @@ fun BadgeCard(
                 Text(
                     text = "Unlocked",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.secondary,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 4.dp)
                 )
@@ -313,7 +300,6 @@ fun AchievementDetailDialog(
     unlockedTimestamp: Long?,
     onDismiss: () -> Unit
 ) {
-    val isLightTheme = MaterialTheme.colorScheme.background.red > 0.5f
     val dateText = remember(unlockedTimestamp) {
         if (unlockedTimestamp != null) {
             val sdf = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.getDefault())
@@ -326,7 +312,7 @@ fun AchievementDetailDialog(
         confirmButton = {
             Button(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(22.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
                 Text("Got it")
@@ -335,7 +321,7 @@ fun AchievementDetailDialog(
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.padding(24.dp),
         shape = RoundedCornerShape(28.dp),
-        containerColor = if (isLightTheme) Color.White else Color(0xFF161618),
+        containerColor = MaterialTheme.colorScheme.surface,
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -349,18 +335,18 @@ fun AchievementDetailDialog(
                         .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = def.icon, fontSize = 48.sp)
+                    Icon(achievementIcon(def), contentDescription = null, modifier = Modifier.size(44.dp), tint = MaterialTheme.colorScheme.secondary)
                 }
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 Text(
                     text = def.name,
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
-                
+
                 Surface(
                     color = when (def.rarity) {
                         "Mythic" -> Color(0xFFFACC15).copy(alpha = 0.1f)
@@ -389,7 +375,7 @@ fun AchievementDetailDialog(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 Text(
                     text = def.desc,
                     style = MaterialTheme.typography.bodyLarge,
@@ -413,7 +399,7 @@ fun AchievementDetailDialog(
                             text = "EARNED ON",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.secondary
                         )
                         Text(
                             text = dateText,
@@ -427,7 +413,7 @@ fun AchievementDetailDialog(
                         text = "NOT YET EARNED",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -446,7 +432,7 @@ fun AchievementUnlockOverlay(
             Button(onClick = onDismiss) { Text("Awesome!") }
         },
         title = {
-            Text(text = "🎉 Achievement Unlocked!", style = MaterialTheme.typography.titleLarge)
+            Text(text = "Achievement unlocked", style = MaterialTheme.typography.titleLarge)
         },
         text = {
             Column(
@@ -457,21 +443,27 @@ fun AchievementUnlockOverlay(
                     modifier = Modifier.size(80.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = def.icon, fontSize = 40.sp)
+                    Icon(achievementIcon(def), contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onPrimary)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = def.name, 
-                    fontWeight = FontWeight.Bold, 
-                    fontSize = 20.sp, 
+                    text = def.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = def.desc, 
-                    textAlign = TextAlign.Center, 
+                    text = def.desc,
+                    textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
         }
     )
+}
+
+private fun achievementIcon(def: AchievementDef): androidx.compose.ui.graphics.vector.ImageVector = when (def.category) {
+    "focus" -> Icons.Default.Timer
+    "tasks" -> Icons.Default.CheckCircle
+    else -> Icons.Default.EmojiEvents
 }

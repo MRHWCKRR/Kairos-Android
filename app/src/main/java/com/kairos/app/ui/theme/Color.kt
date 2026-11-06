@@ -2,13 +2,15 @@ package com.kairos.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Shared neutrals and theme accents from web app.css at the phase-0 reference.
-val BgMain = Color(0xFF0F0F0F)
-val BgCard = Color(0xFF161616)
-val BorderSubtle = Color(0xFF262626)
+// iOS KairosAppearance.swift, rendered with solid Android surfaces.
+val BgMain = Color(0xFF000000)
+val BgCard = Color(0xFF1C1C1E)
+val BorderSubtle = Color(0xFF2C2C2E)
 val TextPrimary = Color(0xFFF5F5F5)
-val TextMuted = Color(0xFF929292)
-val AccentGlow = Color(0xFFA855F7)
+val TextMuted = Color(0xFF98989D)
+val AccentGlow = Color(red = 0.49f, green = 0.27f, blue = 0.96f)
+val AccentSoft = Color(red = 0.68f, green = 0.49f, blue = 1f)
+val AccentDeep = Color(red = 0.30f, green = 0.15f, blue = 0.64f)
 
 // Legacy aliases retained for screens outside the initial component migration.
 val GlassSurface = Color(0x99161616)
@@ -17,14 +19,14 @@ val GlassSurfaceLight = Color(0xB3FFFFFF)
 val GlassBorderLight = Color(0x66D1D1D6)
 val PremiumGradientStart = AccentGlow
 val PremiumGradientEnd = Color(0xFFD946EF)
-val MeshGradientPurple = Color(0x1AA855F7)
+val MeshGradientPurple = Color(0x1A7D45F5)
 
 val ThemeFairyFloss = Color(0xFFFF8FC9)
 val ThemePoseidon = Color(0xFF38BDF8)
 val ThemePeacefulPlains = Color(0xFF4ADE80)
-val ThemeLightBg = Color(0xFFF4F4F6)
+val ThemeLightBg = Color(0xFFF2F2F7)
 val ThemeLightSurface = Color(0xFFFFFFFF)
-val ThemeLightText = Color(0xFF17171B)
-val ThemeLightMuted = Color(0xFF6B6B76)
-val ThemeLightBorder = Color(0xFFE3E3E8)
+val ThemeLightText = Color(0xFF1C1C1E)
+val ThemeLightMuted = Color(0xFF636366)
+val ThemeLightBorder = Color(0xFFE5E5EA)
 

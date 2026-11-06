@@ -536,7 +536,6 @@ fun TutorialPage(onComplete: (Boolean) -> Unit) {
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 TutorialItem(Icons.Default.Schedule, "Focus Timer", "Log sessions to earn deep work rewards.")
-                TutorialItem(Icons.Default.Explore, "Discovery", "Adopt routines from the global community.")
                 TutorialItem(Icons.Default.EmojiEvents, "Achievements", "Unlock badges as you level up your life.")
             }
         }

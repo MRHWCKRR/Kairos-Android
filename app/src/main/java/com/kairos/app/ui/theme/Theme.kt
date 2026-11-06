@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import com.kairos.app.data.models.AppearanceSettings
 
-// Web names remain canonical; accept iOS accent names in shared profiles.
+// iOS is the visual source of truth; legacy web accent names stay readable.
 fun kairosColorScheme(isLight: Boolean, theme: String): ColorScheme {
     val accent = when (theme) {
         "fairyfloss" -> ThemeFairyFloss
@@ -25,8 +25,9 @@ fun kairosColorScheme(isLight: Boolean, theme: String): ColorScheme {
     }
     val background = if (isLight) ThemeLightBg else BgMain
     val surface = if (isLight) ThemeLightSurface else BgCard
-    // Pastel accents need a darker tone for text on light surfaces.
-    val primary = readableAccent(readableAccent(accent, surface), background)
+    // Brand fills are exact. Contrast adaptation belongs to text, never the brand.
+    val primary = accent
+    val accentText = readableAccent(readableAccent(accent, surface), background)
     val onPrimary = if (contrastRatio(Color.White, primary) >= 4.5f) Color.White else Color.Black
     val container = primary.copy(alpha = if (isLight) 0.10f else 0.18f).over(surface)
     val onSurface = if (isLight) ThemeLightText else TextPrimary
@@ -36,7 +37,7 @@ fun kairosColorScheme(isLight: Boolean, theme: String): ColorScheme {
     return base.copy(
         primary = primary, onPrimary = onPrimary,
         primaryContainer = container, onPrimaryContainer = onSurface,
-        secondary = primary, onSecondary = onPrimary,
+        secondary = accentText, onSecondary = if (contrastRatio(Color.White, accentText) >= 4.5f) Color.White else Color.Black,
         secondaryContainer = container, onSecondaryContainer = onSurface,
         tertiary = primary, onTertiary = onPrimary,
         tertiaryContainer = container, onTertiaryContainer = onSurface,

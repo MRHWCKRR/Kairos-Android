@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,12 +29,14 @@ import com.kairos.app.data.models.KairosBoard
 import com.kairos.app.data.models.KairosSection
 import com.kairos.app.data.models.KairosTask
 import com.kairos.app.ui.navigation.MainViewModel
+import com.kairos.app.ui.components.KairosCard
+import com.kairos.app.ui.components.KairosOverflowMenu
 import com.kairos.app.ui.components.KairosTaskRow
 import com.kairos.app.ui.components.KairosInputDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TasksScreen(viewModel: MainViewModel = viewModel()) {
+fun TasksScreen(viewModel: MainViewModel = viewModel(), requestedTaskId: String? = null, onTaskRequestConsumed: () -> Unit = {}) {
     val plan by viewModel.plan.collectAsState()
     val boards = plan?.boards?.filter { !it.archived } ?: emptyList()
 
@@ -46,7 +48,14 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
     var boardIdForNewSection by remember { mutableStateOf<String?>(null) }
     var sectionIdForNewTask by remember { mutableStateOf<String?>(null) }
 
-    var boardToShare by remember { mutableStateOf<KairosBoard?>(null) }
+    var showCompleted by remember { mutableStateOf(true) }
+    var showArchive by remember { mutableStateOf(false) }
+    LaunchedEffect(requestedTaskId, plan) {
+        if (requestedTaskId != null && plan != null) {
+            taskToRename = boards.flatMap { it.sections.filter { section -> !section.archived } }.flatMap { it.tasks }.firstOrNull { it.id == requestedTaskId && !it.archived }
+            onTaskRequestConsumed()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -56,45 +65,45 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
                 onClick = { showAddBoardDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
+                shape = CircleShape,
+                modifier = Modifier.size(58.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Board")
             }
         },
         containerColor = Color.Transparent
     ) { padding ->
-        if (boards.isEmpty() && (plan?.boards?.none { it.archived } == true)) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = "No boards yet — create one to get started.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = 20.dp,
-                    bottom = 88.dp // Keep the last task clear of this screen's own FAB.
-                )
-            ) {
-                item {
-                    Text(
-                        text = "Your Boards",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Manage your active workspace. Share boards to inspire others.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
-                    )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tasks", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { showArchive = true }) { Text("Archive", color = MaterialTheme.colorScheme.secondary) }
                 }
-
+                Text("Everything you need to get done, organized into focused checklists.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 7.dp))
+            }
+            item { TasksSummary(boards) }
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Checklists", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { showCompleted = !showCompleted }) {
+                        Text(if (showCompleted) "Hide completed" else "Show completed", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                    }
+                }
+            }
+            if (boards.isEmpty()) item {
+                KairosCard {
+                    Icon(Icons.Default.Checklist, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(12.dp))
+                    Text("Your checklist is empty", style = MaterialTheme.typography.titleMedium)
+                    Text("Use the + button to create your first board.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
                 items(boards) { board ->
                     BoardCard(
                         board = board,
@@ -107,17 +116,15 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
                         onTaskToggle = { taskId, completed -> viewModel.toggleTask(taskId, completed) },
                         onTaskRename = { taskToRename = it },
                         onTaskArchive = { viewModel.archiveTask(it.id) },
-                        onShare = { boardToShare = board }
+                        showCompleted = showCompleted
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
                 }
-
-                item {
-                    ArchiveSection(plan = plan, viewModel = viewModel)
-                }
-            }
         }
-
+    }
+    if (showArchive) ModalBottomSheet(onDismissRequest = { showArchive = false }, containerColor = MaterialTheme.colorScheme.surface) {
+        LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)) {
+            item { ArchiveSection(plan, viewModel, initiallyExpanded = true) }
+        }
     }
 
     // Dialogs...
@@ -190,21 +197,11 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
         )
     }
 
-    boardToShare?.let { board ->
-        ShareRoutineDialog(
-            board = board,
-            onDismiss = { boardToShare = null },
-            onConfirm = { desc, cat ->
-                viewModel.shareBoard(board, desc, cat)
-                boardToShare = null
-            }
-        )
-    }
 }
 
 @Composable
-fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: MainViewModel) {
-    var expanded by remember { mutableStateOf(false) }
+fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: MainViewModel, initiallyExpanded: Boolean = false) {
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
 
     val archivedBoards = plan?.boards?.filter { it.archived } ?: emptyList()
     val archivedSections = mutableListOf<Pair<KairosBoard, KairosSection>>()
@@ -266,7 +263,7 @@ fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: Main
         if (expanded) {
             if (totalCount == 0) {
                 Text(
-                    text = "Nothing archived yet. Deleted routines show up here.",
+                    text = "Nothing archived yet. Archived items show up here.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     modifier = Modifier.padding(vertical = 16.dp)
@@ -387,44 +384,53 @@ fun BoardCard(
     onTaskToggle: (String, Boolean) -> Unit,
     onTaskRename: (KairosTask) -> Unit,
     onTaskArchive: (KairosTask) -> Unit,
-    onShare: () -> Unit
+    showCompleted: Boolean = true
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            val boardTasks = board.sections.filter { !it.archived }.flatMap { it.tasks.filter { task -> !task.archived } }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                    Icon(Icons.Default.Checklist, null, Modifier.padding(9.dp).size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
                 Text(
                     text = board.title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-
+                Text("${boardTasks.count { it.completed }} of ${boardTasks.size} complete", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 var showMenu by remember { mutableStateOf(false) }
                 Box {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Board Options", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.Default.MoreHoriz, contentDescription = "Board Options", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRename() })
-                        DropdownMenuItem(text = { Text("Share to Discovery") }, onClick = { showMenu = false; onShare() })
                         DropdownMenuItem(text = { Text("Archive") }, onClick = { showMenu = false; onArchive() })
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
+            if (boardTasks.isNotEmpty()) LinearProgressIndicator(
+                progress = { boardTasks.count { it.completed }.toFloat() / boardTasks.size },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.primaryContainer
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             board.sections.filter { !it.archived }.forEach { section ->
                 SectionBlock(
                     section = section,
@@ -433,13 +439,14 @@ fun BoardCard(
                     onAddTask = { onAddTask(section) },
                     onTaskToggle = onTaskToggle,
                     onTaskRename = onTaskRename,
-                    onTaskArchive = onTaskArchive
+                    onTaskArchive = onTaskArchive,
+                    showCompleted = showCompleted
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
             TextButton(onClick = onAddSection) {
-                Text("+ Add Section", color = MaterialTheme.colorScheme.primary)
+                Text("+ Add Section", color = MaterialTheme.colorScheme.secondary)
             }
         }
     }
@@ -453,9 +460,11 @@ fun SectionBlock(
     onAddTask: () -> Unit,
     onTaskToggle: (String, Boolean) -> Unit,
     onTaskRename: (KairosTask) -> Unit,
-    onTaskArchive: (KairosTask) -> Unit
+    onTaskArchive: (KairosTask) -> Unit,
+    showCompleted: Boolean = true
 ) {
-    Column {
+    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+    Column(Modifier.padding(15.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -465,13 +474,14 @@ fun SectionBlock(
                 text = section.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
             )
 
             var showMenu by remember { mutableStateOf(false) }
             Box {
-                IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Section Options", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                IconButton(onClick = { showMenu = true }, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Default.MoreHoriz, contentDescription = "Section Options", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRename() })
@@ -482,7 +492,7 @@ fun SectionBlock(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        section.tasks.filter { !it.archived }.forEach { task ->
+        section.tasks.filter { !it.archived && (showCompleted || !it.completed) }.sortedBy { it.completed }.forEach { task ->
             TaskItem(
                 task = task,
                 onToggle = { onTaskToggle(task.id, it) },
@@ -495,6 +505,7 @@ fun SectionBlock(
             Text("+ Add Task", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
         }
     }
+}
 }
 
 @Composable
@@ -510,8 +521,9 @@ fun TaskItem(
         onToggle = onToggle,
         onOpen = onRename,
         trailing = {
-            IconButton(onClick = onArchive) {
-                Icon(Icons.Default.Close, contentDescription = "Archive " + task.title)
+            KairosOverflowMenu("Options for " + task.title) { dismiss ->
+                DropdownMenuItem(text = { Text("Rename task") }, onClick = { dismiss(); onRename() })
+                DropdownMenuItem(text = { Text("Archive task") }, onClick = { dismiss(); onArchive() })
             }
         }
     )
@@ -527,72 +539,31 @@ fun InputDialog(
     KairosInputDialog(title, initialValue, onDismiss, onConfirm)
 }
 
+
 @Composable
-fun ShareRoutineDialog(
-    board: KairosBoard,
-    onDismiss: () -> Unit,
-    onConfirm: (String, String) -> Unit
-) {
-    var description by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Deep Work") }
-    val categories = listOf("Deep Work", "Student", "Lofi Lovers", "Creative Flow", "Health")
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Share Routine") },
-        text = {
-            Column {
-                Text(text = "Routine: ${board.title}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(text = "Description", style = MaterialTheme.typography.labelSmall)
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    placeholder = { Text("What makes this routine great?") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(text = "Category", style = MaterialTheme.typography.labelSmall)
-                var expanded by remember { mutableStateOf(false) }
-                Box {
-                    OutlinedButton(
-                        onClick = { expanded = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(selectedCategory)
-                    }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        categories.forEach { cat ->
-                            DropdownMenuItem(
-                                text = { Text(cat) },
-                                onClick = {
-                                    selectedCategory = cat
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+fun TasksSummary(boards: List<KairosBoard>) {
+    val tasks = boards.filter { !it.archived }.flatMap { it.sections.filter { section -> !section.archived } }.flatMap { it.tasks.filter { task -> !task.archived } }
+    val done = tasks.count { it.completed }
+    val progress = if (tasks.isEmpty()) 0f else done.toFloat() / tasks.size
+    KairosCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Your checklist", style = MaterialTheme.typography.titleMedium)
+                Text(if (tasks.isEmpty()) "Start with one small win." else "Keep the momentum going.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(description, selectedCategory) },
-                enabled = description.isNotBlank()
-            ) {
-                Text("Share Now")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+            Box(Modifier.size(58.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.primaryContainer, strokeWidth = 5.dp)
+                Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
             }
         }
-    )
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            listOf((tasks.size - done) to "Remaining", done to "Completed", tasks.size to "Total").forEach { (value, label) ->
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(value.toString(), style = MaterialTheme.typography.titleLarge)
+                    Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
 }
-
