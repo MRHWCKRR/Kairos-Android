@@ -38,9 +38,9 @@ class TasksWidget : GlanceAppWidget() {
         provideContent {
             val prefs = currentState<Preferences>()
             val tasksStr = prefs[WidgetManager.KEY_TOP_TASKS] ?: ""
-            val accentHex = prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FFA855F7"
+            val accentHex = prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FF7D45F5"
             
-            val accentColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFFA855F7) }
+            val accentColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFF7D45F5) }
             
             val colorProviders = ColorProviders(
                 light = lightColorScheme(

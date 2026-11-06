@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.tasks
 
+import com.kairos.app.ui.components.KairosTextButton
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -81,7 +83,7 @@ fun TasksScreen(viewModel: MainViewModel = viewModel(), requestedTaskId: String?
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Tasks", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { showArchive = true }) { Text("Archive", color = MaterialTheme.colorScheme.secondary) }
+                    KairosTextButton(onClick = { showArchive = true }) { Text("Archive", color = MaterialTheme.colorScheme.secondary) }
                 }
                 Text("Everything you need to get done, organized into focused checklists.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -91,7 +93,7 @@ fun TasksScreen(viewModel: MainViewModel = viewModel(), requestedTaskId: String?
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Checklists", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { showCompleted = !showCompleted }) {
+                    KairosTextButton(onClick = { showCompleted = !showCompleted }) {
                         Text(if (showCompleted) "Hide completed" else "Show completed", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
                     }
                 }
@@ -362,10 +364,10 @@ fun ArchiveItemRow(
         }
 
         Row {
-            TextButton(onClick = onRestore, contentPadding = PaddingValues(horizontal = 8.dp)) {
+            KairosTextButton(onClick = onRestore, contentPadding = PaddingValues(horizontal = 8.dp)) {
                 Text("Restore", fontSize = 12.sp)
             }
-            TextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 8.dp)) {
+            KairosTextButton(onClick = onDelete, contentPadding = PaddingValues(horizontal = 8.dp)) {
                 Text("Delete Forever", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
             }
         }
@@ -445,7 +447,7 @@ fun BoardCard(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            TextButton(onClick = onAddSection) {
+            KairosTextButton(onClick = onAddSection) {
                 Text("+ Add Section", color = MaterialTheme.colorScheme.secondary)
             }
         }
@@ -501,7 +503,7 @@ fun SectionBlock(
             )
         }
 
-        TextButton(onClick = onAddTask, contentPadding = PaddingValues(0.dp)) {
+        KairosTextButton(onClick = onAddTask, contentPadding = PaddingValues(0.dp)) {
             Text("+ Add Task", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
         }
     }

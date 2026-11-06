@@ -18,7 +18,7 @@ val GlassBorder = Color(0x33FFFFFF)
 val GlassSurfaceLight = Color(0xB3FFFFFF)
 val GlassBorderLight = Color(0x66D1D1D6)
 val PremiumGradientStart = AccentGlow
-val PremiumGradientEnd = Color(0xFFD946EF)
+val PremiumGradientEnd = AccentSoft
 val MeshGradientPurple = Color(0x1A7D45F5)
 
 val ThemeFairyFloss = Color(0xFFFF8FC9)

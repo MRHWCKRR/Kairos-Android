@@ -21,6 +21,7 @@ import com.kairos.app.ui.navigation.KairosDestinations
 @Composable
 fun KairosTabDock(selectedRoute: String, onSelect: (String) -> Unit, onSearch: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 8.dp)) {
+        val hasSearchSpace = maxWidth >= 332.dp
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Surface(modifier = Modifier.weight(1f), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
                 Row(Modifier.padding(5.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -47,7 +48,7 @@ fun KairosTabDock(selectedRoute: String, onSelect: (String) -> Unit, onSearch: (
                 }
             }
             // At narrow widths search stays in Home's toolbar to retain full touch targets.
-            if (maxWidth >= 332.dp) Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
+            if (hasSearchSpace) Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
                 IconButton(onClick = onSearch, modifier = Modifier.size(48.dp)) {
                     Icon(Icons.Default.Search, "Search planner", tint = MaterialTheme.colorScheme.secondary)
                 }

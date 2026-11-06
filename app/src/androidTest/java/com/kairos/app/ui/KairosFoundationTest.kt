@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import com.kairos.app.ui.components.*
 import com.kairos.app.ui.theme.KairosTheme
 import com.kairos.app.data.models.AppearanceSettings
+import com.kairos.app.ui.screens.calendar.ScheduleDateNavigation
+import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -23,6 +25,39 @@ import org.junit.Test
 
 class KairosFoundationTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun textActionsUseReadableAccentWithoutChangingBrandFill() {
+        var actual = Color.Transparent
+        var expected = Color.Transparent
+        compose.setContent {
+            KairosTheme {
+                val accentText = MaterialTheme.colorScheme.secondary
+                KairosTextButton(onClick = {}) {
+                    val inherited = LocalContentColor.current
+                    SideEffect { actual = inherited; expected = accentText }
+                    Text("Cancel")
+                }
+            }
+        }
+        compose.runOnIdle { assertEquals(expected, actual) }
+    }
+
+    @Test fun scheduleArrowsRemainReachableAtLargeTextSize() {
+        var next = false
+        compose.setContent {
+            val density = LocalDensity.current.density
+            CompositionLocalProvider(LocalDensity provides Density(density, 2f)) {
+                KairosTheme {
+                    Box(Modifier.width(280.dp)) {
+                        ScheduleDateNavigation(LocalDate.of(2026, 11, 6), "Day", {}, {}, {}, { next = true })
+                    }
+                }
+            }
+        }
+        compose.onNodeWithContentDescription("Previous day").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Next day").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertTrue(next) }
+    }
 
     @Test fun transparentShellUsesReadableThemeForeground() {
         var mode by mutableStateOf("dark")

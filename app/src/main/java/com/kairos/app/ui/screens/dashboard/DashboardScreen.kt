@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.dashboard
 
+import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -79,7 +80,7 @@ fun HomeContent(
             KairosCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Today", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { onNavigate("plan") }) { Text("Open schedule", color = MaterialTheme.colorScheme.secondary) }
+                    KairosTextButton(onClick = { onNavigate("plan") }) { Text("Open schedule", color = MaterialTheme.colorScheme.secondary) }
                 }
                 Text("${todayTasks.size} planned · ${overdue.size} overdue · $unscheduled unscheduled",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

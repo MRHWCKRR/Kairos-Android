@@ -1,5 +1,7 @@
 package com.kairos.app.ui.screens.ai
 
+import com.kairos.app.ui.components.KairosOutlinedButton
+import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -308,6 +310,7 @@ fun AiPlanConfirmationDialog(
 
                 if (viewModel.targetBoardMode == TargetBoardMode.NEW) {
                     OutlinedTextField(
+            colors = OutlinedTextFieldDefaults.colors(focusedLabelColor = MaterialTheme.colorScheme.secondary),
                         value = viewModel.newBoardName,
                         onValueChange = { viewModel.newBoardName = it },
                         placeholder = { Text("Board name (e.g. Math Study)") },
@@ -334,7 +337,7 @@ fun AiPlanConfirmationDialog(
                 if (viewModel.targetBoardMode == TargetBoardMode.EXISTING) {
                     var expanded by remember { mutableStateOf(false) }
                     Box(modifier = Modifier.padding(start = 32.dp)) {
-                        OutlinedButton(
+                        KairosOutlinedButton(
                             onClick = { expanded = true },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -391,7 +394,7 @@ fun AiPlanConfirmationDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = { viewModel.dismissDialog() }) {
+            KairosTextButton(onClick = { viewModel.dismissDialog() }) {
                 Text("Cancel")
             }
         }

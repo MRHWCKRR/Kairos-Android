@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.calendar
 
+import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -99,15 +100,11 @@ fun CalendarScreen(mainViewModel: MainViewModel, viewModel: CalendarViewModel = 
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { datePicker = true }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-                Text(selected.format(DateTimeFormatter.ofPattern("MMM d, yyyy")), fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { selectedKey = LocalDate.now().toString() }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text("Today") }
-            IconButton(onClick = { navigate(-1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous ${range.label.lowercase()}") }
-            IconButton(onClick = { navigate(1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next ${range.label.lowercase()}") }
-        }
+        ScheduleDateNavigation(
+            selected, range.label,
+            onChooseDate = { datePicker = true }, onToday = { selectedKey = LocalDate.now().toString() },
+            onPrevious = { navigate(-1) }, onNext = { navigate(1) }
+        )
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
             ScheduleRange.entries.forEachIndexed { index, item ->
                 SegmentedButton(selected = range == item, onClick = { range = item }, shape = SegmentedButtonDefaults.itemShape(index, ScheduleRange.entries.size), icon = {},
@@ -129,7 +126,7 @@ fun CalendarScreen(mainViewModel: MainViewModel, viewModel: CalendarViewModel = 
                     CalendarGrid(YearMonth.from(selected), plan, selected, showCompleted, showEvents) { selectedKey = it.toString() }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(selected.format(DateTimeFormatter.ofPattern("MMM d")), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        TextButton(onClick = { range = ScheduleRange.DAY }) { Text("Open day") }
+                        KairosTextButton(onClick = { range = ScheduleRange.DAY }) { Text("Open day") }
                     }
                 }
                 (if (range == ScheduleRange.MONTH) listOf(selected) else dates).forEach { date ->
@@ -139,15 +136,15 @@ fun CalendarScreen(mainViewModel: MainViewModel, viewModel: CalendarViewModel = 
                 plan?.dayInsights?.get(selected.toString())?.takeIf { it.isNotBlank() }?.let { insight ->
                     KairosCard { Text("Daily insight", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold); Spacer(Modifier.height(8.dp)); Text(insight, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
-                TextButton(onClick = { detailDate = selected }, modifier = Modifier.align(Alignment.Start)) { Text("Day details & insight") }
+                KairosTextButton(onClick = { detailDate = selected }, modifier = Modifier.align(Alignment.Start)) { Text("Day details & insight") }
             }
         }
     }
     if (datePicker) {
         val state = rememberDatePickerState(initialSelectedDateMillis = selected.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
         DatePickerDialog(onDismissRequest = { datePicker = false }, confirmButton = {
-            TextButton(onClick = { state.selectedDateMillis?.let { selectedKey = java.time.Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString() }; datePicker = false }) { Text("Done") }
-        }, dismissButton = { TextButton(onClick = { datePicker = false }) { Text("Cancel") } }) { DatePicker(state) }
+            KairosTextButton(onClick = { state.selectedDateMillis?.let { selectedKey = java.time.Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString() }; datePicker = false }) { Text("Done") }
+        }, dismissButton = { KairosTextButton(onClick = { datePicker = false }) { Text("Cancel") } }) { DatePicker(state) }
     }
     detailDate?.let { date ->
         ModalBottomSheet(onDismissRequest = { detailDate = null }, containerColor = MaterialTheme.colorScheme.surface) {
@@ -320,5 +317,30 @@ fun DayDetailContent(
         }
         
         Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+@Composable
+fun ScheduleDateNavigation(
+    selected: LocalDate, rangeLabel: String,
+    onChooseDate: () -> Unit, onToday: () -> Unit,
+    onPrevious: () -> Unit, onNext: () -> Unit
+) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        val wrap = maxWidth < 330.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
+        val arrows: @Composable () -> Unit = {
+            IconButton(onClick = onPrevious, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous ${rangeLabel.lowercase()}") }
+            IconButton(onClick = onNext, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next ${rangeLabel.lowercase()}") }
+        }
+        Column {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                KairosTextButton(onClick = onChooseDate, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp)) {
+                    Text(selected.format(DateTimeFormatter.ofPattern("MMM d, yyyy")), fontWeight = FontWeight.SemiBold)
+                }
+                KairosTextButton(onClick = onToday, contentPadding = PaddingValues(horizontal = 8.dp)) { Text("Today") }
+                if (!wrap) arrows()
+            }
+            if (wrap) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { arrows() }
+        }
     }
 }

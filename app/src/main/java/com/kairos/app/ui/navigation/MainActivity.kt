@@ -1,5 +1,6 @@
 package com.kairos.app.ui.navigation
 
+import com.kairos.app.ui.components.KairosOutlinedButton
 import android.Manifest
 import android.content.Intent
 import android.graphics.Color as AndroidColor
@@ -199,6 +200,15 @@ fun KairosApp(viewModel: MainViewModel) {
         user == null -> LoginScreen()
         !profile.onboardingCompleted -> OnboardingScreen(viewModel)
         else -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            if (profile.settings.appearance.background in listOf("minimal", "gradient")) {
+                Box(Modifier.fillMaxSize().background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.03f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = if (profile.settings.appearance.background == "gradient") 0.10f else 0.04f),
+                            Color.Transparent)
+                    )
+                ))
+            }
             if (profile.settings.appearance.background == "custom" && !profile.settings.appearance.customBackground.isNullOrBlank()) {
                 AsyncImage(profile.settings.appearance.customBackground, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.15f)
             }
@@ -422,7 +432,7 @@ fun SyncErrorScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedButton(
+        KairosOutlinedButton(
             onClick = onSignOut,
             modifier = Modifier.fillMaxWidth()
         ) {

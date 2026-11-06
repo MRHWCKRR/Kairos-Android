@@ -1,5 +1,7 @@
 package com.kairos.app.ui.screens.settings
 
+import com.kairos.app.ui.components.KairosOutlinedButton
+import com.kairos.app.ui.components.KairosTextButton
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -271,7 +273,7 @@ fun PersonalEditBunker(
         ) {
             IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Cancel profile editing", tint = MaterialTheme.colorScheme.onBackground) }
             Text(text = "Edit Profile", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-            TextButton(onClick = {
+            KairosTextButton(onClick = {
                 viewModel.updateSettings(profile.settings.copy(
                     profile = profile.settings.profile.copy(
                         displayName = nameDraft,
@@ -306,7 +308,7 @@ fun PersonalEditBunker(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Row {
-                        OutlinedButton(
+                        KairosOutlinedButton(
                             onClick = { launcher.launch("image/*") },
                             shape = RoundedCornerShape(8.dp),
                             enabled = !viewModel.isUploadingAvatar,
@@ -315,7 +317,7 @@ fun PersonalEditBunker(
                             Text(if (viewModel.isUploadingAvatar) "Processing..." else "Upload")
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        OutlinedButton(
+                        KairosOutlinedButton(
                             onClick = { viewModel.removeAvatar() },
                             shape = RoundedCornerShape(8.dp),
                             enabled = !viewModel.isUploadingAvatar && profile.settings.profile.avatarURL.isNotEmpty(),
@@ -420,7 +422,7 @@ fun PersonalEditBunker(
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = {
+                KairosTextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
                         val date = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
                         birthdayDraft = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
@@ -429,7 +431,7 @@ fun PersonalEditBunker(
                 }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                KairosTextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
             }
         ) {
             DatePicker(state = datePickerState)
@@ -575,12 +577,14 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
         Column {
             Text(text = "Theme Accent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
-            Row {
+            Row(Modifier.horizontalScroll(rememberScrollState())) {
                 listOf(
-                    "default" to MaterialTheme.colorScheme.primary,
-                    "fairyfloss" to Color(0xFFFF8FC9),
-                    "poseidon" to Color(0xFF38BDF8),
-                    "peacefulplains" to Color(0xFF4ADE80)
+                    "default" to Color(red = 0.49f, green = 0.27f, blue = 0.96f),
+                    "blue" to Color(0xFF3373F2),
+                    "green" to Color(0xFF2E9E66),
+                    "orange" to Color(0xFFF26B29),
+                    "pink" to Color(0xFFE64094),
+                    "red" to Color(0xFFEB3D47)
                 ).forEach { (id, color) ->
                     Box(
                         modifier = Modifier.size(44.dp).clip(CircleShape).background(color).border(2.dp, if (settings.appearance.theme == id) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape).clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(theme = id))) }
@@ -595,7 +599,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
             Text(text = "Background Style", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                listOf("none", "glass", "mesh", "custom").forEach { b ->
+                listOf("solid", "minimal", "gradient", "custom").forEach { b ->
                     BunkerOptionButton(b, settings.appearance.background == b, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(background = b))) }, Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
                 }
@@ -688,10 +692,10 @@ fun PrivacyTabContent(profile: KairosUserProfile, viewModel: MainViewModel) {
 
         // Legal
         SecurityCard(title = "Legal") {
-            TextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            KairosTextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                 Text("Terms of Service", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             }
-            TextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+            KairosTextButton(onClick = { }, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
                 Text("Privacy Policy", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
             }
         }
@@ -721,12 +725,12 @@ fun PrivacyTabContent(profile: KairosUserProfile, viewModel: MainViewModel) {
             title = { Text("Delete Account?") },
             text = { Text("Are you absolutely sure? This cannot be undone.") },
             confirmButton = {
-                TextButton(onClick = { viewModel.deleteAccount(); showDeleteConfirm = false }) {
+                KairosTextButton(onClick = { viewModel.deleteAccount(); showDeleteConfirm = false }) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
+                KairosTextButton(onClick = { showDeleteConfirm = false }) {
                     Text("Cancel")
                 }
             }

@@ -51,7 +51,7 @@ fun PremiumSecondaryButton(
     height: Dp = KairosMetrics.minimumTouchTarget,
     content: @Composable RowScope.() -> Unit
 ) {
-    OutlinedButton(
+    KairosOutlinedButton(
         onClick = onClick,
         modifier = modifier.heightIn(min = height),
         shape = MaterialTheme.shapes.medium,

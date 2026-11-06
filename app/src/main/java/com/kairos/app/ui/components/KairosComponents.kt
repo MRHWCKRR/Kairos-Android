@@ -85,6 +85,7 @@ fun KairosTextField(
     enabled: Boolean = true
 ) {
     OutlinedTextField(
+            colors = OutlinedTextFieldDefaults.colors(focusedLabelColor = MaterialTheme.colorScheme.secondary),
         value = value, onValueChange = onValueChange,
         label = { Text(label) }, singleLine = singleLine, enabled = enabled,
         modifier = modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium
@@ -137,7 +138,7 @@ fun KairosInputDialog(
         title = { Text(title) },
         text = { KairosTextField(value, { value = it }, "Name", singleLine = true) },
         confirmButton = { KairosButton("Save", { onConfirm(value.trim()) }, enabled = value.isNotBlank()) },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { KairosTextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
 
@@ -180,7 +181,7 @@ fun KairosStateMessage(
         if (loading) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
         Text(title, style = MaterialTheme.typography.titleMedium)
         Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (actionLabel != null) TextButton(onClick = onAction) { Text(actionLabel) }
+        if (actionLabel != null) KairosTextButton(onClick = onAction) { Text(actionLabel) }
     }
 }
 
@@ -190,6 +191,6 @@ fun KairosErrorFeedback(message: String, onDismiss: () -> Unit) {
         modifier = Modifier.padding(KairosMetrics.itemSpacing).semantics { liveRegion = LiveRegionMode.Polite },
         containerColor = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        action = { TextButton(onClick = onDismiss) { Text("Dismiss", color = MaterialTheme.colorScheme.onErrorContainer) } }
+        action = { KairosTextButton(onClick = onDismiss) { Text("Dismiss", color = MaterialTheme.colorScheme.onErrorContainer) } }
     ) { Text(message) }
 }

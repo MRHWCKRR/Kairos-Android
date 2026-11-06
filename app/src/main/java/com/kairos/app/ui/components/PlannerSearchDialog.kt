@@ -38,6 +38,6 @@ fun PlannerSearchDialog(plan: KairosPlan?, onDismiss: () -> Unit, onOpenTask: (S
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        confirmButton = { KairosTextButton(onClick = onDismiss) { Text("Close") } }
     )
 }

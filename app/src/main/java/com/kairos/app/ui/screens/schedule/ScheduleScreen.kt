@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.schedule
 
+import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -27,7 +28,7 @@ import androidx.compose.ui.unit.Dp
 
 private val CategoryColors = mapOf(
     "sleep" to Color(0xFF6366F1),
-    "class" to Color(0xFFA855F7),
+    "class" to Color(0xFF7D45F5),
     "tutoring" to Color(0xFF14B8A6),
     "training" to Color(0xFFF97316),
     "other" to Color(0xFF64748B)
@@ -165,7 +166,7 @@ fun DayColumn(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(label, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground,
                     style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = onDayDetails) { Text("Day details", style = MaterialTheme.typography.labelSmall) }
+                KairosTextButton(onClick = onDayDetails) { Text("Day details", style = MaterialTheme.typography.labelSmall) }
             }
         }
 

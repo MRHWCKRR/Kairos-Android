@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.login
 
+import com.kairos.app.ui.components.KairosTextButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -97,7 +98,7 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                             if (viewModel.isLoading) CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                             else Text(if (viewModel.isSignUpMode) "Sign Up" else "Sign In", fontWeight = FontWeight.SemiBold)
                         }
-                        TextButton(onClick = { viewModel.toggleMode() }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                        KairosTextButton(onClick = { viewModel.toggleMode() }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                             Text(if (viewModel.isSignUpMode) "Already have an account? Sign In" else "New here? Create an account", color = MaterialTheme.colorScheme.secondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.bodySmall)
                         }
                     }

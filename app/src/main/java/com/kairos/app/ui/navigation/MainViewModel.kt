@@ -663,7 +663,12 @@ class MainViewModel @JvmOverloads constructor(
                 "fairyfloss" -> "#FFFF8FC9"
                 "poseidon" -> "#FF38BDF8"
                 "peacefulplains" -> "#FF4ADE80"
-                else -> "#FFA855F7"
+                "blue" -> "#FF3373F2"
+                "green" -> "#FF2E9E66"
+                "orange" -> "#FFF26B29"
+                "pink" -> "#FFE64094"
+                "red" -> "#FFEB3D47"
+                else -> "#FF7D45F5"
             }
             WidgetManager.updateTheme(ctx, accentHex, isDark)
             
