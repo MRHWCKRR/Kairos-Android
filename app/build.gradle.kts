@@ -81,4 +81,3 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.6.1")
 }
 
-

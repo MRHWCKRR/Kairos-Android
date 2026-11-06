@@ -36,6 +36,14 @@ fun KairosScaffold(
 }
 
 @Composable
+fun KairosPageHeader(title: String, trailing: @Composable () -> Unit = {}) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.headlineLarge)
+        trailing()
+    }
+}
+
+@Composable
 fun KairosCard(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(KairosMetrics.pageHorizontal),
@@ -177,4 +185,3 @@ fun KairosErrorFeedback(message: String, onDismiss: () -> Unit) {
         action = { TextButton(onClick = onDismiss) { Text("Dismiss", color = MaterialTheme.colorScheme.onErrorContainer) } }
     ) { Text(message) }
 }
-

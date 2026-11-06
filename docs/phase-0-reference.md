@@ -47,7 +47,7 @@ Primary evidence: Android data/models/KairosModels.kt and data/repository/Fireba
 | tasks[] | id/title, completed/archived, date; description/notes, dueDate/dueTime, parentTaskID, priority, estimatedMinutes, checklist, startTime/endTime, reminderMinutes, scheduleLocked and recurrence | Wire names must be confirmed against raw web mutations before implementing writes; Swift property names such as taskDescription are not by themselves a schema definition. Missing optional flags default false; unreadable identity is not an empty planner. |
 | checklist[] | id, title, completed | Stable IDs; occurrence completion must not replace the recurring template. |
 | recurrence | enabled, frequency, interval, weekdays, startDate, mode, monthlyMode/monthDay/weekdayPosition/weekday/month, exceptions and endType/endDate/count | Preserve full rule and exceptions even when Android cannot edit them. Do not reduce the wire value to an enabled Boolean. |
-| scheduleEvents[] | id/title/category/start/end; either a date or weekday; allDay, transparent, reminderMinutes; weekly bounds/intervalWeeks/anchorDate and occurrence metadata | Keep dated and repeating events distinct. weekday is 0-6; date-only keys must not shift through UTC conversions. |
+| scheduleEvents[] | id/title/category/start/end; either a date or weekday; allDay, transparent, reminderMinutes; weekly bounds/intervalWeeks/anchorDate and occurrence metadata | Keep dated and repeating events distinct. weekday is 0–6; date-only keys must not shift through UTC conversions. |
 | users/{uid} | settings/profile/accessibility/appearance/notifications, notifications, achievements, focusData, onboardingCompleted and AI data | Update supported paths only. Clear account-owned state and listeners on account changes. |
 | users/{uid}.aiWorkspace | version 2, activeChatId, chats[], projects[] | Retain message IDs, usage IDs, summaries/memory, pending actions/receipts and unknown fields; migrate legacy aiChatHistory only if the workspace is absent. |
 
@@ -61,7 +61,7 @@ The reference is iOS Core/KairosAIContract.swift and web cloudflare/worker.js / 
 
 - POST https://kairos-web.kirosapp.workers.dev/api/ai
 - Content-Type: application/json; Authorization: Bearer <Firebase ID token>; X-Firebase-AppCheck: <App Check token>.
-- Request body: messages array of role/content objects. iOS allows 1-40 messages, nonblank content and roles system/user/assistant; encoded body limit is 128 KiB. iOS timeout is 100 seconds.
+- Request body: messages array of role/content objects. iOS allows 1–40 messages, nonblank content and roles system/user/assistant; encoded body limit is 128 KiB. iOS timeout is 100 seconds.
 - Success: choices[0].message.content, nonempty; a length-truncated completion is rejected by iOS.
 - Errors: HTTP status plus error, optional code and resetsAt; display bounded text and recover appropriately. Requests require a verified account.
 - Android still uses its legacy transport. Switching it, removing the compiled relay credential and validating current server policy are phase 2 work.
@@ -84,7 +84,7 @@ The references are not pixel-identical: web uses neutral surfaces and #a855f7; i
 | Section / row gaps | 24dp / 12dp, compact 8dp | current iOS view spacing, adapted for Android density |
 | Card / control radius | 26dp / 12dp; small 8dp | iOS card radius; restrained web/Material control treatment |
 | Touch target | minimum 48dp | native Android interaction requirement; icon glyph may be smaller |
-| Typography | system sans by default; serif/mono aliases; title 18-32sp, body 14-16sp | same hierarchy, native typeface and scalable sp; full Material type scale supplied |
+| Typography | system sans by default; serif/mono aliases; title 18–32sp, body 14–16sp | same hierarchy, native typeface and scalable sp; full Material type scale supplied |
 | Font licensing | no new font files copied | web uses system stack and optional Inter/Quicksand/JetBrains Mono; iOS uses Apple system fonts. Android uses installed system families. round/rounded currently falls back to system sans. |
 | Surface treatment | quiet borders, no default elevation/gradient on shared cards and buttons | content-first product direction; native dialogs/sheets retain platform treatment |
 | Motion | no new decorative animation | existing transitions remain; later motion must honour reduced-motion settings |
@@ -99,7 +99,7 @@ Keep existing logo artwork. Do not recreate it or add emoji/sparkle decorations.
 - ui/components/KairosComponents.kt: measured scaffold, card, button, field, task row, input dialog, overflow menu, sheet, state message and error feedback.
 - PremiumComponents preserves existing function signatures and delegates to the same visual roles; buttons grow for large text and keep disabled styling.
 - MainActivity uses measured Scaffold content padding. NavHost consumes it once; navigation is a labelled Material bar with selected semantics. Icons react to the light/dark appearance.
-- Dashboard/Tasks/Discovery/Plan drop the old 100-180dp shell offsets. Settings drops its duplicate status inset. Tasks' inner Scaffold uses zero additional system insets and applies its own padding to real content.
+- Dashboard/Tasks/Discovery/Plan drop the old 100–180dp shell offsets. Settings drops its duplicate status inset. Tasks' inner Scaffold uses zero additional system insets and applies its own padding to real content.
 - AI feed, error and composer are in one measured Column; the shell owns IME padding. No floating composer lift is required.
 - Existing task rows and rename dialogs use shared components. Rich task-details previews are a visual contract only; production persistence remains phase 3.
 
@@ -117,7 +117,7 @@ Preview fixtures illustrate component states; production states must be driven b
 
 ### Capture checklist (still required)
 
-Use the same synthetic assignment, date, completion and conversation across all clients. Use desktop web at 1440x900; iOS and Android at comparable phone widths. Compare actual screenshots against the references, not only against these previews.
+Use the same synthetic assignment, date, completion and conversation across all clients. Use desktop web at 1440×900; iOS and Android at comparable phone widths. Compare actual screenshots against the references, not only against these previews.
 
 - [ ] Capture web/iOS populated, empty, loading, error and editing states for the three reference surfaces.
 - [ ] Capture Android equivalents in light/dark, plus one smaller phone and 200% text.
@@ -131,4 +131,3 @@ Use the same synthetic assignment, date, completion and conversation across all 
 Run ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest and ./gradlew :app:connectedDebugAndroidTest. CI runs those in build and emulator jobs. UI tests cover content bounds between measured bars, separate task/open actions and disabled Save. These checks do not replace the screenshot acceptance checklist.
 
 Local limitations recorded during implementation: normal git clone cannot resolve GitHub; ADB cannot connect to its local server. Gradle can run in-process using a workspace cache, but aapt2 and new UI-test artifacts are unavailable offline. No successful build, emulator run or screenshot parity approval is claimed from these attempts. See the pull request checks for subsequent verification results.
-

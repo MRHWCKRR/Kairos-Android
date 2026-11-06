@@ -398,7 +398,7 @@ fun KairosApp(viewModel: MainViewModel) {
                     viewModel.shareSuccessMessage?.let { message ->
                         AlertDialog(
                             onDismissRequest = { viewModel.clearShareSuccess() },
-                            title = { Text("?? Board Published!", fontWeight = FontWeight.Bold) },
+                            title = { Text("🚀 Board Published!", fontWeight = FontWeight.Bold) },
                             text = { Text(message) },
                             confirmButton = {
                                 Button(onClick = { viewModel.clearShareSuccess() }) {
@@ -605,4 +605,3 @@ fun KairosBottomNav(navController: androidx.navigation.NavHostController) {
         }
     }
 }
-

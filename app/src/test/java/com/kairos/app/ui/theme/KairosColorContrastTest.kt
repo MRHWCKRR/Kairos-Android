@@ -17,6 +17,7 @@ class KairosColorContrastTest {
                 colors.onSurfaceVariant to colors.surface,
                 colors.onPrimary to colors.primary,
                 colors.primary to colors.surface,
+                colors.primary to colors.background,
                 colors.onPrimaryContainer to colors.primaryContainer
             )
             pairs.forEach { (text, background) ->
@@ -31,4 +32,3 @@ class KairosColorContrastTest {
         return (maxOf(first, second) + 0.05f) / (minOf(first, second) + 0.05f)
     }
 }
-

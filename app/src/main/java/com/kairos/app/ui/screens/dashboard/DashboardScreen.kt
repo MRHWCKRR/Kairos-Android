@@ -378,7 +378,7 @@ fun AllCaughtUpView() {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "?",
+                text = "✨",
                 fontSize = 48.sp
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -415,5 +415,4 @@ private fun formatHMS(totalSeconds: Long): String {
     val s = totalSeconds % 60
     return String.format(java.util.Locale.getDefault(), "%02d:%02d:%02d", h, m, s)
 }
-
 

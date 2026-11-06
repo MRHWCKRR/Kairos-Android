@@ -26,7 +26,7 @@ fun kairosColorScheme(isLight: Boolean, theme: String): ColorScheme {
     val background = if (isLight) ThemeLightBg else BgMain
     val surface = if (isLight) ThemeLightSurface else BgCard
     // Pastel accents need a darker tone for text on light surfaces.
-    val primary = readableAccent(accent, surface)
+    val primary = readableAccent(readableAccent(accent, surface), background)
     val onPrimary = if (contrastRatio(Color.White, primary) >= 4.5f) Color.White else Color.Black
     val container = primary.copy(alpha = if (isLight) 0.10f else 0.18f).over(surface)
     val onSurface = if (isLight) ThemeLightText else TextPrimary
@@ -93,5 +93,4 @@ fun KairosTheme(
         content = content
     )
 }
-
 

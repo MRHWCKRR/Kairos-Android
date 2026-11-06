@@ -103,6 +103,13 @@ fun TaskDetailsReference(@PreviewParameter(FoundationStates::class) state: Found
 fun AIReference(@PreviewParameter(FoundationStates::class) state: FoundationState) {
     ReferenceFrame("Kairos AI") {
         Column(Modifier.fillMaxSize()) {
+            Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                KairosPageHeader("Kairos AI") {
+                    KairosOverflowMenu("Chat actions") { dismiss ->
+                        DropdownMenuItem(text = { Text("New chat") }, onClick = dismiss)
+                    }
+                }
+            }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 StateContent(state) {
                     ChatBubble(ChatMessage("user", "Help me plan my assignment."))
@@ -116,4 +123,3 @@ fun AIReference(@PreviewParameter(FoundationStates::class) state: FoundationStat
         }
     }
 }
-

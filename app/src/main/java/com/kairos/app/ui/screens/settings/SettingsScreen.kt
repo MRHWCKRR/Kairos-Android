@@ -456,7 +456,7 @@ fun SecurityTabContent(user: com.google.firebase.auth.FirebaseUser?, viewModel: 
             Text(text = "Last sign-in: $lastSignIn", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "A full \"manage all devices\" view needs a backend we don't have yet - this is on the roadmap.",
+                text = "A full \"manage all devices\" view needs a backend we don't have yet — this is on the roadmap.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -818,5 +818,4 @@ fun BunkerOptionButton(text: String, selected: Boolean, onClick: () -> Unit, mod
         }
     }
 }
-
 

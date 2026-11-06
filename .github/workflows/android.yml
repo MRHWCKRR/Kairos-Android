@@ -2,7 +2,7 @@ name: Android verification
 
 on:
   push:
-    branches: [master, feat/android-phase-0]
+    branches: [master]
   pull_request:
   workflow_dispatch:
 
@@ -24,6 +24,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
       - run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest --stacktrace
@@ -63,4 +65,3 @@ jobs:
         with:
           name: android-foundation-ui
           path: app/build/reports/androidTests/
-

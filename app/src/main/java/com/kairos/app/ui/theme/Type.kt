@@ -37,4 +37,3 @@ fun getKairosTypography(font: String): Typography {
 
 val KairosTypography = getKairosTypography("sans")
 
-

@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -62,5 +64,23 @@ class KairosFoundationTest {
         compose.onNodeWithText("Save").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertTrue(!submitted) }
     }
-}
 
+    @Test fun longHeaderRetainsItsActionAtLargeFontScale() {
+        compose.setContent {
+            val density = LocalDensity.current.density
+            CompositionLocalProvider(LocalDensity provides Density(density, 2f)) {
+                KairosTheme {
+                    Box(Modifier.width(280.dp).testTag("header")) {
+                        KairosPageHeader("Kairos AI and assignment planning") {
+                            KairosButton("Menu", {}, Modifier.testTag("menu"))
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("menu").assertIsDisplayed()
+        val header = compose.onNodeWithTag("header").fetchSemanticsNode().boundsInRoot
+        val menu = compose.onNodeWithTag("menu").fetchSemanticsNode().boundsInRoot
+        assertTrue(menu.left >= header.left && menu.right <= header.right)
+    }
+}

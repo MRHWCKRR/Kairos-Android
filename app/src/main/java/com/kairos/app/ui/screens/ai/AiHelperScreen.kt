@@ -32,6 +32,8 @@ import com.kairos.app.data.models.ChatMessage
 import com.kairos.app.ui.components.PremiumCard
 import com.kairos.app.ui.components.KairosStateMessage
 import com.kairos.app.ui.components.KairosErrorFeedback
+import com.kairos.app.ui.components.KairosPageHeader
+import com.kairos.app.ui.components.KairosOverflowMenu
 import com.kairos.app.ui.navigation.MainViewModel
 import com.kairos.app.utils.MarkdownUtils
 
@@ -53,46 +55,20 @@ fun AiHelperScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // --- HEADER ---
-
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Kairos AI",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                var showMenu by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Menu")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                    ) {
+            Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                KairosPageHeader("Kairos AI") {
+                    KairosOverflowMenu("Chat actions") { dismiss ->
                         DropdownMenuItem(
-                            text = { Text("?? Create Board", fontWeight = FontWeight.Medium) },
+                            text = { Text("Create board") },
                             onClick = {
-                                showMenu = false
+                                dismiss()
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 viewModel.createPlanFromChat(plan)
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("? Clear Chat", fontWeight = FontWeight.Medium) },
-                            onClick = {
-                                showMenu = false
-                                viewModel.clearChat()
-                            }
+                            text = { Text("Clear chat") },
+                            onClick = { dismiss(); viewModel.clearChat() }
                         )
                     }
                 }
@@ -400,5 +376,4 @@ fun AiPlanConfirmationDialog(
         }
     )
 }
-
 

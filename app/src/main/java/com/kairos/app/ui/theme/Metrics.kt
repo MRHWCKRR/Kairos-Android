@@ -22,4 +22,3 @@ val KairosShapes = Shapes(
     large = RoundedCornerShape(16.dp),
     extraLarge = RoundedCornerShape(KairosMetrics.cardRadius)
 )
-

@@ -66,7 +66,7 @@ fun TasksScreen(viewModel: MainViewModel = viewModel()) {
         if (boards.isEmpty() && (plan?.boards?.none { it.archived } == true)) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "No boards yet - create one to get started.",
+                    text = "No boards yet — create one to get started.",
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                 )
             }
@@ -300,7 +300,7 @@ fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: Main
                         archivedSections.forEach { (board, section) ->
                             ArchiveItemRow(
                                 title = section.title,
-                                subtitle = "- ${board.title}",
+                                subtitle = "— ${board.title}",
                                 onRestore = { viewModel.restoreSection(section.id) },
                                 onDelete = { viewModel.deleteSectionForever(board.id, section.id) }
                             )
@@ -318,7 +318,7 @@ fun ArchiveSection(plan: com.kairos.app.data.models.KairosPlan?, viewModel: Main
                         archivedTasks.forEach { (board, section, task) ->
                             ArchiveItemRow(
                                 title = task.title,
-                                subtitle = "- ${board.title} / ${section.title}",
+                                subtitle = "— ${board.title} / ${section.title}",
                                 onRestore = { viewModel.restoreTask(task.id) },
                                 onDelete = { viewModel.deleteTaskForever(section.id, task.id) }
                             )
@@ -595,5 +595,4 @@ fun ShareRoutineDialog(
         }
     )
 }
-
 
