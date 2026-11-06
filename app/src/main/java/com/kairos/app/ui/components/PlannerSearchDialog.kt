@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.*
@@ -20,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -28,12 +31,14 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kairos.app.data.models.KairosPlan
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -100,6 +105,12 @@ fun PlannerSearchDialog(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false, imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
                     shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent
+                    ),
                     leadingIcon = { Icon(KairosIcons.Search, null) },
                     trailingIcon = {
                         if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
@@ -112,14 +123,23 @@ fun PlannerSearchDialog(
                     val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
                     val filterWidth = maxOf(maxWidth - 32.dp, (82f * fontScale * PlannerSearchStatus.entries.size).dp)
                     Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-                        SingleChoiceSegmentedButtonRow(Modifier.width(filterWidth)) {
-                            PlannerSearchStatus.entries.forEachIndexed { position, option ->
-                                SegmentedButton(
-                                    selected = status == option, onClick = { status = option },
-                                    shape = SegmentedButtonDefaults.itemShape(position, PlannerSearchStatus.entries.size),
-                                    icon = {},
-                                    label = { Text(option.label, maxLines = 1, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall) }
-                                )
+                        Surface(Modifier.width(filterWidth), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                            Row(Modifier.padding(2.dp).selectableGroup()) {
+                                PlannerSearchStatus.entries.forEach { option ->
+                                    val selected = status == option
+                                    Surface(
+                                        modifier = Modifier.weight(1f).selectable(selected, role = Role.RadioButton, onClick = { status = option }),
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (selected) MaterialTheme.colorScheme.surfaceBright else Color.Transparent,
+                                        shadowElevation = if (selected) 1.dp else 0.dp
+                                    ) {
+                                        Box(Modifier.heightIn(min = 48.dp).padding(horizontal = 8.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+                                            Text(option.label, maxLines = 1, textAlign = TextAlign.Center,
+                                                style = MaterialTheme.typography.labelSmall, fontSize = 13.sp,
+                                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
