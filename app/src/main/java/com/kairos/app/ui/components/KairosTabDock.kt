@@ -133,7 +133,7 @@ private fun KairosDockTab(
                         scaleX = 1f + 0.08f * displacement
                         scaleY = 1f - 0.10f * displacement
                     },
-                tint = foreground
+                tint = if (selected) primary else foreground
             )
             Text(
                 destination.label,

@@ -3,6 +3,11 @@ package com.kairos.app.ui.components
 import com.kairos.app.ui.icons.KairosIcons
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -21,6 +30,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.kairos.app.data.models.KairosPlan
 import kotlinx.coroutines.Dispatchers
@@ -83,8 +95,10 @@ fun PlannerSearchDialog(
                     onValueChange = { query = it.take(PlannerSearch.QUERY_LIMIT) },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).focusRequester(focus)
                         .semantics { contentDescription = "Search planner" },
-                    placeholder = { Text("Tasks, boards, assignments") },
+                    placeholder = { Text("Tasks, boards, assignments", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false, imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
                     shape = RoundedCornerShape(16.dp),
                     leadingIcon = { Icon(KairosIcons.Search, null) },
                     trailingIcon = {
@@ -94,14 +108,20 @@ fun PlannerSearchDialog(
                     }
                 )
                 LaunchedEffect(Unit) { focus.requestFocus() }
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    PlannerSearchStatus.entries.forEachIndexed { position, option ->
-                        SegmentedButton(
-                            selected = status == option, onClick = { status = option },
-                            shape = SegmentedButtonDefaults.itemShape(position, PlannerSearchStatus.entries.size),
-                            icon = {},
-                            label = { Text(option.label, maxLines = 2, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall) }
-                        )
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+                    val filterWidth = maxOf(maxWidth - 32.dp, (82f * fontScale * PlannerSearchStatus.entries.size).dp)
+                    Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+                        SingleChoiceSegmentedButtonRow(Modifier.width(filterWidth)) {
+                            PlannerSearchStatus.entries.forEachIndexed { position, option ->
+                                SegmentedButton(
+                                    selected = status == option, onClick = { status = option },
+                                    shape = SegmentedButtonDefaults.itemShape(position, PlannerSearchStatus.entries.size),
+                                    icon = {},
+                                    label = { Text(option.label, maxLines = 1, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall) }
+                                )
+                            }
+                        }
                     }
                 }
                 when {
@@ -111,7 +131,14 @@ fun PlannerSearchDialog(
                     )
                     results == null -> SearchMessage("Searching your planner", loading = true)
                     else -> LazyColumn(
-                        Modifier.fillMaxWidth().weight(1f),
+                        Modifier.fillMaxWidth().weight(1f).nestedScroll(remember(keyboard) {
+                            object : NestedScrollConnection {
+                                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                    if (available.y != 0f) keyboard?.hide()
+                                    return Offset.Zero
+                                }
+                            }
+                        }),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -165,7 +192,7 @@ fun PlannerSearchDialog(
         val row = index?.singleOrNull { it.target == target }
         ModalBottomSheet(onDismissRequest = { selectedTask = null }, dragHandle = null) {
             CompositionLocalProvider(LocalDensity provides inheritedDensity) {
-                Column(Modifier.fillMaxWidth().padding(bottom = 32.dp).testTag("planner-search-task")) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 32.dp).testTag("planner-search-task")) {
                     SearchSheetHeader("Task details") { selectedTask = null }
                     if (row == null) SearchMessage("This task is no longer available.")
                     else Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -189,7 +216,7 @@ fun PlannerSearchDialog(
 @Composable
 private fun SearchSheetHeader(title: String, onDone: () -> Unit) {
     Box(Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Center).padding(horizontal = 72.dp), maxLines = 1)
+        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Center).padding(horizontal = 72.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
         KairosTextButton(onClick = onDone, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 8.dp)) { Text("Done") }
     }
 }

@@ -77,6 +77,10 @@ class PlannerSearchUiTest {
         compose.onNodeWithText("Done").assertIsDisplayed()
         compose.onNodeWithContentDescription("Search planner").assertIsDisplayed()
         capture("search-large-text")
+        val allHeight = compose.onNodeWithText("All", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.height
+        val unfinishedHeight = compose.onNodeWithText("Unfinished", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.height
+        assertEquals("Large-text filters must keep the same single-line height", allHeight, unfinishedHeight, 0.5f)
+        compose.onNodeWithText("Completed").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun queryFiltersClearAndNoMatchUseCurrentResults() {
