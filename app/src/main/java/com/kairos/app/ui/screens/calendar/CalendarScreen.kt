@@ -1,5 +1,7 @@
 package com.kairos.app.ui.screens.calendar
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,12 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -89,11 +85,11 @@ fun CalendarScreen(mainViewModel: MainViewModel, viewModel: CalendarViewModel = 
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Schedule", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             IconButton(onClick = { agenda = !agenda }) {
-                Icon(if (agenda) Icons.Default.CalendarMonth else Icons.AutoMirrored.Filled.List,
+                Icon(if (agenda) KairosIcons.CalendarMonth else KairosIcons.List,
                     if (agenda) "Show fixed-event timeline" else "Show agenda", tint = MaterialTheme.colorScheme.secondary)
             }
             Box {
-                IconButton(onClick = { filters = true }) { Icon(Icons.Default.FilterList, "Schedule filters", tint = MaterialTheme.colorScheme.secondary) }
+                IconButton(onClick = { filters = true }) { Icon(KairosIcons.FilterList, "Schedule filters", tint = MaterialTheme.colorScheme.secondary) }
                 DropdownMenu(expanded = filters, onDismissRequest = { filters = false }) {
                     DropdownMenuItem(text = { Text("Completed tasks") }, onClick = { showCompleted = !showCompleted }, trailingIcon = { Checkbox(showCompleted, { showCompleted = it }) })
                     DropdownMenuItem(text = { Text("Fixed events") }, onClick = { showEvents = !showEvents }, trailingIcon = { Checkbox(showEvents, { showEvents = it }) })
@@ -169,7 +165,7 @@ private fun DayAgenda(date: LocalDate, plan: KairosPlan?, showCompleted: Boolean
         }
         events.forEach { event ->
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CalendarMonth, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.secondary)
+                Icon(KairosIcons.CalendarMonth, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.secondary)
                 Text(event.title, Modifier.weight(1f).padding(horizontal = 10.dp), style = MaterialTheme.typography.bodyMedium)
                 Text("${event.start}–${event.end}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -329,8 +325,8 @@ fun ScheduleDateNavigation(
     BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         val wrap = maxWidth < 330.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
         val arrows: @Composable () -> Unit = {
-            IconButton(onClick = onPrevious, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous ${rangeLabel.lowercase()}") }
-            IconButton(onClick = onNext, modifier = Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next ${rangeLabel.lowercase()}") }
+            IconButton(onClick = onPrevious, modifier = Modifier.size(48.dp)) { Icon(KairosIcons.KeyboardArrowLeft, "Previous ${rangeLabel.lowercase()}") }
+            IconButton(onClick = onNext, modifier = Modifier.size(48.dp)) { Icon(KairosIcons.KeyboardArrowRight, "Next ${rangeLabel.lowercase()}") }
         }
         Column {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -344,3 +340,4 @@ fun ScheduleDateNavigation(
         }
     }
 }
+

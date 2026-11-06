@@ -1,5 +1,7 @@
 package com.kairos.app.ui.navigation
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import com.kairos.app.ui.components.KairosOutlinedButton
 import android.Manifest
 import android.content.Intent
@@ -15,6 +17,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -22,10 +26,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.ModeNight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -189,7 +189,6 @@ fun KairosApp(viewModel: MainViewModel) {
     val route = entry?.destination?.route ?: KairosDestination.Dashboard.route
     var showNotifications by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
-    var requestedTaskId by remember { mutableStateOf<String?>(null) }
     val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val navigate: (String) -> Unit = { destination ->
         navController.navigate(destination) { launchSingleTop = true }
@@ -220,12 +219,11 @@ fun KairosApp(viewModel: MainViewModel) {
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = { showSearch = true }) { Icon(Icons.Default.Search, "Search planner", tint = MaterialTheme.colorScheme.secondary) }
                             IconButton(onClick = { showNotifications = true; viewModel.markNotificationsRead() }) {
                                 BadgedBox(badge = {
                                     val unread = profile.notifications.count { !it.read }
                                     if (unread > 0) Badge { Text(if (unread > 9) "9+" else unread.toString()) }
-                                }) { Icon(Icons.Default.Notifications, "Notifications") }
+                                }) { Icon(KairosIcons.Notifications, "Notifications") }
                             }
                             KairosAccountMenu(
                                 name = profile.settings.profile.displayName.ifBlank { user?.displayName ?: "Profile" },
@@ -237,17 +235,21 @@ fun KairosApp(viewModel: MainViewModel) {
                     }
                 },
                 bottomBar = {
-                    if (!keyboardOpen) KairosBottomNav(navController, onSearch = { showSearch = true })
+                    if (!keyboardOpen) KairosBottomNav(navController, onSearch = { showSearch = true }, reduceMotion = profile.settings.accessibility.reduceMotion)
                 },
                 snackbar = { viewModel.errorMessage?.let { KairosErrorFeedback(it, onDismiss = { viewModel.clearError() }) } }
             ) { padding ->
                 NavHost(
                     navController, startDestination = KairosDestination.Dashboard.route,
-                    modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
+                    modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),
+                    enterTransition = { fadeIn(tween(if (profile.settings.accessibility.reduceMotion) 0 else 220)) },
+                    exitTransition = { fadeOut(tween(if (profile.settings.accessibility.reduceMotion) 0 else 220)) },
+                    popEnterTransition = { fadeIn(tween(if (profile.settings.accessibility.reduceMotion) 0 else 220)) },
+                    popExitTransition = { fadeOut(tween(if (profile.settings.accessibility.reduceMotion) 0 else 220)) }
                 ) {
                     composable(KairosDestination.Dashboard.route) { DashboardScreen(viewModel, onNavigate = navigate) }
                     composable(KairosDestination.Tasks.route) {
-                        TasksScreen(viewModel, requestedTaskId = requestedTaskId, onTaskRequestConsumed = { requestedTaskId = null })
+                        TasksScreen(viewModel)
                     }
                     composable(KairosDestination.AiHelper.route) { AiHelperScreen(viewModel) }
                     composable(KairosDestination.Plan.route) { PlanScreen(viewModel) }
@@ -259,11 +261,16 @@ fun KairosApp(viewModel: MainViewModel) {
             if (showNotifications) ModalBottomSheet(
                 onDismissRequest = { showNotifications = false }, containerColor = MaterialTheme.colorScheme.surface
             ) { NotificationPanel(profile.notifications, onDelete = { viewModel.deleteNotification(it) }) }
-            if (showSearch) PlannerSearchDialog(
-                plan = plan,
-                onDismiss = { showSearch = false },
-                onOpenTask = { id -> showSearch = false; requestedTaskId = id; navigate(KairosDestination.Tasks.route) }
-            )
+            if (showSearch) key(user?.uid) {
+                PlannerSearchDialog(
+                    plan = plan,
+                    onDismiss = { showSearch = false },
+                    onToggleTask = { id, completed -> viewModel.toggleTask(id, completed) },
+                    timezone = profile.settings.profile.timezone,
+                    isLoading = viewModel.isInitializing,
+                    errorMessage = if (plan == null) viewModel.errorMessage else null
+                )
+            }
         }
     }
 }
@@ -277,8 +284,8 @@ private fun KairosAccountMenu(name: String, photo: String, onNavigate: (String) 
         }
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
             Text(name, Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.titleMedium)
-            DropdownMenuItem(text = { Text("Profile & settings") }, onClick = { expanded = false; onNavigate("settings") }, leadingIcon = { Icon(Icons.Default.Settings, null) })
-            DropdownMenuItem(text = { Text("Statistics") }, onClick = { expanded = false; onNavigate("statistics") }, leadingIcon = { Icon(Icons.Default.BarChart, null) })
+            DropdownMenuItem(text = { Text("Profile & settings") }, onClick = { expanded = false; onNavigate("settings") }, leadingIcon = { Icon(KairosIcons.Settings, null) })
+            DropdownMenuItem(text = { Text("Statistics") }, onClick = { expanded = false; onNavigate("statistics") }, leadingIcon = { Icon(KairosIcons.BarChart, null) })
             HorizontalDivider()
             DropdownMenuItem(text = { Text("Sign out", color = MaterialTheme.colorScheme.error) }, onClick = { expanded = false; onSignOut() })
         }
@@ -343,7 +350,7 @@ fun NotificationItem(
         }
 
         IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
+            Icon(KairosIcons.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -382,7 +389,7 @@ fun SyncErrorScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.Info,
+            imageVector = KairosIcons.Info,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
             modifier = Modifier.size(64.dp)
@@ -442,7 +449,7 @@ fun SyncErrorScreen(
 }
 
 @Composable
-fun KairosBottomNav(navController: androidx.navigation.NavHostController, onSearch: () -> Unit = {}) {
+fun KairosBottomNav(navController: androidx.navigation.NavHostController, onSearch: () -> Unit = {}, reduceMotion: Boolean = false) {
     val entry by navController.currentBackStackEntryAsState()
     KairosTabDock(entry?.destination?.route ?: "dashboard", onSelect = { destination ->
         navController.navigate(destination) {
@@ -450,5 +457,6 @@ fun KairosBottomNav(navController: androidx.navigation.NavHostController, onSear
             launchSingleTop = true
             restoreState = true
         }
-    }, onSearch = onSearch)
+    }, onSearch = onSearch, reduceMotion = reduceMotion)
 }
+

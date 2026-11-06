@@ -1,5 +1,7 @@
 package com.kairos.app.ui.screens.onboarding
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -8,10 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -121,7 +119,7 @@ fun OnboardingScreen(mainViewModel: MainViewModel) {
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(KairosIcons.ArrowBack, contentDescription = "Back")
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                     }
@@ -169,7 +167,7 @@ fun OnboardingScreen(mainViewModel: MainViewModel) {
                             shape = CircleShape,
                             elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next")
+                            Icon(KairosIcons.ArrowForward, contentDescription = "Next")
                         }
                     }
                 } else {
@@ -204,7 +202,7 @@ val LocalOnboardingPageKey = staticCompositionLocalOf { Any() }
 @Composable
 fun PersonalizationPage(name: String, onNameChange: (String) -> Unit) {
     OnboardingPageContainer(
-        icon = Icons.Default.Face,
+        icon = KairosIcons.Face,
         title = "What should we call you?",
         description = "This helps us personalize your greetings and notifications."
     ) {
@@ -230,7 +228,7 @@ fun DateOfBirthPage(birthday: String, onBirthdayChange: (String) -> Unit) {
     var showDatePicker by remember { mutableStateOf(false) }
 
     OnboardingPageContainer(
-        icon = Icons.Default.Cake,
+        icon = KairosIcons.Cake,
         title = "When is your birthday?",
         description = "We use your birth date to calculate age-based productivity benchmarks and milestone celebrations!"
     ) {
@@ -307,7 +305,7 @@ fun LocalizationPage(
     }
 
     OnboardingPageContainer(
-        icon = Icons.Default.Public,
+        icon = KairosIcons.Public,
         title = "Localization",
         description = "Tell us where you are to localize your experience."
     ) {
@@ -491,7 +489,7 @@ fun TutorialPage(onComplete: (Boolean) -> Unit) {
     )
 
     OnboardingPageContainer(
-        icon = Icons.Default.AutoAwesome,
+        icon = KairosIcons.AutoAwesome,
         title = "Master Your Time",
         description = "Here's a quick tour of your new workspace."
     ) {
@@ -539,8 +537,8 @@ fun TutorialPage(onComplete: (Boolean) -> Unit) {
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                TutorialItem(Icons.Default.Schedule, "Focus Timer", "Log sessions to earn deep work rewards.")
-                TutorialItem(Icons.Default.EmojiEvents, "Achievements", "Unlock badges as you level up your life.")
+                TutorialItem(KairosIcons.Schedule, "Focus Timer", "Log sessions to earn deep work rewards.")
+                TutorialItem(KairosIcons.EmojiEvents, "Achievements", "Unlock badges as you level up your life.")
             }
         }
     }
@@ -634,3 +632,4 @@ fun OnboardingPageContainer(
         }
     }
 }
+

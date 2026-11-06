@@ -1,5 +1,7 @@
 package com.kairos.app.ui.screens.statistics
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,8 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.runtime.*
@@ -132,7 +132,7 @@ fun ChartCard(
                     Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(if (title == "Focus Time") "Minutes logged" else "Completed each period", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Icon(if (title == "Focus Time") Icons.Default.Timer else Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                Icon(if (title == "Focus Time") KairosIcons.Timer else KairosIcons.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
             }
             Spacer(Modifier.height(12.dp))
             BarChart(data = data, valueFormatter = valueFormatter)
@@ -234,9 +234,9 @@ fun BarChart(
 fun SummaryCard(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(when (label) {
-            "Total Focus Logged" -> Icons.Default.Timer
-            "Longest Session" -> Icons.Default.LocalFireDepartment
-            else -> Icons.Default.CheckCircle
+            "Total Focus Logged" -> KairosIcons.Timer
+            "Longest Session" -> KairosIcons.LocalFireDepartment
+            else -> KairosIcons.CheckCircle
         }, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(12.dp))
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
@@ -251,3 +251,4 @@ private fun formatSecondsToHMS(totalSeconds: Long): String {
     val s = totalSeconds % 60
     return if (h > 0) "${h}h ${m}m" else if (m > 0) "${m}m ${s}s" else "${s}s"
 }
+

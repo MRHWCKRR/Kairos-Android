@@ -1,11 +1,11 @@
 package com.kairos.app.ui.screens.dashboard
 
+import com.kairos.app.ui.icons.KairosIcons
+
 import com.kairos.app.ui.components.KairosTextButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -104,7 +104,7 @@ fun HomeContent(
                         Text("Your momentum", style = MaterialTheme.typography.titleLarge)
                         Text("Small wins compound.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = { onNavigate("achievements") }) { Icon(Icons.Default.NorthEast, "Open goals", tint = MaterialTheme.colorScheme.secondary) }
+                    IconButton(onClick = { onNavigate("achievements") }) { Icon(KairosIcons.NorthEast, "Open goals", tint = MaterialTheme.colorScheme.secondary) }
                 }
                 Spacer(Modifier.height(18.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -122,7 +122,7 @@ fun HomeContent(
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("Workspace", style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    listOf(Triple("Boards", Icons.Default.Checklist, "tasks"), Triple("Calendar", Icons.Default.CalendarMonth, "plan"), Triple("Goals", Icons.Default.EmojiEvents, "achievements")).forEach { (label, icon, route) ->
+                    listOf(Triple("Boards", KairosIcons.Boards, "tasks"), Triple("Calendar", KairosIcons.CalendarMonth, "plan"), Triple("Goals", KairosIcons.EmojiEvents, "achievements")).forEach { (label, icon, route) ->
                         OutlinedCard(onClick = { onNavigate(route) }, modifier = Modifier.weight(1f),
                             shape = MaterialTheme.shapes.large, colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
                             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
@@ -150,7 +150,7 @@ private fun HomeMetric(value: String, label: String, modifier: Modifier) {
 fun FocusSessionCard(seconds: Long, running: Boolean, onStart: () -> Unit, onPause: () -> Unit, onStop: () -> Unit) {
     KairosCard {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Default.Timer, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
+            Icon(KairosIcons.Timer, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
             Text("FOCUS SESSION", style = MaterialTheme.typography.labelMedium, letterSpacing = 1.1.sp,
                 color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
         }
@@ -166,9 +166,9 @@ fun FocusSessionCard(seconds: Long, running: Boolean, onStart: () -> Unit, onPau
             val controls: @Composable () -> Unit = {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     FilledIconButton(onClick = if (running) onPause else onStart, modifier = Modifier.size(50.dp), shape = CircleShape) {
-                        Icon(if (running) Icons.Default.Pause else Icons.Default.PlayArrow, if (running) "Pause focus" else "Start focus")
+                        Icon(if (running) KairosIcons.Pause else KairosIcons.PlayArrow, if (running) "Pause focus" else "Start focus")
                     }
-                    if (running || seconds > 0) OutlinedIconButton(onClick = onStop, modifier = Modifier.size(48.dp), shape = CircleShape) { Icon(Icons.Default.Stop, "Stop and log focus") }
+                    if (running || seconds > 0) OutlinedIconButton(onClick = onStop, modifier = Modifier.size(48.dp), shape = CircleShape) { Icon(KairosIcons.Stop, "Stop and log focus") }
                 }
             }
             if (compact) Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { timer(); controls() }
@@ -181,3 +181,4 @@ fun formatHMS(totalSeconds: Long): String {
     val seconds = totalSeconds.coerceAtLeast(0L)
     return String.format(Locale.ROOT, "%02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
 }
+
