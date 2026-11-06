@@ -157,7 +157,10 @@ private fun DayAgenda(date: LocalDate, plan: KairosPlan?, showCompleted: Boolean
         if (tasks.isEmpty() && events.isEmpty()) Text("Nothing scheduled for this day.", Modifier.padding(8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         tasks.forEach { task ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(task.completed, { mainViewModel.toggleTask(task.id, it) })
+                IconToggleButton(task.completed, { mainViewModel.toggleTask(task.id, it) }) {
+                    Icon(if (task.completed) KairosIcons.CheckCircle else KairosIcons.RadioButtonUnchecked,
+                        "Complete ${task.title}", tint = MaterialTheme.colorScheme.secondary)
+                }
                 Text(task.title, Modifier.weight(1f).clickable(onClick = onDetails).padding(vertical = 12.dp),
                     style = MaterialTheme.typography.bodyMedium, textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None,
                     color = if (task.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)

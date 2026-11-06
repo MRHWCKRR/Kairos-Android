@@ -1,5 +1,6 @@
 package com.kairos.app.ui.screens.login
 
+import com.kairos.app.ui.icons.KairosIcons
 import com.kairos.app.ui.components.KairosTextButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -90,7 +91,10 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                             CustomTextField(viewModel.password, { viewModel.password = it }, "••••••••", visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = viewModel.rememberMe, onCheckedChange = { viewModel.rememberMe = it })
+                            IconToggleButton(checked = viewModel.rememberMe, onCheckedChange = { viewModel.rememberMe = it }) {
+                                Icon(if (viewModel.rememberMe) KairosIcons.CheckCircle else KairosIcons.RadioButtonUnchecked,
+                                    "Remember me", tint = MaterialTheme.colorScheme.secondary)
+                            }
                             Text("Remember me", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         viewModel.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
@@ -163,3 +167,4 @@ fun CustomTextField(
         singleLine = true
     )
 }
+
