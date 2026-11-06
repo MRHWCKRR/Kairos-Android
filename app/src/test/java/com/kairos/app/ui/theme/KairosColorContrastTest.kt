@@ -19,6 +19,7 @@ class KairosColorContrastTest {
                 colors.onPrimary to colors.primary,
                 colors.secondary to colors.surface,
                 colors.secondary to colors.background,
+                colors.secondary to colors.surfaceContainerHighest,
                 colors.onPrimaryContainer to colors.primaryContainer
             )
             pairs.forEach { (text, background) ->

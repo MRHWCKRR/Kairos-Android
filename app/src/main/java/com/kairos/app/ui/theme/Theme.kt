@@ -25,9 +25,10 @@ fun kairosColorScheme(isLight: Boolean, theme: String): ColorScheme {
     }
     val background = if (isLight) ThemeLightBg else BgMain
     val surface = if (isLight) ThemeLightSurface else BgCard
+    val raisedSurface = if (isLight) Color(0xFFE5E5EA) else Color(0xFF2C2C2E)
     // Brand fills are exact. Contrast adaptation belongs to text, never the brand.
     val primary = accent
-    val accentText = readableAccent(readableAccent(accent, surface), background)
+    val accentText = readableAccent(readableAccent(readableAccent(accent, surface), background), raisedSurface)
     val onPrimary = if (contrastRatio(Color.White, primary) >= 4.5f) Color.White else Color.Black
     val container = primary.copy(alpha = if (isLight) 0.10f else 0.18f).over(surface)
     val onSurface = if (isLight) ThemeLightText else TextPrimary
@@ -43,6 +44,13 @@ fun kairosColorScheme(isLight: Boolean, theme: String): ColorScheme {
         tertiaryContainer = container, onTertiaryContainer = onSurface,
         background = background, onBackground = onSurface,
         surface = surface, onSurface = onSurface,
+        surfaceDim = background,
+        surfaceBright = if (isLight) ThemeLightSurface else raisedSurface,
+        surfaceContainerLowest = background,
+        surfaceContainerLow = surface,
+        surfaceContainer = surface,
+        surfaceContainerHigh = if (isLight) ThemeLightBg else Color(0xFF242426),
+        surfaceContainerHighest = raisedSurface,
         surfaceVariant = if (isLight) Color(0xFFEBEBEF) else Color(0xFF202020),
         onSurfaceVariant = muted,
         outline = muted, outlineVariant = outline,
