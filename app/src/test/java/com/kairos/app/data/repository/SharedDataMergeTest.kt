@@ -9,12 +9,12 @@ import org.junit.Test
 class SharedDataMergeTest {
     private fun task(id: String = "t1", title: String = "Before") =
         mapOf<String, Any?>("id" to id, "title" to title, "completed" to false, "priority" to 0)
-    private fun document(vararg tasks: Map<String, Any?>) = mapOf<String, Any?>("tasks" to tasks.toList())
+    private fun document(vararg tasks: Map<String, Any?>) = mapOf<String, Any?>("scheduleEvents" to tasks.toList())
     private fun conflict(block: () -> Unit) {
         try { block(); fail("Expected SharedDataConflict") } catch (_: SharedDataConflict) { }
     }
     @Suppress("UNCHECKED_CAST")
-    private fun tasks(document: Map<String, Any?>) = document["tasks"] as List<Map<String, Any?>>
+    private fun tasks(document: Map<String, Any?>) = document["scheduleEvents"] as List<Map<String, Any?>>
 
     @Test fun preservesRichUnknownTaskAndDocumentFields() {
         val base = document(task())
@@ -152,8 +152,8 @@ class SharedDataMergeTest {
         assertEquals(mapOf("title" to "After"), SharedDataMerge.merge(base, mapOf("title" to "After"), emptyMap(), emptyMap()))
     }
 
-    @Test fun recursivelyMergesAllIdentityCollectionTypes() {
-        for (key in listOf("boards", "sections", "tasks", "scheduleEvents", "notifications")) {
+    @Test fun recursivelyMergesAllRootIdentityCollectionTypes() {
+        for (key in listOf("boards", "scheduleEvents", "notifications")) {
             val old = mapOf<String, Any?>("id" to "record", "title" to "Before")
             val base = mapOf<String, Any?>(key to listOf(old))
             val edited = mapOf<String, Any?>(key to listOf(old + ("title" to "After")))
@@ -232,4 +232,68 @@ class SharedDataMergeTest {
         val expected = mapOf<String, Any?>("boards" to listOf(board(task(title = "After") + ("notes" to "Keep")) + ("calendar" to "Keep")))
         assertEquals(expected, SharedDataMerge.merge(base, edited, remote))
     }
+    private fun message(text: String, timestamp: String = text): Map<String, Any?> =
+        mapOf("role" to "assistant", "content" to text, "timestamp" to timestamp)
+
+    private fun history(vararg messages: Map<String, Any?>): Map<String, Any?> =
+        mapOf("aiChatHistory" to messages.toList())
+
+    @Test fun chatAppendPreservesUnknownRawMessageFields() {
+        val base = history(message("old"))
+        val raw = history(message("old") + ("iosModel" to mapOf("name" to "model", "tokens" to 50)))
+        val edited = history(message("old"), message("new"))
+        val expected = history(message("old") + ("iosModel" to mapOf("name" to "model", "tokens" to 50)), message("new"))
+        assertEquals(expected, SharedDataMerge.merge(base, edited, raw, raw))
+        assertEquals(expected, SharedDataMerge.merge(base, edited, expected, raw))
+    }
+
+    @Test fun chatClearWithUnknownRawMessageFieldsSucceedsAndRetries() {
+        val base = history(message("old"))
+        val raw = history(message("old") + ("iosModel" to "keep until removed"))
+        assertEquals(history(), SharedDataMerge.merge(base, history(), raw, raw))
+        assertEquals(history(), SharedDataMerge.merge(base, history(), history(), raw))
+    }
+
+    @Test fun chatConcurrentAdditionsConflictOnAppendAndClear() {
+        val base = history(message("old"))
+        val raw = history(message("old") + ("iosModel" to "keep"))
+        val remote = history(message("old") + ("iosModel" to "keep"), message("remote"))
+        conflict { SharedDataMerge.merge(base, history(message("old"), message("local")), remote, raw) }
+        conflict { SharedDataMerge.merge(base, history(), remote, raw) }
+    }
+
+    @Test fun chatClearRejectsConcurrentUnknownMetadataChanges() {
+        val base = history(message("old"))
+        val raw = history(message("old") + ("iosModel" to "before"))
+        val remote = history(message("old") + ("iosModel" to "after"))
+        conflict { SharedDataMerge.merge(base, history(), remote, raw) }
+    }
+
+    @Test fun chatTrimmingPreservesRetainedMessageMetadata() {
+        val base = history(message("first"), message("second"))
+        val raw = history(message("first") + ("iosModel" to "one"), message("second") + ("iosModel" to "two"))
+        val edited = history(message("second"), message("new"))
+        assertEquals(history(message("second") + ("iosModel" to "two"), message("new")), SharedDataMerge.merge(base, edited, raw, raw))
+    }
+
+    @Test fun chatRetryCannotSilentlyDropRetainedMetadata() {
+        val base = history(message("old"))
+        val raw = history(message("old") + ("iosModel" to "keep"))
+        val edited = history(message("old"), message("new"))
+        conflict { SharedDataMerge.merge(base, edited, edited, raw) }
+    }
+
+    @Test fun unknownSubtreesDoNotInterpretSchemaCollectionNames() {
+        val plugin = mapOf("tasks" to listOf("opaque", "values"),
+            "notifications" to listOf(mapOf("id" to "same"), mapOf("id" to "same")))
+        val base = mapOf<String, Any?>("title" to "Before", "boards" to listOf(mapOf("id" to "same", "title" to "Board")))
+        val remote = base + ("plugin" to plugin)
+        val edited = base + ("title" to "After")
+        assertEquals(remote + ("title" to "After"), SharedDataMerge.merge(base, edited, remote))
+        val rawBoard = mapOf("id" to "same", "title" to "Board", "plugin" to plugin)
+        val raw = base + ("boards" to listOf(rawBoard))
+        val boardEdit = base + ("boards" to listOf(mapOf("id" to "same", "title" to "Changed")))
+        assertEquals(base + ("boards" to listOf(rawBoard + ("title" to "Changed"))), SharedDataMerge.merge(base, boardEdit, raw))
+    }
+
 }

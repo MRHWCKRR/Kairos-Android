@@ -6,7 +6,9 @@ class SharedDataConflict(message: String) : IllegalStateException(message)
 /**
  * Applies changes between complete known-model projections to a raw shared document.
  * Unknown fields and remote collection order survive. Record IDs must be unique across the
- * document within each collection kind, including after merging concurrent additions.
+ * document within each collection kind, including after merging concurrent additions. Only
+ * schema collection paths are interpreted; unknown subtrees remain opaque. Retained chat
+ * messages reuse their original raw fields when a raw baseline is available.
  * Missing raw fields are equivalent to
  * projection defaults; explicit null is never treated as a missing field.
  *
@@ -27,28 +29,32 @@ object SharedDataMerge {
         validateIdentities(base)
         validateIdentities(edited)
         validateIdentities(remote)
-        val merged = mergeMap(base, edited, remote, baselineRaw, "document")
+        val merged = mergeMap(base, edited, remote, baselineRaw, "document", "document")
         // Separate valid concurrent additions can collide only after the merge.
         validateIdentities(merged)
         return merged
     }
 
+    private fun collectionKind(parent: String?, key: String): String? = when {
+        parent == "document" && key in setOf("boards", "scheduleEvents", "notifications") -> key
+        parent == "boards" && key == "sections" -> key
+        parent == "sections" && key == "tasks" -> key
+        else -> null
+    }
+
     private fun validateIdentities(document: Map<String, Any?>) {
         val seen = collections.associateWith { mutableSetOf<String>() }
-        fun visit(map: Map<String, Any?>, path: String) {
+        fun visit(map: Map<String, Any?>, path: String, parent: String) {
             for ((key, value) in map) {
-                if (key in collections && value is List<*>) {
-                    val records = records(value, "$path.$key")
-                    for ((id, record) in records) {
-                        if (!seen.getValue(key).add(id)) conflict("$path.$key[$id] (ambiguous global ID)")
-                        visit(record, "$path.$key[$id]")
-                    }
-                } else if (value is Map<*, *>) {
-                    visit(stringMap(value, "$path.$key"), "$path.$key")
+                val kind = collectionKind(parent, key) ?: continue
+                val records = records(value, "$path.$key")
+                for ((id, record) in records) {
+                    if (!seen.getValue(kind).add(id)) conflict("$path.$key[$id] (ambiguous global ID)")
+                    visit(record, "$path.$key[$id]", kind)
                 }
             }
         }
-        visit(document, "document")
+        visit(document, "document", "document")
     }
 
     private fun mergeMap(
@@ -56,14 +62,14 @@ object SharedDataMerge {
         edited: Map<String, Any?>,
         remote: Map<String, Any?>,
         raw: Map<String, Any?>?,
-        path: String
+        path: String,
+        parent: String? = null
     ): Map<String, Any?> {
         val result = remote.toMutableMap()
         for (key in base.keys + edited.keys) {
             val merged = mergeValue(
                 base.value(key), edited.value(key), remote.value(key), if (raw != null) raw.value(key) else Missing,
-                "$path.$key", key in collections &&
-                    (base[key] is List<*> || edited[key] is List<*> || remote[key] is List<*>)
+                "$path.$key", collectionKind(parent, key)
             )
             if (merged === Missing) result.remove(key) else result[key] = merged
         }
@@ -71,15 +77,15 @@ object SharedDataMerge {
     }
 
     private fun mergeValue(
-        base: Any?, edited: Any?, remote: Any?, raw: Any?, path: String, collection: Boolean
+        base: Any?, edited: Any?, remote: Any?, raw: Any?, path: String, collection: String?
     ): Any? {
-        if (collection) {
+        if (collection != null) {
             // Validate identities even when the local collection did not change.
             val b = records(base, path)
             val e = records(edited, path)
             val r = records(remote, path)
             if (same(base, edited)) return remote
-            return mergeRecords(b, e, r, raw, path)
+            return mergeRecords(b, e, r, raw, path, collection)
         }
         if (same(base, edited)) return remote
         if (base is Map<*, *> && edited is Map<*, *>) {
@@ -91,8 +97,32 @@ object SharedDataMerge {
                 if (raw is Map<*, *>) stringMap(raw, path) else null, path
             )
         }
+        if (path == "document.aiChatHistory" && base is List<*> && edited is List<*> && raw is List<*>) {
+            return mergeHistory(base, edited, remote, raw, path)
+        }
         if (same(remote, edited)) return remote // Retried write already applied.
         if ((remote === Missing && raw === Missing) || same(remote, base)) return edited
+        conflict(path)
+    }
+
+    /** Chat messages are immutable projected records; retained entries keep their raw metadata. */
+    private fun mergeHistory(
+        base: List<*>, edited: List<*>, remote: Any?, raw: List<*>, path: String
+    ): Any? {
+        if (!matchesProjection(base, raw)) conflict("$path (baseline does not match messages)")
+        val used = mutableSetOf<Int>()
+        val desired = edited.map { message ->
+            val matches = base.indices.filter { it !in used && same(base[it], message) }
+            if (matches.isEmpty()) message else {
+                val index = matches.first()
+                // Equal projections with different metadata have no unambiguous stable identity.
+                if (matches.any { !same(raw[index], raw[it]) }) conflict("$path (ambiguous message)")
+                used.add(index)
+                raw[index]
+            }
+        }
+        if (same(remote, desired)) return remote
+        if (same(remote, raw)) return desired
         conflict(path)
     }
 
@@ -100,7 +130,7 @@ object SharedDataMerge {
         base: LinkedHashMap<String, Map<String, Any?>>,
         edited: LinkedHashMap<String, Map<String, Any?>>,
         remote: LinkedHashMap<String, Map<String, Any?>>,
-        raw: Any?, path: String
+        raw: Any?, path: String, kind: String
     ): List<Map<String, Any?>> {
         val rawRecords = if (raw is List<*>) records(raw, path) else null
         val result = remote.toMutableMap()
@@ -117,7 +147,7 @@ object SharedDataMerge {
                 }
             } else if (!same(old, next)) {
                 if (current == null) conflict("$path[$id] (removed remotely)")
-                result[id] = mergeMap(old, next, current, rawRecords?.get(id), "$path[$id]")
+                result[id] = mergeMap(old, next, current, rawRecords?.get(id), "$path[$id]", kind)
             }
         }
         for ((id, next) in edited) {

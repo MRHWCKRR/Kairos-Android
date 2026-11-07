@@ -6,9 +6,12 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.Source
 import com.kairos.app.data.models.KairosPlan
+import com.kairos.app.data.models.KairosTask
+import com.kairos.app.data.models.ChatMessage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
@@ -20,6 +23,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 /** Only runs against the explicitly opted-in local demo emulator, never a configured app backend. */
 @RunWith(AndroidJUnit4::class)
@@ -197,6 +201,64 @@ class FirebaseRepositoryTransactionTest {
     }
 
     @Test
+    fun deletedPreviouslyEmptyProfileIsNotRecreated() = runBlocking {
+        bounded {
+            val ref = db.collection("users").document(uid)
+            ref.set(emptyMap<String, Any>()).await()
+            val before = repository.getUserProfile(uid).first()!!
+            assertTrue(before.documentExists)
+            assertTrue(before.sourceFields.isEmpty())
+            ref.delete().await()
+            expectRejected { repository.updateUserProfile(uid, before, mapOf("onboardingCompleted" to true)) }
+            assertFalse(ref.get(Source.SERVER).await().exists())
+        }
+    }
+
+    @Test
+    fun chatAppendPreservesUnknownMessageFieldsAndClearSucceeds() = runBlocking {
+        bounded {
+            val before = repository.getUserProfile(uid).first()!!
+            val message = ChatMessage(role = "assistant", content = "Appended answer", timestamp = 2L)
+            repository.updateUserProfile(uid, before, mapOf("aiChatHistory" to before.aiChatHistory + message))
+            val ref = db.collection("users").document(uid)
+            val oldHistory = richProfile()["aiChatHistory"] as List<*>
+            val expected = richProfile() + ("aiChatHistory" to (oldHistory + mapOf(
+                "role" to message.role, "content" to message.content, "timestamp" to message.timestamp
+            )))
+            assertEquals(expected, ref.get(Source.SERVER).await().data)
+            val afterAppend = repository.getUserProfile(uid).first()!!
+            repository.updateUserProfile(uid, afterAppend, mapOf("aiChatHistory" to emptyList<ChatMessage>()))
+            assertEquals(richProfile() + ("aiChatHistory" to emptyList<Any>()), ref.get(Source.SERVER).await().data)
+        }
+    }
+
+    @Test
+    fun staleChatAppendAndClearRejectConcurrentRemoteChanges() = runBlocking {
+        bounded {
+            val before = repository.getUserProfile(uid).first()!!
+            val ref = db.collection("users").document(uid)
+            val oldHistory = richProfile()["aiChatHistory"] as List<*>
+            val originalMessage = oldHistory.single() as Map<*, *>
+            // A second client changes a captured message and adds its own message.
+            val remoteHistory = listOf(
+                originalMessage + ("content" to "Edited remotely"),
+                mapOf("role" to "assistant", "content" to "Remote answer", "timestamp" to 3L, "iosModel" to "remote-model")
+            )
+            ref.update("aiChatHistory", remoteHistory).await()
+            val remote = richProfile() + ("aiChatHistory" to remoteHistory)
+            val localMessage = ChatMessage(role = "user", content = "Stale append", timestamp = 4L)
+            expectRejected {
+                repository.updateUserProfile(uid, before, mapOf("aiChatHistory" to before.aiChatHistory + localMessage))
+            }
+            assertEquals(remote, ref.get(Source.SERVER).await().data)
+            expectRejected {
+                repository.updateUserProfile(uid, before, mapOf("aiChatHistory" to emptyList<ChatMessage>()))
+            }
+            assertEquals(remote, ref.get(Source.SERVER).await().data)
+        }
+    }
+
+    @Test
     fun changedAccountRejectsBothPlanAndProfileWrites() = runBlocking {
         bounded {
             val plan = loadPlan()
@@ -210,6 +272,72 @@ class FirebaseRepositoryTransactionTest {
             assertEquals(oldProfile, db.collection("users").document(uid).get(Source.SERVER).await().data)
         }
     }
+
+    @Test
+    fun offlineFailureThenRetrySameCapturedEditDoesNotDuplicateTask() = runBlocking {
+        // The same captured objects are used for every attempt, as in the UI retry action.
+        val before = boundedPlan()
+        val board = before.boards.single()
+        val section = board.sections.single()
+        val added = KairosTask(id = "offline-created", title = "Captured before disconnect")
+        val after = before.copy(boards = listOf(board.copy(sections = listOf(section.copy(
+            tasks = section.tasks + added
+        )))))
+        bounded { db.disableNetwork().await() }
+        try {
+            var failure: FirebaseFirestoreException? = null
+            try {
+                withTimeout(25_000) { repository.updatePlan(uid, before, after) }
+            } catch (error: FirebaseFirestoreException) {
+                failure = error
+            }
+            assertNotNull("An offline transaction must fail instead of queueing a write", failure)
+            assertEquals(FirebaseFirestoreException.Code.UNAVAILABLE, failure!!.code)
+        } finally {
+            bounded { db.enableNetwork().await() }
+        }
+        bounded {
+            assertEquals("The failed transaction must leave the server unchanged", richPlan(), planData())
+            repository.updatePlan(uid, before, after)
+            val original = richPlan()
+            val rawBoard = (original["boards"] as List<*>).single() as Map<*, *>
+            val rawSection = (rawBoard["sections"] as List<*>).single() as Map<*, *>
+            val expectedTasks = (rawSection["tasks"] as List<*>) + mapOf(
+                "id" to added.id, "title" to added.title, "completed" to false,
+                "date" to null, "archived" to false
+            )
+            val expected = original + ("boards" to listOf(rawBoard + ("sections" to listOf(
+                rawSection + ("tasks" to expectedTasks)
+            ))))
+            assertEquals(expected, planData())
+            repository.updatePlan(uid, before, after)
+            assertEquals("Retrying the same captured insertion must be idempotent", expected, planData())
+        }
+    }
+
+    @Test
+    fun accountChangeAfterInitialCheckRejectsInsideTransaction() = runBlocking {
+        bounded {
+            val before = loadPlan()
+            val reads = AtomicInteger()
+            val switchingRepository = FirebaseRepository(db, {
+                if (reads.incrementAndGet() == 1) uid else "account-changed-in-transaction"
+            })
+            expectRejected { switchingRepository.updatePlan(uid, before, renameTask(before, "Wrong account")) }
+            assertTrue("Owner must be checked again after method entry", reads.get() >= 2)
+            assertEquals(richPlan(), planData())
+
+            val profile = repository.getUserProfile(uid).first()!!
+            reads.set(0)
+            expectRejected {
+                switchingRepository.updateUserProfile(uid, profile, mapOf("onboardingCompleted" to true))
+            }
+            assertTrue("Profile transaction must recheck the owner", reads.get() >= 2)
+            assertEquals(richProfile(), db.collection("users").document(uid).get(Source.SERVER).await().data)
+        }
+    }
+
+    private suspend fun boundedPlan(): KairosPlan = withTimeout(30_000) { loadPlan() }
 
     private suspend fun loadPlan(): KairosPlan = repository.getPlanOnce(uid)!!
 
@@ -252,6 +380,8 @@ class FirebaseRepositoryTransactionTest {
         "userID" to uid,
         "createdAt" to Timestamp(1000, 0),
         "iosOnly" to "ios-plan",
+        "calendarSync" to mapOf("provider" to "apple", "calendarId" to "private-calendar", "revision" to 8L),
+        "aiMetadata" to mapOf("model" to "ios-model", "generationId" to "generation", "tokens" to 123L),
         "dayInsights" to mapOf("monday" to "Existing insight"),
         "scheduleEvents" to listOf(mapOf("id" to "event", "title" to "Class", "iosColor" to "blue")),
         "boards" to listOf(mapOf(
@@ -260,7 +390,12 @@ class FirebaseRepositoryTransactionTest {
                 "id" to "section", "title" to "Section", "iosLayout" to "grid",
                 "tasks" to listOf(mapOf(
                     "id" to "task", "title" to "Original", "completed" to false,
-                    "iosPriority" to 3L, "subtasks" to listOf(mapOf("id" to "subtask", "done" to true))
+                    "iosPriority" to 3L,
+                    "notes" to "Retain the complete iOS notes",
+                    "checklist" to listOf(mapOf("id" to "check", "title" to "Review", "completed" to true)),
+                    "recurrence" to mapOf("enabled" to false, "rule" to "weekly", "occurrenceIds" to listOf("occurrence")),
+                    "timing" to mapOf("estimateMinutes" to 45L, "startedAt" to Timestamp(900, 0), "elapsedSeconds" to 70L),
+                    "subtasks" to listOf(mapOf("id" to "subtask", "done" to true))
                 ))
             ))
         ))

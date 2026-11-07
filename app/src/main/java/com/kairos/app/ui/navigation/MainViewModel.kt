@@ -76,19 +76,20 @@ class MainViewModel @JvmOverloads constructor(
     var focusSecondsActive by mutableStateOf(0L)
         private set
     private var focusTimerJob: Job? = null
-    
+
     // Achievement Toast State
     var newlyUnlockedAchievement by mutableStateOf<AchievementDef?>(null)
     private var isInitialSync = true
     private var planReady = false
     private var profileReady = false
-    
+
     private var session = 0L
     private var planSaving by mutableStateOf(false)
     private var profileSaves by mutableStateOf(0)
     val isSaving: Boolean get() = planSaving || profileSaves > 0
-    private var retrySave by mutableStateOf<(() -> Unit)?>(null)
-    val canRetrySave: Boolean get() = retrySave != null
+    private data class FailedSave(val id: String, val message: String, val retry: () -> Unit)
+    private var failedSaves by mutableStateOf<List<FailedSave>>(emptyList())
+    val canRetrySave: Boolean get() = failedSaves.isNotEmpty()
     private val accountJobs = mutableSetOf<Job>()
 
     private fun owns(uid: String, token: Long) = session == token &&
@@ -111,7 +112,7 @@ class MainViewModel @JvmOverloads constructor(
         lastBedtimeFiredDate = ""
         planSaving = false
         profileSaves = 0
-        retrySave = null
+        failedSaves = emptyList()
         errorMessage = null
         settingsError = null
         securityError = null
@@ -167,15 +168,16 @@ class MainViewModel @JvmOverloads constructor(
             val token = session
             val uid = _user.value?.uid ?: return
             isInitialSync = false
+            accountJobs.removeAll { it.isCompleted }
             accountJobs += viewModelScope.launch {
                 delay(2000)
                 if (!owns(uid, token)) return@launch
-                
+
                 // MANDATORY RE-CHECK: Force evaluation of all thresholds against current stats
                 val currentProfile = _profile.value
                 checkAchievements(currentProfile.achievements, currentProfile.focusData)
                 checkBackgroundCompletions(_plan.value)
-                
+
                 Log.d("MainViewModel", "Initial Achievement Sync Complete")
             }
         }
@@ -186,7 +188,7 @@ class MainViewModel @JvmOverloads constructor(
     fun toggleTask(taskId: String, completed: Boolean) {
         val currentPlan = _plan.value ?: return
         val currentProfile = _profile.value
-        
+
         val updatedBoards = currentPlan.boards.map { board ->
             board.copy(sections = board.sections.map { section ->
                 section.copy(tasks = section.tasks.map { task ->
@@ -195,32 +197,33 @@ class MainViewModel @JvmOverloads constructor(
             })
         }
         updatePlanInternal(currentPlan.copy(boards = updatedBoards)) {
-        if (completed && !currentProfile.achievements.countedTaskIds.contains(taskId)) {
-            val updatedAchievements = currentProfile.achievements.copy(
-                countedTaskIds = currentProfile.achievements.countedTaskIds + taskId,
-                lifetimeTasksCompleted = currentProfile.achievements.lifetimeTasksCompleted + 1
-            )
-            
-            val dateKey = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-            val updatedFocusData = currentProfile.focusData.copy(
-                dailyTasksLog = currentProfile.focusData.dailyTasksLog.toMutableMap().apply {
-                    this[dateKey] = (this[dateKey] ?: 0) + 1
-                }
-            )
-            
-            updateProfileInternal(mapOf(
-                "achievements" to updatedAchievements,
-                "focusData" to updatedFocusData
-            ))
-            
-            checkAchievements(updatedAchievements, updatedFocusData)
-        }
+            if (completed && !currentProfile.achievements.countedTaskIds.contains(taskId)) {
+                val updatedAchievements = currentProfile.achievements.copy(
+                    countedTaskIds = currentProfile.achievements.countedTaskIds + taskId,
+                    lifetimeTasksCompleted = currentProfile.achievements.lifetimeTasksCompleted + 1
+                )
+
+                val dateKey = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+                val updatedFocusData = currentProfile.focusData.copy(
+                    dailyTasksLog = currentProfile.focusData.dailyTasksLog.toMutableMap().apply {
+                        this[dateKey] = (this[dateKey] ?: 0) + 1
+                    }
+                )
+
+                updateProfileInternal(mapOf(
+                    "achievements" to updatedAchievements,
+                    "focusData" to updatedFocusData
+                ), currentProfile)
+
+                checkAchievements(updatedAchievements, updatedFocusData)
+            }
         }
     }
 
+
     private fun checkBackgroundCompletions(plan: KairosPlan?) {
         if (isInitialSync) return // Prevent popups during first data load
-        
+
         val currentProfile = _profile.value
         val newlyCompletedTaskIds = mutableListOf<String>()
 
@@ -235,19 +238,19 @@ class MainViewModel @JvmOverloads constructor(
                 countedTaskIds = currentProfile.achievements.countedTaskIds + newlyCompletedTaskIds,
                 lifetimeTasksCompleted = currentProfile.achievements.lifetimeTasksCompleted + newlyCompletedTaskIds.size
             )
-            
+
             val dateKey = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
             val updatedFocusData = currentProfile.focusData.copy(
                 dailyTasksLog = currentProfile.focusData.dailyTasksLog.toMutableMap().apply {
                     this[dateKey] = (this[dateKey] ?: 0) + newlyCompletedTaskIds.size
                 }
             )
-            
+
             updateProfileInternal(mapOf(
                 "achievements" to updatedAchievements,
                 "focusData" to updatedFocusData
             ))
-            
+
             checkAchievements(updatedAchievements, updatedFocusData)
         }
     }
@@ -276,12 +279,12 @@ class MainViewModel @JvmOverloads constructor(
         val secondsLogged = focusSecondsActive
         pauseFocusTimer()
         focusSecondsActive = 0
-        
+
         if (secondsLogged < 1) return
 
         val currentProfile = _profile.value
         val dateKey = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        
+
         val updatedFocusData = currentProfile.focusData.copy(
             totalSeconds = currentProfile.focusData.totalSeconds + secondsLogged,
             longestSessionSeconds = maxOf(currentProfile.focusData.longestSessionSeconds, secondsLogged),
@@ -318,13 +321,13 @@ class MainViewModel @JvmOverloads constructor(
         val currentProfile = _profile.value
         val updatedUnlocked = currentProfile.achievements.unlocked.toMutableMap()
         updatedUnlocked[def.id] = System.currentTimeMillis()
-        
+
 
         if (!isInitialSync) {
             newlyUnlockedAchievement = def
             pushNotification("🎉 Achievement Unlocked!", "You earned the ${def.name} badge.")
         }
-        
+
         updateProfileInternal(mapOf("achievements.unlocked" to updatedUnlocked))
     }
 
@@ -341,9 +344,10 @@ class MainViewModel @JvmOverloads constructor(
         )
         val updatedNotifications = (listOf(newNotif) + _profile.value.notifications).take(50)
         updateProfileInternal(mapOf("notifications" to updatedNotifications))
-        
+
         // Trigger system notification event
         val token = session
+        accountJobs.removeAll { it.isCompleted }
         accountJobs += viewModelScope.launch {
             if (owns(userId, token)) _notificationEvents.emit(title to message)
         }
@@ -363,7 +367,7 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun checkBedtimeReminders() {
         if (!_profile.value.settings.notifications.enabled || !_profile.value.settings.notifications.bedtimeReminders) return
-        
+
         val schedule = _plan.value?.scheduleEvents ?: return
         val now = java.time.LocalTime.now()
         val today = LocalDate.now().dayOfWeek.value % 7 // 0=Sun, 1=Mon...
@@ -374,7 +378,7 @@ class MainViewModel @JvmOverloads constructor(
                 val startParts = ev.start.split(":")
                 val sleepTime = java.time.LocalTime.of(startParts[0].toInt(), startParts[1].toInt())
                 val reminderTime = sleepTime.minusMinutes(15)
-                
+
                 // If current time is within the reminder minute and hasn't fired today
                 if (now.hour == reminderTime.hour && now.minute == reminderTime.minute && lastBedtimeFiredDate != dateKey) {
                     pushNotification("🛌 Bedtime coming up", "\"${ev.title}\" starts in 15 minutes — start winding down.")
@@ -545,49 +549,63 @@ class MainViewModel @JvmOverloads constructor(
         savePlan(uid, token, before, updatedPlan, onSaved)
     }
 
-    private fun savePlan(uid: String, token: Long, before: KairosPlan, after: KairosPlan, onSaved: () -> Unit) {
+    private fun savePlan(uid: String, token: Long, before: KairosPlan, after: KairosPlan, onSaved: () -> Unit, operationId: String = java.util.UUID.randomUUID().toString()) {
         if (!owns(uid, token) || planSaving) return
         planSaving = true
-        retrySave = null
+        accountJobs.removeAll { it.isCompleted }
         accountJobs += viewModelScope.launch {
             try {
                 firebaseRepository.updatePlan(uid, before, after)
-                if (owns(uid, token)) { errorMessage = null; onSaved(); syncWidgetsInternal(lastApplicationContext) }
+                if (owns(uid, token)) {
+                    failedSaves = failedSaves.filterNot { it.id == operationId }
+                    errorMessage = failedSaves.firstOrNull()?.message
+                    onSaved()
+                    syncWidgetsInternal(lastApplicationContext)
+                }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 if (owns(uid, token)) {
                     errorMessage = "Change not saved: ${e.localizedMessage}. Your edit is retained for retry."
-                    retrySave = { savePlan(uid, token, before, after, onSaved) }
+                    failedSaves = failedSaves.filterNot { it.id == operationId } + FailedSave(operationId, errorMessage.orEmpty()) {
+                        savePlan(uid, token, before, after, onSaved, operationId)
+                    }
                 }
             } finally { if (owns(uid, token)) planSaving = false }
         }
     }
 
-    private fun updateProfileInternal(data: Map<String, Any>) {
+    private fun updateProfileInternal(data: Map<String, Any>, expectedProfile: KairosUserProfile = _profile.value) {
         val uid = _user.value?.uid ?: return
         val token = session
         if (!owns(uid, token) || !profileReady) { errorMessage = "Wait for your profile to load before editing."; return }
-        saveProfile(uid, token, _profile.value, data)
+        saveProfile(uid, token, expectedProfile, data)
     }
 
-    private fun saveProfile(uid: String, token: Long, before: KairosUserProfile, data: Map<String, Any>) {
+    private fun saveProfile(uid: String, token: Long, before: KairosUserProfile, data: Map<String, Any>, operationId: String = java.util.UUID.randomUUID().toString()) {
         if (!owns(uid, token)) return
         profileSaves++
+        accountJobs.removeAll { it.isCompleted }
         accountJobs += viewModelScope.launch {
             try {
                 firebaseRepository.updateUserProfile(uid, before, data)
-                if (owns(uid, token)) syncWidgetsInternal(lastApplicationContext)
+                if (owns(uid, token)) {
+                    failedSaves = failedSaves.filterNot { it.id == operationId }
+                    errorMessage = failedSaves.firstOrNull()?.message
+                    syncWidgetsInternal(lastApplicationContext)
+                }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 if (owns(uid, token)) {
                     errorMessage = "Change not saved: ${e.localizedMessage}"
-                    retrySave = { saveProfile(uid, token, before, data) }
+                    failedSaves = failedSaves.filterNot { it.id == operationId } + FailedSave(operationId, errorMessage.orEmpty()) {
+                        saveProfile(uid, token, before, data, operationId)
+                    }
                 }
             } finally { if (owns(uid, token)) profileSaves-- }
         }
     }
 
-    fun retryFailedSave() { val retry = retrySave; retrySave = null; retry?.invoke() }
+    fun retryFailedSave() { if (!isSaving) failedSaves.firstOrNull()?.retry?.invoke() }
 
     fun updateDayInsight(dateKey: String, insight: String) {
         val currentPlan = _plan.value ?: return
@@ -596,9 +614,12 @@ class MainViewModel @JvmOverloads constructor(
         updatePlanInternal(currentPlan.copy(dayInsights = updatedInsights))
     }
 
-    fun updateSettings(newSettings: KairosSettings) {
-        updateProfileInternal(mapOf("settings" to newSettings))
-        syncWidgetsInternal(lastApplicationContext) // Sync widgets on settings change
+    fun updateSettings(newSettings: KairosSettings, expectedSettings: KairosSettings = _profile.value.settings) {
+        val uid = _user.value?.uid ?: return
+        val token = session
+        if (!owns(uid, token) || !profileReady) { errorMessage = "Wait for your profile to load before editing."; return }
+        val before = _profile.value.copy(settings = expectedSettings)
+        saveProfile(uid, token, before, mapOf("settings" to newSettings))
     }
 
     fun updateAvatar(url: String) {
@@ -615,13 +636,14 @@ class MainViewModel @JvmOverloads constructor(
     fun uploadAvatar(context: android.content.Context, uri: android.net.Uri) {
         val uid = _user.value?.uid ?: return
         val token = session
+        accountJobs.removeAll { it.isCompleted }
         accountJobs += viewModelScope.launch {
             isUploadingAvatar = true
             try {
                 // Encode to Base64 (Compressed to stay under Firestore limit)
                 val base64String = com.kairos.app.utils.ImageUtils.convertToBase64(context, uri)
                     ?: throw Exception("Could not process image")
-                
+
                 if (!owns(uid, token)) return@launch
                 updateAvatar(base64String)
                 settingsError = null
@@ -644,28 +666,36 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun updateEmail(password: String, newEmail: String) {
-        viewModelScope.launch {
+        val uid = _user.value?.uid ?: return
+        val token = session
+        accountJobs.removeAll { it.isCompleted }
+        accountJobs += viewModelScope.launch {
             try {
-                authRepository.reauthenticate(password)
-                authRepository.updateEmail(newEmail)
-                securitySuccess = "Email updated successfully"
-                securityError = null
-            } catch (e: Exception) {
-                securityError = e.localizedMessage ?: "Failed to update email"
-            }
+                if (!owns(uid, token)) return@launch
+                authRepository.updateEmail(uid, password, newEmail)
+                if (owns(uid, token)) {
+                    securitySuccess = "Check your new email to confirm the change."
+                    securityError = null
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { if (owns(uid, token)) securityError = e.localizedMessage ?: "Failed to update email" }
         }
     }
 
     fun updatePassword(currentPassword: String, newPassword: String) {
-        viewModelScope.launch {
+        val uid = _user.value?.uid ?: return
+        val token = session
+        accountJobs.removeAll { it.isCompleted }
+        accountJobs += viewModelScope.launch {
             try {
-                authRepository.reauthenticate(currentPassword)
-                authRepository.updatePassword(newPassword)
-                securitySuccess = "Password updated successfully"
-                securityError = null
-            } catch (e: Exception) {
-                securityError = e.localizedMessage ?: "Failed to update password"
-            }
+                if (!owns(uid, token)) return@launch
+                authRepository.updatePassword(uid, currentPassword, newPassword)
+                if (owns(uid, token)) {
+                    securitySuccess = "Password updated successfully"
+                    securityError = null
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { if (owns(uid, token)) securityError = e.localizedMessage ?: "Failed to update password" }
         }
     }
 
@@ -705,7 +735,7 @@ class MainViewModel @JvmOverloads constructor(
             Log.w("MainViewModel", "Cannot sync widgets: Context is null")
             return
         }
-        
+
         val uid = _user.value?.uid
         val token = session
         val appearance = _profile.value.settings.appearance
@@ -727,7 +757,7 @@ class MainViewModel @JvmOverloads constructor(
                 else -> "#FF7D45F5"
             }
             WidgetManager.updateTheme(ctx, uid, accentHex, isDark) { session == token && authRepository.currentUser?.uid == uid }
-            
+
             WidgetManager.updateFocusState(ctx, uid, running, seconds) { session == token && authRepository.currentUser?.uid == uid }
             val topTasks = currentPlan?.boards
                 ?.filter { !it.archived }
@@ -758,7 +788,7 @@ class MainViewModel @JvmOverloads constructor(
         val action = pendingWidgetAction ?: return
         val taskId = pendingWidgetTaskId
         val context = lastApplicationContext ?: return
-        
+
         executeAction(action, taskId, context)
         pendingWidgetAction = null
         pendingWidgetTaskId = null
@@ -799,7 +829,7 @@ class MainViewModel @JvmOverloads constructor(
 
     fun clearError() {
         errorMessage = null
-        retrySave = null
+        failedSaves = emptyList()
     }
 
     fun completeOnboarding(displayName: String, birthday: String, country: String, language: String, timezone: String) {
@@ -816,25 +846,25 @@ class MainViewModel @JvmOverloads constructor(
                 language = language
             )
         )
-        
+
         updateProfileInternal(mapOf(
             "settings" to newSettings,
             "onboardingCompleted" to true
         ))
     }
-    
+
     fun setGoal(index: Int, achievementId: String?) {
         val userId = _user.value?.uid ?: return
         val currentProfile = _profile.value
         val achievements = currentProfile.achievements
-        
+
         // Robust Goal List Management
         val currentGoals = achievements.goals.toMutableList()
         while (currentGoals.size <= index) {
             currentGoals.add(null)
         }
         currentGoals[index] = achievementId
-        
+
         updateProfileInternal(mapOf("achievements.goals" to currentGoals))
     }
 }

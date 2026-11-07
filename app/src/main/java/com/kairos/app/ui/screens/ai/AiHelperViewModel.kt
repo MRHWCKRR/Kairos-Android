@@ -11,6 +11,9 @@ import com.kairos.app.data.models.*
 import com.kairos.app.data.repository.AiRepository
 import com.kairos.app.data.repository.AiResponse
 import com.kairos.app.data.repository.FirebaseRepository
+import com.kairos.app.data.repository.SharedDataMerge
+import com.kairos.app.data.repository.sharedFields
+import com.kairos.app.data.repository.profilePatch
 import com.kairos.app.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +39,10 @@ class AiHelperViewModel @JvmOverloads constructor(
     var isLoading by mutableStateOf(false)
     var isGeneratingBoard by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
+    var historySaveError by mutableStateOf<String?>(null)
+        private set
+    var isSavingHistory by mutableStateOf(false)
+        private set
     
     var pendingResponse by mutableStateOf<AiResponse?>(null)
     var showConfirmationDialog by mutableStateOf(false)
@@ -51,12 +58,28 @@ class AiHelperViewModel @JvmOverloads constructor(
     private var requestVersion = 0L
     private var profileBaseline: KairosUserProfile? = null
     private var pendingSession: Long? = null
+    private var historyDirty = false
+    private var latestObservedProfile: KairosUserProfile? = null
+    private var historySaveJob: Job? = null
+    private data class HistorySave(
+        val uid: String,
+        val session: Long,
+        val baseline: KairosUserProfile,
+        val messages: List<ChatMessage>
+    )
+    private var pendingHistorySave: HistorySave? = null
 
     init {
         viewModelScope.launch {
             authRepository.getAuthState().collectLatest { user ->
                 session++
                 requestJob?.cancel()
+                historySaveJob?.cancel()
+                pendingHistorySave = null
+                historyDirty = false
+                isSavingHistory = false
+                historySaveError = null
+                latestObservedProfile = null
                 ownerUid = user?.uid
                 profileBaseline = null
                 _chatMessages.value = emptyList()
@@ -74,8 +97,11 @@ class AiHelperViewModel @JvmOverloads constructor(
                     .catch { if (isCurrent(uid, capturedSession)) Log.e("AiHelperViewModel", "Failed to load history", it) }
                     .collect { profile ->
                         if (isCurrent(uid, capturedSession)) {
-                            profileBaseline = profile ?: KairosUserProfile()
-                            if (!isLoading) _chatMessages.value = profile?.aiChatHistory.orEmpty()
+                            latestObservedProfile = profile ?: KairosUserProfile()
+                            if (!historyDirty) {
+                                profileBaseline = latestObservedProfile
+                                if (!isLoading) _chatMessages.value = profile?.aiChatHistory.orEmpty()
+                            }
                         }
                     }
             }
@@ -91,8 +117,9 @@ class AiHelperViewModel @JvmOverloads constructor(
         val baseline = profileBaseline ?: return
         if (!isCurrent(uid, capturedSession)) return
         val text = userInput.trim()
-        if (text.isEmpty() || isLoading) return
+        if (text.isEmpty() || isLoading || historyDirty) return
 
+        historyDirty = true
         val userMessage = ChatMessage(role = "user", content = text)
         _chatMessages.value = _chatMessages.value + userMessage
         userInput = ""
@@ -122,6 +149,7 @@ class AiHelperViewModel @JvmOverloads constructor(
                 if (!isCurrent(uid, capturedSession) || version != requestVersion) return@launch
                 errorMessage = "AI Error: ${e.localizedMessage}"
                 _chatMessages.value = _chatMessages.value + ChatMessage(role = "assistant", content = "Sorry, I hit an error: ${e.localizedMessage}")
+                saveHistory(uid, capturedSession, baseline, _chatMessages.value)
             } finally {
                 if (isCurrent(uid, capturedSession) && version == requestVersion) isLoading = false
             }
@@ -173,7 +201,7 @@ class AiHelperViewModel @JvmOverloads constructor(
         val uid = ownerUid ?: return
         val capturedSession = session
         val baseline = profileBaseline ?: return
-        if (!isCurrent(uid, capturedSession)) return
+        if (!isCurrent(uid, capturedSession) || isSavingHistory) return
         requestVersion++
         requestJob?.cancel()
         isLoading = false
@@ -184,14 +212,69 @@ class AiHelperViewModel @JvmOverloads constructor(
     }
 
     private fun saveHistory(uid: String, capturedSession: Long, baseline: KairosUserProfile, messages: List<ChatMessage>) {
-        viewModelScope.launch {
+        if (!isCurrent(uid, capturedSession)) return
+        historyDirty = true
+        val save = HistorySave(uid, capturedSession, baseline, messages.takeLast(38).toList())
+        pendingHistorySave = save
+        attemptHistorySave(save)
+    }
+
+    fun retryHistorySave() {
+        val save = pendingHistorySave ?: return
+        if (isSavingHistory || !isCurrent(save.uid, save.session)) return
+        attemptHistorySave(save)
+    }
+
+    fun reloadSavedChat() {
+        val save = pendingHistorySave ?: return
+        if (isSavingHistory || !isCurrent(save.uid, save.session)) return
+        val observed = latestObservedProfile ?: return
+        requestVersion++
+        requestJob?.cancel()
+        isLoading = false
+        isGeneratingBoard = false
+        dismissDialog()
+        profileBaseline = observed
+        _chatMessages.value = observed.aiChatHistory
+        historyDirty = false
+        pendingHistorySave = null
+        historySaveError = null
+    }
+
+    private fun attemptHistorySave(save: HistorySave) {
+        isSavingHistory = true
+        historySaveError = null
+        historySaveJob = viewModelScope.launch {
             try {
-                if (!isCurrent(uid, capturedSession)) return@launch
-                firebaseRepository.updateUserProfile(uid, baseline, mapOf("aiChatHistory" to messages.takeLast(38)))
+                if (!isCurrent(save.uid, save.session) || pendingHistorySave !== save) return@launch
+                firebaseRepository.updateUserProfile(save.uid, save.baseline, mapOf("aiChatHistory" to save.messages))
+                if (!isCurrent(save.uid, save.session) || pendingHistorySave !== save) return@launch
+                // An unrelated profile event cannot discard unsaved local chat. After acknowledgement,
+                // advance only this field if the matching server snapshot has not arrived yet.
+                profileBaseline = latestObservedProfile?.takeIf { it.aiChatHistory == save.messages }?.copy(documentExists = true)
+                    ?: save.baseline.copy(
+                        aiChatHistory = save.messages,
+                        documentExists = true,
+                        sourceFields = SharedDataMerge.merge(
+                            save.baseline.sharedFields(),
+                            profilePatch(save.baseline, mapOf("aiChatHistory" to save.messages)),
+                            save.baseline.sourceFields,
+                            save.baseline.sourceFields
+                        )
+                    )
+                historyDirty = false
+                pendingHistorySave = null
+                historySaveError = null
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e("AiHelperViewModel", "Failed to save history", e)
+                if (isCurrent(save.uid, save.session) && pendingHistorySave === save) {
+                    historySaveError = "Chat changes couldn’t be saved. Retry, or reload saved chat to discard local changes. ${e.localizedMessage.orEmpty()}"
+                }
+            } finally {
+                if (isCurrent(save.uid, save.session) && (pendingHistorySave === save || pendingHistorySave == null)) {
+                    isSavingHistory = false
+                }
             }
         }
     }

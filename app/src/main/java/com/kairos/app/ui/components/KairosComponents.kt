@@ -191,7 +191,7 @@ fun KairosErrorFeedback(message: String, onDismiss: () -> Unit, onRetry: (() -> 
         action = {
             Row {
                 if (onRetry != null) KairosTextButton(onClick = onRetry) { Text("Retry", color = MaterialTheme.colorScheme.onErrorContainer) }
-                KairosTextButton(onClick = onDismiss) { Text("Dismiss", color = MaterialTheme.colorScheme.onErrorContainer) }
+                KairosTextButton(onClick = onDismiss) { Text(if (onRetry != null) "Discard" else "Dismiss", color = MaterialTheme.colorScheme.onErrorContainer) }
             }
         }
     ) { Text(message) }

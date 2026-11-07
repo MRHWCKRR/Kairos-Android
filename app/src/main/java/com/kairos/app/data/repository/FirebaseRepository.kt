@@ -46,7 +46,7 @@ class FirebaseRepository(
         val subscription = usersCollection.document(userId).addSnapshotListener { snapshot, error ->
             if (currentUserId() != userId) { close(); return@addSnapshotListener }
             if (error != null) { close(error); return@addSnapshotListener }
-            try { trySend(snapshot?.toObject(KairosUserProfile::class.java)?.copy(sourceFields = snapshot.data.orEmpty())) }
+            try { trySend(snapshot?.toObject(KairosUserProfile::class.java)?.copy(documentExists = snapshot.exists(), sourceFields = snapshot.data.orEmpty())) }
             catch (e: Exception) { close(e) }
         }
         awaitClose { subscription.remove() }
@@ -83,7 +83,7 @@ class FirebaseRepository(
         db.runTransaction { transaction ->
             requireOwner(userId)
             val snapshot = transaction.get(reference)
-            if (!snapshot.exists() && before.sourceFields.isNotEmpty()) throw SharedDataConflict("This profile was deleted. Sign in again.")
+            if (!snapshot.exists() && before.documentExists) throw SharedDataConflict("This profile was deleted. Sign in again.")
             val merged = SharedDataMerge.merge(base, edited, snapshot.data.orEmpty(), before.sourceFields)
             requireOwner(userId)
             // Top-level merge plus raw nested preservation. No unknown top-level data is removed.

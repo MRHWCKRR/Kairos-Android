@@ -14,6 +14,7 @@ object WidgetManager {
     val KEY_OWNER_UID = stringPreferencesKey("owner_uid")
     val KEY_FOCUS_RUNNING = booleanPreferencesKey("focus_running")
     val KEY_FOCUS_SECONDS = longPreferencesKey("focus_seconds")
+    val KEY_TASK_ERROR = stringPreferencesKey("task_error")
     val KEY_TOP_TASKS = stringPreferencesKey("top_tasks")
     val KEY_THEME_COLOR = stringPreferencesKey("theme_color")
     val KEY_IS_DARK = booleanPreferencesKey("is_dark")
@@ -68,7 +69,15 @@ object WidgetManager {
         }
 
     suspend fun updateTasks(context: Context, ownerUid: String?, tasks: List<String>, isCurrentSession: () -> Boolean = { true }) =
-        update(context, ownerUid, isCurrentSession, focus = false) { set(KEY_TOP_TASKS, tasks.joinToString("|")) }
+        update(context, ownerUid, isCurrentSession, focus = false) {
+            set(KEY_TOP_TASKS, tasks.joinToString("|"))
+            remove(KEY_TASK_ERROR)
+        }
+
+    suspend fun reportTaskError(context: Context, ownerUid: String) =
+        update(context, ownerUid, { true }, focus = false) {
+            set(KEY_TASK_ERROR, "Couldn’t save. Tap the task to retry.")
+        }
 
     suspend fun updateTheme(context: Context, ownerUid: String?, colorHex: String, isDark: Boolean, isCurrentSession: () -> Boolean = { true }) =
         update(context, ownerUid, isCurrentSession) {

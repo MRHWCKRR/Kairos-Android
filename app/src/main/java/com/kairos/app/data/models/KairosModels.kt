@@ -131,6 +131,7 @@ data class KairosUserProfile(
     val focusData: KairosFocusData = KairosFocusData(),
     val aiChatHistory: List<ChatMessage> = emptyList(),
     val onboardingCompleted: Boolean = false,
+    @get:Exclude val documentExists: Boolean = false,
     @get:Exclude val sourceFields: Map<String, Any?> = emptyMap()
 )
 

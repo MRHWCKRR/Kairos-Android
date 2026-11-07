@@ -39,18 +39,25 @@ class AuthRepository {
         auth.signInWithCredential(credential).await()
     }
 
-    suspend fun reauthenticate(password: String) {
-        val user = auth.currentUser ?: throw Exception("No user logged in")
-        val email = user.email ?: throw Exception("No email found")
+    suspend fun updateEmail(userId: String, password: String, newEmail: String) {
+        val user = reauthenticatedUser(userId, password)
+        check(auth.currentUser?.uid == userId) { "Your account changed. Try again." }
+        user.verifyBeforeUpdateEmail(newEmail).await()
+    }
+
+    suspend fun updatePassword(userId: String, password: String, newPassword: String) {
+        val user = reauthenticatedUser(userId, password)
+        check(auth.currentUser?.uid == userId) { "Your account changed. Try again." }
+        user.updatePassword(newPassword).await()
+    }
+
+    private suspend fun reauthenticatedUser(userId: String, password: String): FirebaseUser {
+        val user = auth.currentUser ?: error("Sign in before changing account details.")
+        check(user.uid == userId) { "Your account changed. Try again." }
+        val email = user.email ?: error("No email found")
         val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(email, password)
         user.reauthenticate(credential).await()
-    }
-
-    suspend fun updateEmail(newEmail: String) {
-        auth.currentUser?.updateEmail(newEmail)?.await()
-    }
-
-    suspend fun updatePassword(newPassword: String) {
-        auth.currentUser?.updatePassword(newPassword)?.await()
+        check(auth.currentUser?.uid == userId) { "Your account changed. Try again." }
+        return user
     }
 }

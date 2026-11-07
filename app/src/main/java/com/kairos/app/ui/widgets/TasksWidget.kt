@@ -29,6 +29,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.kairos.app.utils.WidgetManager
+import kotlinx.coroutines.CancellationException
 
 class TasksWidget : GlanceAppWidget() {
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
@@ -40,9 +41,9 @@ class TasksWidget : GlanceAppWidget() {
             val matchesOwner = WidgetManager.isCurrentOwner(ownerUid)
             val tasksStr = if (matchesOwner) prefs[WidgetManager.KEY_TOP_TASKS].orEmpty() else ""
             val accentHex = if (matchesOwner) prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FF7D45F5" else "#FF7D45F5"
-            
+
             val accentColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFF7D45F5) }
-            
+
             val colorProviders = ColorProviders(
                 light = lightColorScheme(
                     primary = accentColor,
@@ -66,14 +67,14 @@ class TasksWidget : GlanceAppWidget() {
             }
 
             GlanceTheme(colors = colorProviders) {
-                TasksWidgetContent(tasks, ownerUid.orEmpty())
+                TasksWidgetContent(tasks, ownerUid.orEmpty(), if (matchesOwner) prefs[WidgetManager.KEY_TASK_ERROR] else null)
             }
         }
     }
 }
 
 @Composable
-fun TasksWidgetContent(tasks: List<Pair<String, String>>, ownerUid: String = "") {
+fun TasksWidgetContent(tasks: List<Pair<String, String>>, ownerUid: String = "", error: String? = null) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -100,13 +101,17 @@ fun TasksWidgetContent(tasks: List<Pair<String, String>>, ownerUid: String = "")
                 )
             )
         }
-        
+
         Spacer(modifier = GlanceModifier.height(12.dp))
-        
+
+        if (error != null) {
+            Text(error, style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp))
+            Spacer(modifier = GlanceModifier.height(8.dp))
+        }
         if (tasks.isEmpty()) {
             Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "✨ All caught up!", 
+                    text = "✨ All caught up!",
                     style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp)
                 )
             }
@@ -140,7 +145,7 @@ fun TaskItemRow(id: String, title: String, ownerUid: String = "") {
             text = title,
             maxLines = 1,
             style = TextStyle(
-                color = GlanceTheme.colors.onSurface, 
+                color = GlanceTheme.colors.onSurface,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -153,23 +158,23 @@ class CompleteTaskAction : ActionCallback {
         val ownerUidKey = ActionParameters.Key<String>("owner_uid")
         val taskIdKey = ActionParameters.Key<String>("task_id")
     }
-    
+
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
         val id = parameters[taskIdKey] ?: return
-        
+
         // --- SILENT BACKGROUND UPDATE ---
         val userId = parameters[ownerUidKey]?.takeIf { it.isNotBlank() } ?: return
         if (!WidgetManager.isCurrentOwner(userId)) return
         val repository = com.kairos.app.data.repository.FirebaseRepository()
 
-        // 1. Fetch current plan
-        val plan = repository.getPlanOnce(userId)
-        if (!WidgetManager.isCurrentOwner(userId)) return
-        if (plan != null) {
+        try {
+            // 1. Fetch current plan
+            val plan = repository.getPlanOnce(userId) ?: throw IllegalStateException("Plan unavailable")
+            if (!WidgetManager.isCurrentOwner(userId)) return
             // 2. Update task completion
             val updatedBoards = plan.boards.map { board ->
                 board.copy(sections = board.sections.map { section ->
@@ -179,11 +184,11 @@ class CompleteTaskAction : ActionCallback {
                 })
             }
             val updatedPlan = plan.copy(boards = updatedBoards)
-            
+
             // 3. Save back to Firestore
             if (!WidgetManager.isCurrentOwner(userId)) return
             repository.updatePlan(userId, plan, updatedPlan)
-            
+
             // 4. Update local widget state immediately
             val topTasks = updatedBoards
                 .filter { !it.archived }
@@ -194,9 +199,13 @@ class CompleteTaskAction : ActionCallback {
                 .distinctBy { it.id }
                 .take(3)
                 .map { "${it.id}:${it.title}" }
-            
+
             if (!WidgetManager.isCurrentOwner(userId)) return
             WidgetManager.updateTasks(context, userId, topTasks)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (WidgetManager.isCurrentOwner(userId)) WidgetManager.reportTaskError(context, userId)
         }
     }
 }

@@ -57,8 +57,8 @@ fun SettingsScreen(
 ) {
     val profile by mainViewModel.profile.collectAsState()
     val user by mainViewModel.user.collectAsState()
-    var section by rememberSaveable { mutableStateOf<String?>(null) }
-    var editingProfile by rememberSaveable { mutableStateOf(false) }
+    var section by rememberSaveable(user?.uid) { mutableStateOf<String?>(null) }
+    var editingProfile by rememberSaveable(user?.uid) { mutableStateOf(false) }
     BackHandler(enabled = editingProfile || section != null) {
         if (editingProfile) editingProfile = false else section = null
     }
@@ -165,9 +165,9 @@ private fun NotificationSettingsContent(settings: KairosSettings, viewModel: Mai
         Text("Stay in the loop", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Choose the updates that help you keep your day on track.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         SettingsGroup {
-            NotificationToggle("Notifications", notifications.enabled) { viewModel.updateSettings(settings.copy(notifications = notifications.copy(enabled = it))) }
-            NotificationToggle("Board completion", notifications.boardCompletion) { viewModel.updateSettings(settings.copy(notifications = notifications.copy(boardCompletion = it))) }
-            NotificationToggle("Bedtime reminders", notifications.bedtimeReminders) { viewModel.updateSettings(settings.copy(notifications = notifications.copy(bedtimeReminders = it))) }
+            NotificationToggle("Notifications", notifications.enabled) { viewModel.updateSettings(settings.copy(notifications = notifications.copy(enabled = it)), settings) }
+            NotificationToggle("Board completion", notifications.boardCompletion) { viewModel.updateSettings(settings.copy(notifications = notifications.copy(boardCompletion = it)), settings) }
+            NotificationToggle("Bedtime reminders", notifications.bedtimeReminders) { viewModel.updateSettings(settings.copy(notifications = notifications.copy(bedtimeReminders = it)), settings) }
         }
     }
 }
@@ -237,6 +237,7 @@ fun PersonalEditBunker(
     viewModel: MainViewModel,
     onDismiss: () -> Unit
 ) {
+    val draftSettings = remember { profile.settings }
     var nameDraft by remember { mutableStateOf(profile.settings.profile.displayName) }
     var birthdayDraft by remember { mutableStateOf(profile.settings.profile.birthday) }
     var timezoneDraft by remember { mutableStateOf(profile.settings.profile.timezone) }
@@ -272,13 +273,13 @@ fun PersonalEditBunker(
             IconButton(onClick = onDismiss) { Icon(KairosIcons.Close, "Cancel profile editing", tint = MaterialTheme.colorScheme.onBackground) }
             Text(text = "Edit Profile", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             KairosTextButton(onClick = {
-                viewModel.updateSettings(profile.settings.copy(
-                    profile = profile.settings.profile.copy(
+                viewModel.updateSettings(draftSettings.copy(
+                    profile = draftSettings.profile.copy(
                         displayName = nameDraft,
                         birthday = birthdayDraft,
                         timezone = timezoneDraft
                     )
-                ))
+                ), draftSettings)
                 onDismiss()
             }) {
                 Text("Save", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
@@ -535,7 +536,7 @@ fun AccessibilityTabContent(settings: KairosSettings, viewModel: MainViewModel) 
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
                 listOf("compact", "default", "spacious").forEach { density ->
-                    BunkerOptionButton(density, settings.accessibility.density == density, { viewModel.updateSettings(settings.copy(accessibility = settings.accessibility.copy(density = density))) }, Modifier.weight(1f))
+                    BunkerOptionButton(density, settings.accessibility.density == density, { viewModel.updateSettings(settings.copy(accessibility = settings.accessibility.copy(density = density)), settings) }, Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
                 }
             }
@@ -553,9 +554,9 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
             Text(text = "Theme Mode", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                BunkerOptionButton("dark", settings.appearance.mode == "dark", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "dark"))) }, Modifier.weight(1f))
+                BunkerOptionButton("dark", settings.appearance.mode == "dark", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "dark")), settings) }, Modifier.weight(1f))
                 Spacer(modifier = Modifier.width(8.dp))
-                BunkerOptionButton("light", settings.appearance.mode == "light", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "light"))) }, Modifier.weight(1f))
+                BunkerOptionButton("light", settings.appearance.mode == "light", { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(mode = "light")), settings) }, Modifier.weight(1f))
             }
         }
 
@@ -565,7 +566,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
                 listOf("sans", "round", "mono").forEach { f ->
-                    BunkerOptionButton(f, settings.appearance.font == f, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(font = f))) }, Modifier.weight(1f))
+                    BunkerOptionButton(f, settings.appearance.font == f, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(font = f)), settings) }, Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
                 }
             }
@@ -585,7 +586,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
                     "red" to Color(0xFFEB3D47)
                 ).forEach { (id, color) ->
                     Box(
-                        modifier = Modifier.size(44.dp).clip(CircleShape).background(color).border(2.dp, if (settings.appearance.theme == id) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape).clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(theme = id))) }
+                        modifier = Modifier.size(44.dp).clip(CircleShape).background(color).border(2.dp, if (settings.appearance.theme == id) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape).clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(theme = id)), settings) }
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                 }
@@ -598,7 +599,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
                 listOf("solid", "minimal", "gradient", "custom").forEach { b ->
-                    BunkerOptionButton(b, settings.appearance.background == b, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(background = b))) }, Modifier.weight(1f))
+                    BunkerOptionButton(b, settings.appearance.background == b, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(background = b)), settings) }, Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
                 }
             }
@@ -607,7 +608,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
                 BunkerInputSafe(
                     label = "Custom Background URL",
                     value = settings.appearance.customBackground ?: "",
-                    onValueChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(customBackground = it))) }
+                    onValueChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(customBackground = it)), settings) }
                 )
             }
         }
@@ -618,7 +619,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth().height(48.dp).horizontalScroll(rememberScrollState())) {
                 listOf("none", "lofi", "rain", "coffee").forEach { s ->
-                    BunkerOptionButton(s, settings.appearance.ambientSound == s, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(ambientSound = s))) }, Modifier.width(80.dp))
+                    BunkerOptionButton(s, settings.appearance.ambientSound == s, { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(ambientSound = s)), settings) }, Modifier.width(80.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                 }
             }
@@ -627,7 +628,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
                 Icon(KairosIcons.VolumeUp, null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 Slider(
                     value = settings.appearance.ambientVolume.toFloat(),
-                    onValueChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(ambientVolume = it.toInt()))) },
+                    onValueChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(ambientVolume = it.toInt())), settings) },
                     valueRange = 0f..100f,
                     modifier = Modifier.weight(1f)
                 )
@@ -646,7 +647,7 @@ fun AppearanceTabContent(settings: KairosSettings, viewModel: MainViewModel) {
             }
             Switch(
                 checked = settings.appearance.confetti,
-                onCheckedChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(confetti = it))) }
+                onCheckedChange = { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(confetti = it)), settings) }
             )
         }
     }
