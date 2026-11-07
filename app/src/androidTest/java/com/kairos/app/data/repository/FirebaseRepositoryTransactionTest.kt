@@ -23,6 +23,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -35,6 +36,8 @@ class FirebaseRepositoryTransactionTest {
     private lateinit var uid: String
     private lateinit var planId: String
     private var owner: String? = null
+    private lateinit var journalDirectory: File
+    private lateinit var pendingStore: PendingEditStore
 
     @Before
     fun setUp() = runBlocking {
@@ -58,7 +61,11 @@ class FirebaseRepositoryTransactionTest {
         db = FirebaseFirestore.getInstance(testApp)
         db.firestoreSettings = FirebaseFirestoreSettings.Builder().setPersistenceEnabled(false).build()
         db.useEmulator("10.0.2.2", 8080)
-        repository = FirebaseRepository(db, { owner })
+        journalDirectory = File(
+            InstrumentationRegistry.getInstrumentation().targetContext.noBackupFilesDir,
+            "transaction-test-$uid"
+        )
+        restartRepository()
         bounded {
             db.collection("study_plans").document(planId).set(richPlan()).await()
             db.collection("users").document(uid).set(richProfile()).await()
@@ -74,6 +81,7 @@ class FirebaseRepositoryTransactionTest {
             } finally {
                 app?.delete()
                 app = null
+                if (::journalDirectory.isInitialized) journalDirectory.deleteRecursively()
             }
         }
     }
@@ -303,22 +311,31 @@ class FirebaseRepositoryTransactionTest {
         val after = before.copy(boards = listOf(board.copy(sections = listOf(section.copy(
             tasks = section.tasks + added
         )))))
+        val operationId = "offline-${UUID.randomUUID()}"
         bounded { db.disableNetwork().await() }
         try {
             var failure: FirebaseFirestoreException? = null
             try {
-                withTimeout(25_000) { repository.updatePlan(uid, before, after) }
+                withTimeout(25_000) { repository.updatePlan(uid, before, after, operationId) }
             } catch (error: FirebaseFirestoreException) {
                 failure = error
             }
             assertNotNull("An offline transaction must fail instead of queueing a write", failure)
             assertEquals(FirebaseFirestoreException.Code.UNAVAILABLE, failure!!.code)
+            restartRepository()
+            val recovered = repository.observePendingEdits(uid).first().single()
+            assertEquals(operationId, recovered.id)
+            assertEquals(planId, recovered.documentId)
+            assertEquals(before.sourceFields, recovered.rawBaseline)
+            assertEquals(before.sharedFields(), recovered.base)
+            assertEquals(after.sharedFields(), recovered.edited)
         } finally {
             bounded { db.enableNetwork().await() }
         }
         bounded {
             assertEquals("The failed transaction must leave the server unchanged", richPlan(), planData())
-            repository.updatePlan(uid, before, after)
+            repository.retryPendingEdit(uid, operationId)
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
             val original = richPlan()
             val rawBoard = (original["boards"] as List<*>).single() as Map<*, *>
             val rawSection = (rawBoard["sections"] as List<*>).single() as Map<*, *>
@@ -330,7 +347,7 @@ class FirebaseRepositoryTransactionTest {
                 rawSection + ("tasks" to expectedTasks)
             ))))
             assertEquals(expected, planData())
-            repository.updatePlan(uid, before, after)
+            repository.retryPendingEdit(uid, operationId)
             assertEquals("Retrying the same captured insertion must be idempotent", expected, planData())
         }
     }
@@ -341,10 +358,10 @@ class FirebaseRepositoryTransactionTest {
             val before = loadPlan()
             val reads = AtomicInteger()
             val switchingRepository = FirebaseRepository(db, {
-                if (reads.incrementAndGet() <= 3) uid else "account-changed-in-transaction"
-            })
+                if (reads.incrementAndGet() <= 7) uid else "account-changed-in-transaction"
+            }, pendingStore)
             expectRejected { switchingRepository.updatePlan(uid, before, renameTask(before, "Wrong account")) }
-            assertTrue("Owner must be checked before the transaction commits", reads.get() >= 4)
+            assertTrue("Owner must be checked before the transaction commits", reads.get() >= 8)
             assertEquals(richPlan(), planData())
 
             val profile = repository.getUserProfile(uid).first()!!
@@ -352,10 +369,197 @@ class FirebaseRepositoryTransactionTest {
             expectRejected {
                 switchingRepository.updateUserProfile(uid, profile, mapOf("onboardingCompleted" to true))
             }
-            assertTrue("Profile transaction must recheck the owner before writing", reads.get() >= 4)
+            assertTrue("Profile transaction must recheck the owner before writing", reads.get() >= 8)
             assertEquals(richProfile(), db.collection("users").document(uid).get(Source.SERVER).await().data)
         }
     }
+
+    @Test
+    fun interruptedPlanAcknowledgementRetriesWithoutDuplicatingTask() = runBlocking {
+        bounded {
+            val before = loadPlan()
+            val board = before.boards.single()
+            val section = board.sections.single()
+            val added = KairosTask(id = "interrupted-task", title = "Added once")
+            val after = before.copy(boards = listOf(board.copy(sections = listOf(
+                section.copy(tasks = section.tasks + added)
+            ))))
+            val original = planEdit(before, after)
+            repository.updatePlan(uid, before, after, original.id)
+            val acknowledged = planData()
+            // Simulate process death after the server committed but before local acknowledgement.
+            pendingStore.put(original)
+            restartRepository()
+            repository.retryPendingEdit(uid, original.id)
+            assertEquals(acknowledged, planData())
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+            repository.retryPendingEdit(uid, original.id)
+            assertEquals(acknowledged, planData())
+        }
+    }
+
+    @Test
+    fun restartedPlanConflictPreservesOriginalIntentAndRemoteDocument() = runBlocking {
+        bounded {
+            val before = loadPlan()
+            val original = planEdit(before, renameTask(before, "Pending title"))
+            pendingStore.put(original)
+            repository.updatePlan(uid, before, renameTask(before, "Remote winner"))
+            val winner = planData()
+            restartRepository()
+            expectRejected { repository.retryPendingEdit(uid, original.id) }
+            assertEquals(winner, planData())
+            assertEquals(original, repository.observePendingEdits(uid).first().single())
+            restartRepository()
+            assertEquals(original, repository.observePendingEdits(uid).first().single())
+        }
+    }
+
+    @Test
+    fun restartedProfileRetryPreservesUnknownFieldsAndAcknowledgesOnce() = runBlocking {
+        bounded {
+            val before = repository.getUserProfile(uid).first()!!
+            val original = PendingEdit(
+                userId = uid, kind = "profile", documentId = uid,
+                documentExisted = before.documentExists, base = before.sharedFields(),
+                edited = profilePatch(before, mapOf("settings.profile.displayName" to "Recovered name")),
+                rawBaseline = before.sourceFields
+            )
+            pendingStore.put(original)
+            restartRepository()
+            assertEquals(original, repository.observePendingEdits(uid).first().single())
+            repository.retryPendingEdit(uid, original.id)
+            val ref = db.collection("users").document(uid)
+            val saved = ref.get(Source.SERVER).await().data!!
+            assertEquals("Recovered name", ref.get(Source.SERVER).await().get("settings.profile.displayName"))
+            assertEquals("ios-user", saved["iosOnly"])
+            assertEquals(mapOf("streak" to 42L), saved["futureStats"])
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+            pendingStore.put(original)
+            restartRepository()
+            repository.retryPendingEdit(uid, original.id)
+            assertEquals(saved, ref.get(Source.SERVER).await().data)
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+        }
+    }
+
+    @Test
+    fun restartedProfileConflictPreservesOriginalIntentAndRemoteDocument() = runBlocking {
+        bounded {
+            val before = repository.getUserProfile(uid).first()!!
+            val original = PendingEdit(
+                userId = uid, kind = "profile", documentId = uid,
+                documentExisted = before.documentExists, base = before.sharedFields(),
+                edited = profilePatch(before, mapOf("settings.profile.displayName" to "Pending name")),
+                rawBaseline = before.sourceFields
+            )
+            pendingStore.put(original)
+            val ref = db.collection("users").document(uid)
+            ref.update("settings.profile.displayName", "Remote name").await()
+            val winner = ref.get(Source.SERVER).await().data
+            restartRepository()
+            expectRejected { repository.retryPendingEdit(uid, original.id) }
+            assertEquals(winner, ref.get(Source.SERVER).await().data)
+            assertEquals(original, repository.observePendingEdits(uid).first().single())
+        }
+    }
+
+    @Test
+    fun restartedPendingEditRemainsBoundToOriginalPlanWhenNewerPlanAppears() = runBlocking {
+        bounded {
+            val before = loadPlan()
+            val original = planEdit(before, renameTask(before, "Recovered original"))
+            pendingStore.put(original)
+            val newer = db.collection("study_plans").document("newer-$uid")
+            val newerData = richPlan() + ("createdAt" to Timestamp(2000, 0))
+            newer.set(newerData).await()
+            restartRepository()
+            repository.retryPendingEdit(uid, original.id)
+            assertEquals("Recovered original", taskData(planData())["title"])
+            assertEquals(newerData, newer.get(Source.SERVER).await().data)
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+        }
+    }
+
+    @Test
+    fun restartedPendingEditDoesNotRecreateDeletedPlanOrProfile() = runBlocking {
+        bounded {
+            val before = loadPlan()
+            val plan = planEdit(before, renameTask(before, "Must stay deleted"))
+            val profile = repository.getUserProfile(uid).first()!!
+            val profileEdit = PendingEdit(
+                userId = uid, kind = "profile", documentId = uid,
+                documentExisted = profile.documentExists, base = profile.sharedFields(),
+                edited = profilePatch(profile, mapOf("onboardingCompleted" to true)),
+                rawBaseline = profile.sourceFields
+            )
+            pendingStore.put(plan)
+            pendingStore.put(profileEdit)
+            val planRef = db.collection("study_plans").document(planId)
+            val profileRef = db.collection("users").document(uid)
+            planRef.delete().await()
+            profileRef.delete().await()
+            restartRepository()
+            expectRejected { repository.retryPendingEdit(uid, plan.id) }
+            expectRejected { repository.retryPendingEdit(uid, profileEdit.id) }
+            assertFalse(planRef.get(Source.SERVER).await().exists())
+            assertFalse(profileRef.get(Source.SERVER).await().exists())
+            assertEquals(setOf(plan, profileEdit), repository.observePendingEdits(uid).first().toSet())
+        }
+    }
+
+    @Test
+    fun changedAccountCannotReadRetryOrDiscardOriginalAccountsPendingEdit() = runBlocking {
+        bounded {
+            val before = loadPlan()
+            val original = planEdit(before, renameTask(before, "Account A draft"))
+            pendingStore.put(original)
+            owner = "different-$uid"
+            restartRepository()
+            expectRejected { repository.observePendingEdits(uid).first() }
+            expectRejected { repository.retryPendingEdit(uid, original.id) }
+            expectRejected { repository.discardPendingEdit(uid, original.id) }
+            expectRejected { repository.discardPendingEdits(uid) }
+            assertTrue(repository.observePendingEdits(owner!!).first().isEmpty())
+            repository.retryPendingEdit(owner!!, original.id)
+            repository.discardPendingEdit(owner!!, original.id)
+            repository.discardPendingEdits(owner!!)
+            assertEquals(richPlan(), planData())
+            owner = uid
+            restartRepository()
+            assertEquals(original, repository.observePendingEdits(uid).first().single())
+            repository.discardPendingEdit(uid, original.id)
+            restartRepository()
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+            assertEquals(richPlan(), planData())
+        }
+    }
+
+    @Test
+    fun failedDurableStagingPreventsPlanAndProfileServerWrites() = runBlocking {
+        bounded {
+            val before = loadPlan()
+            val profile = repository.getUserProfile(uid).first()!!
+            repository = FirebaseRepository(db, { owner }, PendingEditStore(journalDirectory, maxRecordBytes = 1))
+            expectRejected { repository.updatePlan(uid, before, renameTask(before, "Must not be sent")) }
+            expectRejected { repository.updateUserProfile(uid, profile, mapOf("onboardingCompleted" to true)) }
+            assertEquals(richPlan(), planData())
+            assertEquals(richProfile(), db.collection("users").document(uid).get(Source.SERVER).await().data)
+            restartRepository()
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+        }
+    }
+
+    private fun restartRepository() {
+        pendingStore = PendingEditStore(journalDirectory)
+        repository = FirebaseRepository(db, { owner }, pendingStore)
+    }
+
+    private fun planEdit(before: KairosPlan, after: KairosPlan) = PendingEdit(
+        userId = uid, kind = "plan", documentId = before.documentId,
+        documentExisted = before.documentId.isNotBlank(), base = before.sharedFields(),
+        edited = after.sharedFields(), rawBaseline = before.sourceFields
+    )
 
     private suspend fun boundedPlan(): KairosPlan = withTimeout(30_000) { loadPlan() }
 

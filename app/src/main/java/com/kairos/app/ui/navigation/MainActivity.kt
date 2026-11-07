@@ -57,7 +57,7 @@ import androidx.navigation.compose.*
 import coil.compose.AsyncImage
 import com.kairos.app.data.models.KairosNotification
 import com.kairos.app.ui.components.KairosScaffold
-import com.kairos.app.ui.components.KairosErrorFeedback
+import com.kairos.app.ui.components.RetainedEditsFeedback
 import com.kairos.app.ui.components.ProfileImage
 import com.kairos.app.ui.screens.achievements.AchievementsScreen
 import com.kairos.app.ui.screens.ai.AiHelperScreen
@@ -284,12 +284,17 @@ fun KairosApp(viewModel: MainViewModel) {
 
 @Composable
 private fun KairosSaveFeedback(viewModel: MainViewModel) {
-    viewModel.errorMessage?.let {
-        KairosErrorFeedback(it, onDismiss = { viewModel.clearError() },
-            onRetry = if (viewModel.canRetrySave) ({ viewModel.retryFailedSave() }) else null)
-    } ?: if (viewModel.isSaving) {
-        Snackbar(Modifier.padding(12.dp)) { Text("Saving…") }
-    } else Unit
+    RetainedEditsFeedback(
+        retainedEdits = viewModel.retainedEdits,
+        retentionError = viewModel.retentionError,
+        errorMessage = viewModel.errorMessage,
+        isSaving = viewModel.isSaving,
+        canRetrySave = viewModel.canRetrySave,
+        onRetrySave = viewModel::retryFailedSave,
+        onDiscardAll = viewModel::clearError,
+        onRetryEdit = viewModel::retryRetainedEdit,
+        onDiscardEdit = viewModel::discardRetainedEdit
+    )
 }
 
 @Composable

@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.kairos.app.data.models.*
 import com.kairos.app.data.repository.AuthRepository
 import com.kairos.app.data.repository.FirebaseRepository
+import com.kairos.app.data.repository.PendingEdit
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
@@ -86,10 +87,16 @@ class MainViewModel @JvmOverloads constructor(
     private var session = 0L
     private var planSaving by mutableStateOf(false)
     private var profileSaves by mutableStateOf(0)
-    val isSaving: Boolean get() = planSaving || profileSaves > 0
+    private var journalBusy by mutableStateOf(false)
+    private var replaying by mutableStateOf(false)
+    var retainedEdits by mutableStateOf<List<PendingEdit>>(emptyList())
+        private set
+    var retentionError by mutableStateOf<String?>(null)
+        private set
+    val isSaving: Boolean get() = planSaving || profileSaves > 0 || journalBusy || replaying
     private data class FailedSave(val id: String, val message: String, val retry: () -> Unit)
     private var failedSaves by mutableStateOf<List<FailedSave>>(emptyList())
-    val canRetrySave: Boolean get() = failedSaves.isNotEmpty()
+    val canRetrySave: Boolean get() = retainedEdits.isNotEmpty() || failedSaves.isNotEmpty()
     private val accountJobs = mutableSetOf<Job>()
 
     private fun owns(uid: String, token: Long) = session == token &&
@@ -113,6 +120,10 @@ class MainViewModel @JvmOverloads constructor(
         planSaving = false
         profileSaves = 0
         failedSaves = emptyList()
+        retainedEdits = emptyList()
+        retentionError = null
+        journalBusy = false
+        replaying = false
         errorMessage = null
         settingsError = null
         securityError = null
@@ -133,6 +144,16 @@ class MainViewModel @JvmOverloads constructor(
                     WidgetManager.clearAccountState(ctx, uid) { session == token && authRepository.currentUser?.uid == uid }
                 }
                 if (uid != null) coroutineScope {
+                    launch {
+                        firebaseRepository.observePendingEditStatus(uid)
+                            .catch { if (owns(uid, token)) retentionError = it.localizedMessage }
+                            .collect { status ->
+                                if (!owns(uid, token)) return@collect
+                                retainedEdits = status.edits
+                                retentionError = status.error
+                                journalBusy = status.isSaving
+                            }
+                    }
                     launch {
                         firebaseRepository.getLatestPlan(uid)
                             .catch { if (owns(uid, token)) { errorMessage = it.localizedMessage; planReady = false } }
@@ -325,7 +346,7 @@ class MainViewModel @JvmOverloads constructor(
 
         if (!isInitialSync) {
             newlyUnlockedAchievement = def
-            pushNotification("🎉 Achievement Unlocked!", "You earned the ${def.name} badge.")
+            pushNotification("?? Achievement Unlocked!", "You earned the ${def.name} badge.")
         }
 
         updateProfileInternal(mapOf("achievements.unlocked" to updatedUnlocked))
@@ -381,7 +402,7 @@ class MainViewModel @JvmOverloads constructor(
 
                 // If current time is within the reminder minute and hasn't fired today
                 if (now.hour == reminderTime.hour && now.minute == reminderTime.minute && lastBedtimeFiredDate != dateKey) {
-                    pushNotification("🛌 Bedtime coming up", "\"${ev.title}\" starts in 15 minutes — start winding down.")
+                    pushNotification("?? Bedtime coming up", "\"${ev.title}\" starts in 15 minutes - start winding down.")
                     lastBedtimeFiredDate = dateKey
                     // This will also be caught by MainActivity to show a system notif
                 }
@@ -555,7 +576,7 @@ class MainViewModel @JvmOverloads constructor(
         accountJobs.removeAll { it.isCompleted }
         accountJobs += viewModelScope.launch {
             try {
-                firebaseRepository.updatePlan(uid, before, after)
+                firebaseRepository.updatePlan(uid, before, after, operationId)
                 if (owns(uid, token)) {
                     failedSaves = failedSaves.filterNot { it.id == operationId }
                     errorMessage = failedSaves.firstOrNull()?.message
@@ -587,7 +608,7 @@ class MainViewModel @JvmOverloads constructor(
         accountJobs.removeAll { it.isCompleted }
         accountJobs += viewModelScope.launch {
             try {
-                firebaseRepository.updateUserProfile(uid, before, data)
+                firebaseRepository.updateUserProfile(uid, before, data, operationId)
                 if (owns(uid, token)) {
                     failedSaves = failedSaves.filterNot { it.id == operationId }
                     errorMessage = failedSaves.firstOrNull()?.message
@@ -605,7 +626,58 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    fun retryFailedSave() { if (!isSaving) failedSaves.firstOrNull()?.retry?.invoke() }
+    fun retryFailedSave() {
+        if (isSaving) return
+        retainedEdits.firstOrNull()?.let { retryRetainedEdit(it.id); return }
+        failedSaves.firstOrNull()?.retry?.invoke()
+    }
+
+    fun retryRetainedEdit(id: String) {
+        val uid = _user.value?.uid ?: return
+        val token = session
+        if (!owns(uid, token) || isSaving || retainedEdits.none { it.id == id }) return
+        replaying = true
+        accountJobs.removeAll { it.isCompleted }
+        accountJobs += viewModelScope.launch {
+            try {
+                firebaseRepository.retryPendingEdit(uid, id)
+                if (!owns(uid, token)) return@launch
+                failedSaves = failedSaves.filterNot { it.id == id }
+                errorMessage = failedSaves.firstOrNull()?.message
+                // A restored task completion has no old UI callback. Reconcile its counted ID
+                // against the acknowledged planner instead of replaying an increment twice.
+                try {
+                    val latest = firebaseRepository.getPlanOnce(uid)
+                    if (!owns(uid, token)) return@launch
+                    _plan.value = latest
+                    checkBackgroundCompletions(latest)
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) { Log.w("MainViewModel", "Saved retained edit; planner refresh will retry through its listener", e) }
+                syncWidgetsInternal(lastApplicationContext)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { if (owns(uid, token)) errorMessage = "Retained edit not saved: ${e.localizedMessage}" }
+            finally { if (owns(uid, token)) replaying = false }
+        }
+    }
+
+    fun discardRetainedEdit(id: String) {
+        val uid = _user.value?.uid ?: return
+        val token = session
+        if (!owns(uid, token) || isSaving) return
+        replaying = true
+        accountJobs.removeAll { it.isCompleted }
+        accountJobs += viewModelScope.launch {
+            try {
+                firebaseRepository.discardPendingEdit(uid, id)
+                if (owns(uid, token)) {
+                    failedSaves = failedSaves.filterNot { it.id == id }
+                    errorMessage = failedSaves.firstOrNull()?.message
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { if (owns(uid, token)) errorMessage = "Could not discard the retained edit: ${e.localizedMessage}" }
+            finally { if (owns(uid, token)) replaying = false }
+        }
+    }
 
     fun updateDayInsight(dateKey: String, insight: String) {
         val currentPlan = _plan.value ?: return
@@ -828,8 +900,23 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun clearError() {
-        errorMessage = null
-        failedSaves = emptyList()
+        val uid = _user.value?.uid ?: return
+        val token = session
+        if (!owns(uid, token) || isSaving) return
+        replaying = true
+        accountJobs.removeAll { it.isCompleted }
+        accountJobs += viewModelScope.launch {
+            try {
+                firebaseRepository.discardPendingEdits(uid)
+                if (owns(uid, token)) {
+                    errorMessage = null
+                    failedSaves = emptyList()
+                    retentionError = null
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { if (owns(uid, token)) errorMessage = "Could not discard retained edits: ${e.localizedMessage}" }
+            finally { if (owns(uid, token)) replaying = false }
+        }
     }
 
     fun completeOnboarding(displayName: String, birthday: String, country: String, language: String, timezone: String) {
