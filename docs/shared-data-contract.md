@@ -4,11 +4,11 @@ Android, iOS and web share the existing `study_plans` and `users` collections. T
 
 ## Read and write boundary
 
-Each loaded plan/profile carries its original raw snapshot in excluded `sourceFields`; the plan also carries excluded `documentId`. These are local snapshot metadata and must never be sent to Firestore. The explicit `sharedFields()` projections contain only modeled editable fields. Plan projections deliberately omit `userID` and `createdAt`, which identify and order the original document.
+Each loaded plan/profile carries its original raw snapshot in excluded `sourceFields`; the plan also carries excluded `documentId`, and the profile carries excluded `documentExists` even for an empty document. These are local snapshot metadata and must never be sent to Firestore. The explicit `sharedFields()` projections contain only modeled editable fields. Plan projections deliberately omit `userID` and `createdAt`, which identify and order the original document.
 
 The repository must address the document that was loaded, then merge the difference between that baseline projection and the edited projection into the transaction's current raw document. A whole-model `set(plan)` loses fields that Android does not model. A fresh latest-plan lookup during a save can direct an old screen's edits into a different document.
 
-`SharedDataMerge.merge(base, edited, remote, baselineRaw)` retains remote fields and detects conflicting changes. Identity-bearing arrays (`boards`, `sections`, `tasks`, `scheduleEvents`, `notifications`) merge by stable `id`; duplicate/blank IDs fail. Remote-only additions and remote collection order survive. Editing a field changed remotely fails instead of overwriting it. Removing a record checks the original raw record, including unknown fields, so remote changes cannot be silently deleted. Other arrays, including legacy chat history and achievement goals, are atomic values and conflict when both clients edit them differently.
+`SharedDataMerge.merge(base, edited, remote, baselineRaw)` retains remote fields and detects conflicting changes. Identity-bearing arrays (`boards`, `sections`, `tasks`, `scheduleEvents`, `notifications`) merge by stable `id`; duplicate/blank IDs fail. Remote-only additions and remote collection order survive. Editing a field changed remotely fails instead of overwriting it. Removing a record checks the original raw record, including unknown fields, so remote changes cannot be silently deleted. Other arrays, including legacy chat history and achievement goals, are atomic values and conflict when both clients edit them differently. Retained legacy chat entries reuse their original raw records, so appending or trimming does not strip message metadata.
 
 Missing Firestore fields decode to model defaults. An unchanged default must not be written back merely because it appears in the projection; an explicit `null` remains distinct from a missing field. Snapshot identity and ownership must be validated before a write, and errors must reach the calling UI.
 
@@ -55,3 +55,11 @@ Retaining metadata alone does not implement its behavior. In particular, Android
 - [Web AI workspace](https://github.com/MRHWCKRR/Kairos/blob/main/ai-workspace.js): v2 workspace, memory/action metadata and migration. File blob `534926dd220919e20ed869946a7bd08d2ed09f5c`.
 
 These references describe inspected source code; they do not establish that every deployed document has the newest shape. Preserve unknown fields and fail closed on an incompatible edit rather than coercing newer data into Android defaults.
+
+## Save and account lifecycle
+
+Plan edits wait for transaction acknowledgement rather than showing an unsaved plan as saved. The app exposes saving state, retains failed operations for explicit retry, and lets the user discard them. Retries reuse their original document, baseline and IDs. Firestore transactions require connectivity: offline writes fail visibly and can be retried after reconnecting; the retry drafts are held in memory and are cleared when the account changes or the process ends. This change does not introduce a durable offline outbox.
+
+Each auth transition resets planner/profile/readiness, focus timers, achievements, pending widget actions and failed retries; listener children and account jobs are cancelled. Captured UID and session generations fence late results. AI history has its own dirty draft, Retry and explicit Reload saved chat recovery. Widget state and click intents carry an owner UID and reject mismatches. Settings editors keep the complete original profile/raw baseline so remotely deleted fields cannot be mistaken for originally absent defaults.
+
+Recurring series completion is rejected until Android supports occurrence commands. A single task completion must not mark an entire recurring series complete.

@@ -614,11 +614,11 @@ class MainViewModel @JvmOverloads constructor(
         updatePlanInternal(currentPlan.copy(dayInsights = updatedInsights))
     }
 
-    fun updateSettings(newSettings: KairosSettings, expectedSettings: KairosSettings = _profile.value.settings) {
+    fun updateSettings(newSettings: KairosSettings, expectedProfile: KairosUserProfile = _profile.value) {
         val uid = _user.value?.uid ?: return
         val token = session
         if (!owns(uid, token) || !profileReady) { errorMessage = "Wait for your profile to load before editing."; return }
-        val before = _profile.value.copy(settings = expectedSettings)
+        val before = expectedProfile
         saveProfile(uid, token, before, mapOf("settings" to newSettings))
     }
 

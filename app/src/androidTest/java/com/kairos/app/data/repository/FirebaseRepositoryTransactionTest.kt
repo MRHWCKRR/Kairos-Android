@@ -6,6 +6,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.Source
@@ -186,6 +187,25 @@ class FirebaseRepositoryTransactionTest {
                 repository.updateUserProfile(uid, second, mapOf("settings.profile.displayName" to "Stale name"))
             }
             assertEquals(beforeConflict, db.collection("users").document(uid).get(Source.SERVER).await().data)
+        }
+    }
+
+    @Test
+    fun staleFullSettingsDraftRejectsRemotelyDeletedProfileField() = runBlocking {
+        bounded {
+            val original = repository.getUserProfile(uid).first()!!
+            val ref = db.collection("users").document(uid)
+            ref.update("settings.profile.displayName", FieldValue.delete()).await()
+            val deletedSnapshot = ref.get(Source.SERVER).await()
+            val remote = deletedSnapshot.data
+            assertFalse(deletedSnapshot.contains("settings.profile.displayName"))
+            val editedSettings = original.settings.copy(
+                profile = original.settings.profile.copy(displayName = "Stale draft name")
+            )
+            expectRejected {
+                repository.updateUserProfile(uid, original, mapOf("settings" to editedSettings))
+            }
+            assertEquals(remote, ref.get(Source.SERVER).await().data)
         }
     }
 
