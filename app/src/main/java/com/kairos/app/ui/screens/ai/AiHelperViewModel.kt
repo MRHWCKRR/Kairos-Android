@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class AiHelperViewModel @JvmOverloads constructor(
@@ -144,6 +146,12 @@ class AiHelperViewModel @JvmOverloads constructor(
                 _chatMessages.value = _chatMessages.value + assistantMessage
                 saveHistory(uid, capturedSession, baseline, _chatMessages.value)
             } catch (e: CancellationException) {
+                // A request-local timeout can cancel the request while this account session
+                // remains active. Persist its user message so the dirty composer can recover.
+                if (currentCoroutineContext().isActive && isCurrent(uid, capturedSession) && version == requestVersion) {
+                    errorMessage = "AI request was interrupted. You can send another message after the chat is saved."
+                    saveHistory(uid, capturedSession, baseline, _chatMessages.value)
+                }
                 throw e
             } catch (e: Exception) {
                 if (!isCurrent(uid, capturedSession) || version != requestVersion) return@launch
