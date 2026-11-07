@@ -201,7 +201,10 @@ fun KairosApp(viewModel: MainViewModel) {
     when {
         viewModel.isInitializing -> SplashScreen()
         user == null -> LoginScreen()
-        !profile.onboardingCompleted -> OnboardingScreen(viewModel)
+        !profile.onboardingCompleted -> Box(Modifier.fillMaxSize()) {
+            OnboardingScreen(viewModel)
+            Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding()) { KairosSaveFeedback(viewModel) }
+        }
         else -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             if (profile.settings.appearance.background in listOf("minimal", "gradient")) {
                 Box(Modifier.fillMaxSize().background(
@@ -241,14 +244,7 @@ fun KairosApp(viewModel: MainViewModel) {
                 bottomBar = {
                     if (!keyboardOpen) KairosBottomNav(navController, onSearch = { showSearch = true }, reduceMotion = profile.settings.accessibility.reduceMotion)
                 },
-                snackbar = {
-                    viewModel.errorMessage?.let {
-                        KairosErrorFeedback(it, onDismiss = { viewModel.clearError() },
-                            onRetry = if (viewModel.canRetrySave) ({ viewModel.retryFailedSave() }) else null)
-                    } ?: if (viewModel.isSaving) {
-                        Snackbar(Modifier.padding(12.dp)) { Text("Saving…") }
-                    } else Unit
-                }
+                snackbar = { KairosSaveFeedback(viewModel) }
             ) { padding ->
                 NavHost(
                     navController, startDestination = KairosDestination.Dashboard.route,
@@ -284,6 +280,16 @@ fun KairosApp(viewModel: MainViewModel) {
             }
         }
     }
+}
+
+@Composable
+private fun KairosSaveFeedback(viewModel: MainViewModel) {
+    viewModel.errorMessage?.let {
+        KairosErrorFeedback(it, onDismiss = { viewModel.clearError() },
+            onRetry = if (viewModel.canRetrySave) ({ viewModel.retryFailedSave() }) else null)
+    } ?: if (viewModel.isSaving) {
+        Snackbar(Modifier.padding(12.dp)) { Text("Saving…") }
+    } else Unit
 }
 
 @Composable
