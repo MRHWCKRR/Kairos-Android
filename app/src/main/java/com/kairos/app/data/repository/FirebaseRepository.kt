@@ -141,10 +141,10 @@ class FirebaseRepository(
 
     private suspend fun executePending(edit: PendingEdit) = accountLock(edit.userId).withLock {
         requireOwner(edit.userId)
-        val retained = withContext(Dispatchers.IO) { pendingStore.list(edit.userId).any { it.id == edit.id } }
-        if (!retained) throw CancellationException("Retained edit was discarded or acknowledged.")
+        val retained = withContext(Dispatchers.IO) { pendingStore.list(edit.userId).singleOrNull { it.id == edit.id } }
+            ?: throw CancellationException("Retained edit was discarded or acknowledged.")
         activeOwners.update { it + edit.userId }
-        try { commitPending(edit) }
+        try { commitPending(retained) }
         finally { activeOwners.update { it - edit.userId } }
     }
 

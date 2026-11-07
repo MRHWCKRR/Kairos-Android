@@ -7,6 +7,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -80,6 +82,7 @@ fun RetainedEditsFeedback(
     if (reviewing && retainedEdits.isNotEmpty()) {
         AlertDialog(
             onDismissRequest = { reviewing = false },
+            modifier = Modifier.testTag("retained-edits-review"),
             title = { Text("Retained edits") },
             text = {
                 LazyColumn(
@@ -89,6 +92,13 @@ fun RetainedEditsFeedback(
                     items(retainedEdits, key = { it.id }) { edit ->
                         Column(Modifier.fillMaxWidth()) {
                             Text(edit.reviewLabel(), style = MaterialTheme.typography.titleSmall)
+                            remember(edit) { edit.plannerDescription() }?.let { description ->
+                                Text(
+                                    description, style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                                )
+                            }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                 KairosTextButton(
                                     onClick = { onRetryEdit(edit.id) },
@@ -112,6 +122,37 @@ private fun PendingEdit.reviewLabel(): String = when {
     kind == "plan" -> "Planner edit"
     base["aiChatHistory"] != edited["aiChatHistory"] -> "AI chat edit"
     else -> "Settings and progress edit"
+}
+
+/** Only display authored titles; identifiers are used to match snapshots, never as labels. */
+private fun PendingEdit.plannerDescription(): String? {
+    if (kind != "plan") return null
+    fun children(value: Any?): List<Map<*, *>> =
+        (value as? List<*>)?.mapNotNull { it as? Map<*, *> }.orEmpty()
+    fun indexed(values: List<Map<*, *>>): Map<String, Map<*, *>> =
+        values.mapNotNull { value ->
+            (value["id"] as? String)?.takeIf { it.isNotBlank() }?.let { it to value }
+        }.toMap()
+    fun title(value: Map<*, *>?): String? =
+        (value?.get("title") as? String)?.trim()?.takeIf { it.isNotEmpty() }
+    fun changed(before: Map<String, Map<*, *>>, after: Map<String, Map<*, *>>): List<String> =
+        (before.keys + after.keys).filter { before[it] != after[it] }
+    val beforeBoards = indexed(children(base["boards"]))
+    val afterBoards = indexed(children(edited["boards"]))
+    fun tasks(boards: Map<String, Map<*, *>>): Map<String, Map<*, *>> = indexed(
+        boards.values.flatMap { board ->
+            children(board["sections"]).flatMap { section -> children(section["tasks"]) }
+        }
+    )
+    val beforeTasks = tasks(beforeBoards)
+    val afterTasks = tasks(afterBoards)
+    val changedTasks = changed(beforeTasks, afterTasks)
+    if (changedTasks.size == 1) {
+        val id = changedTasks.single()
+        title(afterTasks[id] ?: beforeTasks[id])?.let { return it }
+    }
+    val changedBoards = changed(beforeBoards, afterBoards)
+    return changedBoards.singleOrNull()?.let { id -> title(afterBoards[id] ?: beforeBoards[id]) }
 }
 
 @Composable

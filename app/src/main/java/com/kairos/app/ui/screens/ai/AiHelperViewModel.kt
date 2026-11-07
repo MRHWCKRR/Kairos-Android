@@ -11,6 +11,7 @@ import com.kairos.app.data.models.*
 import com.kairos.app.data.repository.AiRepository
 import com.kairos.app.data.repository.AiResponse
 import com.kairos.app.data.repository.FirebaseRepository
+import com.kairos.app.data.repository.PendingEditStagingException
 import com.kairos.app.data.repository.SharedDataMerge
 import com.kairos.app.data.repository.sharedFields
 import com.kairos.app.data.repository.profilePatch
@@ -36,7 +37,7 @@ class AiHelperViewModel @JvmOverloads constructor(
     private val authRepository: AuthRepository = AuthRepository()
 ) : AndroidViewModel(application) {
 
-    
+
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
@@ -54,10 +55,10 @@ class AiHelperViewModel @JvmOverloads constructor(
         private set
     var isJournalSaving by mutableStateOf(false)
         private set
-    
+
     var pendingResponse by mutableStateOf<AiResponse?>(null)
     var showConfirmationDialog by mutableStateOf(false)
-    
+
     // Board Selection for Confirmation
     var targetBoardMode by mutableStateOf(TargetBoardMode.NEW)
     var newBoardName by mutableStateOf("AI Plan")
@@ -77,11 +78,11 @@ class AiHelperViewModel @JvmOverloads constructor(
         val session: Long,
         val baseline: KairosUserProfile,
         val messages: List<ChatMessage>,
-        val id: String = UUID.randomUUID().toString()
+        val id: String = UUID.randomUUID().toString(),
+        val retryState: HistorySaveRetryState = HistorySaveRetryState()
     )
     private var pendingHistorySave: HistorySave? = null
     private var journalHistoryIds = emptySet<String>()
-    private var pendingHistoryWasJournaled = false
     private var journalLoaded = false
     private var journalError: String? = null
 
@@ -93,7 +94,6 @@ class AiHelperViewModel @JvmOverloads constructor(
                 historySaveJob?.cancel()
                 pendingHistorySave = null
                 journalHistoryIds = emptySet()
-                pendingHistoryWasJournaled = false
                 journalLoaded = false
                 journalError = null
                 isHistoryBlocked = true
@@ -135,10 +135,10 @@ class AiHelperViewModel @JvmOverloads constructor(
                                     it.kind == "profile" && it.base["aiChatHistory"] != it.edited["aiChatHistory"]
                                 }.map { it.id }.toSet()
                                 val local = pendingHistorySave
-                                if (local != null && local.id in journalHistoryIds) pendingHistoryWasJournaled = true
+                                if (local != null && local.id in journalHistoryIds) local.retryState.observeInJournal()
                                 updateHistoryGate()
                                 if (status.error == null && !isSavingHistory && (
-                                    (local != null && pendingHistoryWasJournaled && local.id !in journalHistoryIds) ||
+                                    (local != null && local.retryState.observedInJournal && local.id !in journalHistoryIds) ||
                                     (local == null && previousIds.isNotEmpty() && journalHistoryIds.isEmpty())
                                 )) {
                                     reconcileSavedHistory(uid, capturedSession, local)
@@ -185,15 +185,15 @@ class AiHelperViewModel @JvmOverloads constructor(
                 if (!isCurrent(uid, capturedSession) || version != requestVersion) return@launch
                 // system prompt
                 val systemMessage = ChatMessage(role = "system", content = "You are a helpful, friendly assistant inside the Kairos productivity app. Always respond in English, regardless of what language the user writes in, unless they explicitly ask you to reply in a different language.")
-                
+
                 // Proxy limit is 40 messages total. We take the last 38 to allow for system prompt + history.
                 val chatHistory = _chatMessages.value.takeLast(38)
                 val apiMessages = listOf(systemMessage) + chatHistory
-                
+
                 val replyContent = aiRepository.sendChatRequest(apiMessages)
                 if (!isCurrent(uid, capturedSession) || version != requestVersion) return@launch
                 val assistantMessage = ChatMessage(role = "assistant", content = replyContent)
-                
+
                 _chatMessages.value = _chatMessages.value + assistantMessage
                 saveHistory(uid, capturedSession, baseline, _chatMessages.value)
             } catch (e: CancellationException) {
@@ -231,7 +231,7 @@ class AiHelperViewModel @JvmOverloads constructor(
                 // Focus on the core discussion for faster parsing
                 val transcript = _chatMessages.value.takeLast(20).joinToString("\n") { "${it.role}: ${it.content}" }
                 val promptPrefix = "Extract a structured routine from this chat into raw JSON sections and tasks.\n\n"
-                
+
                 val result = aiRepository.generatePlan(
                     input = promptPrefix + transcript,
                     languageName = "English",
@@ -275,14 +275,13 @@ class AiHelperViewModel @JvmOverloads constructor(
         historyDirty = true
         val save = HistorySave(uid, capturedSession, baseline, messages.takeLast(38).toList())
         pendingHistorySave = save
-        pendingHistoryWasJournaled = false
         attemptHistorySave(save)
     }
 
     fun retryHistorySave() {
         val save = pendingHistorySave ?: return
         if (isSavingHistory || isJournalSaving || !isCurrent(save.uid, save.session)) return
-        attemptHistorySave(save, retryRetained = pendingHistoryWasJournaled)
+        attemptHistorySave(save)
     }
 
     fun reloadSavedChat() {
@@ -340,26 +339,30 @@ class AiHelperViewModel @JvmOverloads constructor(
         _chatMessages.value = observed?.aiChatHistory.orEmpty()
         historyDirty = false
         pendingHistorySave = null
-        pendingHistoryWasJournaled = false
         historySaveError = null
         updateHistoryGate()
     }
 
-    private fun attemptHistorySave(save: HistorySave, retryRetained: Boolean = false) {
+    private fun attemptHistorySave(save: HistorySave) {
         isSavingHistory = true
         historySaveError = null
         historySaveJob = viewModelScope.launch {
             try {
                 if (!isCurrent(save.uid, save.session) || pendingHistorySave !== save) return@launch
-                if (retryRetained) {
+                val retriedRetained = save.retryState.execute(
+                    stage = {
+                        firebaseRepository.updateUserProfile(save.uid, save.baseline, mapOf("aiChatHistory" to save.messages), operationId = save.id)
+                    },
+                    retryRetained = { firebaseRepository.retryPendingEdit(save.uid, save.id) },
+                    failedBeforeStaging = { it is PendingEditStagingException }
+                )
+                if (retriedRetained) {
                     // A global discard/acknowledgement must never be reversed by a stale Retry.
-                    firebaseRepository.retryPendingEdit(save.uid, save.id)
                     if (isCurrent(save.uid, save.session) && pendingHistorySave === save) {
                         reconcileSavedHistory(save.uid, save.session, save)
                     }
                     return@launch
                 }
-                firebaseRepository.updateUserProfile(save.uid, save.baseline, mapOf("aiChatHistory" to save.messages), operationId = save.id)
                 if (!isCurrent(save.uid, save.session) || pendingHistorySave !== save) return@launch
                 // An unrelated profile event cannot discard unsaved local chat. After acknowledgement,
                 // advance only this field if the matching server snapshot has not arrived yet.
@@ -376,7 +379,6 @@ class AiHelperViewModel @JvmOverloads constructor(
                     )
                 historyDirty = false
                 pendingHistorySave = null
-                pendingHistoryWasJournaled = false
                 historySaveError = null
                 updateHistoryGate()
             } catch (e: CancellationException) {
@@ -393,7 +395,7 @@ class AiHelperViewModel @JvmOverloads constructor(
             } finally {
                 if (isCurrent(save.uid, save.session) && (pendingHistorySave === save || pendingHistorySave == null)) {
                     isSavingHistory = false
-                    if (pendingHistorySave === save && pendingHistoryWasJournaled && save.id !in journalHistoryIds && journalError == null) {
+                    if (pendingHistorySave === save && save.retryState.observedInJournal && save.id !in journalHistoryIds && journalError == null) {
                         reconcileSavedHistory(save.uid, save.session, save)
                     }
                 }
@@ -408,7 +410,7 @@ class AiHelperViewModel @JvmOverloads constructor(
         val plan = currentPlan ?: return null
 
         val updatedBoards = plan.boards.toMutableList()
-        
+
         if (targetBoardMode == TargetBoardMode.NEW) {
             // Generate unique IDs for imported tasks/sections to ensure sync works
             val timestamp = System.currentTimeMillis()
@@ -420,7 +422,7 @@ class AiHelperViewModel @JvmOverloads constructor(
                     }
                 )
             }
-            
+
             updatedBoards.add(
                 KairosBoard(
                     id = "board-$timestamp",
@@ -448,16 +450,16 @@ class AiHelperViewModel @JvmOverloads constructor(
         }
 
         val updatedSchedule = plan.scheduleEvents + response.recurringEvents
-        
+
         showConfirmationDialog = false
         pendingResponse = null
-        
+
         return plan.copy(
             boards = updatedBoards,
             scheduleEvents = updatedSchedule
         )
     }
-    
+
     fun dismissDialog() {
         pendingSession = null
         showConfirmationDialog = false
