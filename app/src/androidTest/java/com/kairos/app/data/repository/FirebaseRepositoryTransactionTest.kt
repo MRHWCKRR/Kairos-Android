@@ -341,10 +341,10 @@ class FirebaseRepositoryTransactionTest {
             val before = loadPlan()
             val reads = AtomicInteger()
             val switchingRepository = FirebaseRepository(db, {
-                if (reads.incrementAndGet() == 1) uid else "account-changed-in-transaction"
+                if (reads.incrementAndGet() <= 3) uid else "account-changed-in-transaction"
             })
             expectRejected { switchingRepository.updatePlan(uid, before, renameTask(before, "Wrong account")) }
-            assertTrue("Owner must be checked again after method entry", reads.get() >= 2)
+            assertTrue("Owner must be checked before the transaction commits", reads.get() >= 4)
             assertEquals(richPlan(), planData())
 
             val profile = repository.getUserProfile(uid).first()!!
@@ -352,7 +352,7 @@ class FirebaseRepositoryTransactionTest {
             expectRejected {
                 switchingRepository.updateUserProfile(uid, profile, mapOf("onboardingCompleted" to true))
             }
-            assertTrue("Profile transaction must recheck the owner", reads.get() >= 2)
+            assertTrue("Profile transaction must recheck the owner before writing", reads.get() >= 4)
             assertEquals(richProfile(), db.collection("users").document(uid).get(Source.SERVER).await().data)
         }
     }
