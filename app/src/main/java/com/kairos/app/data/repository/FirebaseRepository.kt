@@ -56,6 +56,10 @@ class FirebaseRepository(
         requireOwner(userId)
         check(before.userID == userId && after.userID == userId) { "Planner belongs to a different account." }
         val reference = plansCollection.document(before.documentId.ifBlank { userId })
+        // The emulator regression shows transaction RPCs can bypass disableNetwork.
+        // Require a server read so explicitly offline clients do not start a cached edit.
+        reference.get(Source.SERVER).await()
+        requireOwner(userId)
         val base = before.sharedFields()
         val edited = after.sharedFields()
         db.runTransaction { transaction ->
@@ -80,6 +84,8 @@ class FirebaseRepository(
         val base = before.sharedFields()
         val edited = profilePatch(before, data)
         val reference = usersCollection.document(userId)
+        reference.get(Source.SERVER).await()
+        requireOwner(userId)
         db.runTransaction { transaction ->
             requireOwner(userId)
             val snapshot = transaction.get(reference)
