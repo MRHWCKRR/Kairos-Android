@@ -1,101 +1,128 @@
 package com.kairos.app.data.repository
 
-import android.util.Log
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import com.kairos.app.data.models.KairosPlan
-import com.kairos.app.data.models.KairosUserProfile
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.*
+import com.kairos.app.data.models.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
-class FirebaseRepository {
-    private val db = FirebaseFirestore.getInstance()
+/** Reads retain their document identity and raw baseline; writes never serialize a partial model. */
+class FirebaseRepository(
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val currentUserId: () -> String? = { FirebaseAuth.getInstance().currentUser?.uid }
+) {
     private val plansCollection = db.collection("study_plans")
     private val usersCollection = db.collection("users")
 
-    /**
-     * Listens for the latest study plan for a given user.
-     */
+    private fun requireOwner(uid: String) {
+        check(uid.isNotBlank() && currentUserId() == uid) { "Your account changed. Open your planner again." }
+    }
+
+    private fun latest(uid: String) = plansCollection.whereEqualTo("userID", uid)
+        .orderBy("createdAt", Query.Direction.DESCENDING).limit(1)
+
     fun getLatestPlan(userId: String): Flow<KairosPlan?> = callbackFlow {
-        Log.d("FirebaseRepository", "Starting snapshot listener for user: $userId")
-        
-        val query = plansCollection
-            .whereEqualTo("userID", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(1)
-
-        val subscription = query.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                Log.e("FirebaseRepository", "Firestore listener error: ${error.message}", error)
-                close(error)
-                return@addSnapshotListener
-            }
-
-            try {
-                val plan = snapshot?.documents?.firstOrNull()?.toObject(KairosPlan::class.java)
-                trySend(plan)
-            } catch (e: Exception) {
-                Log.e("FirebaseRepository", "Error parsing plan object", e)
-            }
+        requireOwner(userId)
+        val subscription = latest(userId).addSnapshotListener { snapshot, error ->
+            if (currentUserId() != userId) { close(); return@addSnapshotListener }
+            if (error != null) { close(error); return@addSnapshotListener }
+            try { trySend(snapshot?.documents?.firstOrNull()?.readPlan()) }
+            catch (e: Exception) { close(e) }
         }
-
         awaitClose { subscription.remove() }
     }
 
-    /**
-     * Fetches the latest study plan once (one-time fetch).
-     */
     suspend fun getPlanOnce(userId: String): KairosPlan? {
-        val query = plansCollection
-            .whereEqualTo("userID", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(1)
-            .get()
-            .await()
-        return query.documents.firstOrNull()?.toObject(KairosPlan::class.java)
+        requireOwner(userId)
+        val snapshot = latest(userId).get().await()
+        requireOwner(userId)
+        return snapshot.documents.firstOrNull()?.readPlan()
     }
 
-    /**
-     * Listens for the user's profile data (achievements, focusData, settings).
-     */
     fun getUserProfile(userId: String): Flow<KairosUserProfile?> = callbackFlow {
-        val docRef = usersCollection.document(userId)
-        val subscription = docRef.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                close(error)
-                return@addSnapshotListener
-            }
-            try {
-                val profile = snapshot?.toObject(KairosUserProfile::class.java)
-                trySend(profile)
-            } catch (e: Exception) {
-                Log.e("FirebaseRepository", "Error parsing user profile", e)
-            }
+        requireOwner(userId)
+        val subscription = usersCollection.document(userId).addSnapshotListener { snapshot, error ->
+            if (currentUserId() != userId) { close(); return@addSnapshotListener }
+            if (error != null) { close(error); return@addSnapshotListener }
+            try { trySend(snapshot?.toObject(KairosUserProfile::class.java)?.copy(documentExists = snapshot.exists(), sourceFields = snapshot.data.orEmpty())) }
+            catch (e: Exception) { close(e) }
         }
         awaitClose { subscription.remove() }
     }
 
-    /**
-     * Updates the study plan document.
-     */
-    suspend fun updatePlan(userId: String, plan: KairosPlan) {
-        val query = plansCollection
-            .whereEqualTo("userID", userId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(1)
-            .get()
-            .await()
-
-        val docId = query.documents.firstOrNull()?.id ?: return
-        plansCollection.document(docId).set(plan).await()
+    suspend fun updatePlan(userId: String, before: KairosPlan, after: KairosPlan) {
+        requireOwner(userId)
+        check(before.userID == userId && after.userID == userId) { "Planner belongs to a different account." }
+        val reference = plansCollection.document(before.documentId.ifBlank { userId })
+        // The emulator regression shows transaction RPCs can bypass disableNetwork.
+        // Require a server read so explicitly offline clients do not start a cached edit.
+        reference.get(Source.SERVER).await()
+        requireOwner(userId)
+        val base = before.sharedFields()
+        val edited = after.sharedFields()
+        db.runTransaction { transaction ->
+            requireOwner(userId)
+            val snapshot = transaction.get(reference)
+            if (before.documentId.isNotBlank() && !snapshot.exists()) throw SharedDataConflict("This planner was deleted. Reload before editing.")
+            val remote = snapshot.data.orEmpty()
+            if (snapshot.exists() && remote["userID"] != userId) throw SharedDataConflict("Planner ownership changed.")
+            if (remote["sections"] != null && remote["boards"] == null) throw SharedDataConflict("Open this legacy planner on the web before editing on Android.")
+            val merged = SharedDataMerge.merge(base, edited, remote, before.sourceFields)
+            validateRecurringCompletions(remote, merged)
+            requireOwner(userId)
+            val fields = merged.filterKeys { it in setOf("boards", "dayInsights", "scheduleEvents") }
+            if (snapshot.exists()) transaction.update(reference, fields)
+            else transaction.set(reference, fields + mapOf("userID" to userId, "createdAt" to FieldValue.serverTimestamp()))
+        }.await()
+        requireOwner(userId)
     }
 
-    /**
-     * Updates specific fields in the user profile using dot notation for nested fields.
-     */
-    suspend fun updateUserProfile(userId: String, data: Map<String, Any>) {
-        usersCollection.document(userId).update(data).await()
+    suspend fun updateUserProfile(userId: String, before: KairosUserProfile, data: Map<String, Any>) {
+        requireOwner(userId)
+        val base = before.sharedFields()
+        val edited = profilePatch(before, data)
+        val reference = usersCollection.document(userId)
+        reference.get(Source.SERVER).await()
+        requireOwner(userId)
+        db.runTransaction { transaction ->
+            requireOwner(userId)
+            val snapshot = transaction.get(reference)
+            if (!snapshot.exists() && before.documentExists) throw SharedDataConflict("This profile was deleted. Sign in again.")
+            val merged = SharedDataMerge.merge(base, edited, snapshot.data.orEmpty(), before.sourceFields)
+            requireOwner(userId)
+            // Top-level merge plus raw nested preservation. No unknown top-level data is removed.
+            transaction.set(reference, merged, SetOptions.merge())
+        }.await()
+        requireOwner(userId)
+    }
+
+    private fun DocumentSnapshot.readPlan(): KairosPlan {
+        // Legacy clients also write ISO strings for creation metadata. It must not hide readable tasks.
+        val value = toObject(PlannerFields::class.java) ?: throw IllegalStateException("Planner is unavailable.")
+        return KairosPlan(value.boards, value.dayInsights, value.scheduleEvents, value.userID,
+            get("createdAt") as? com.google.firebase.Timestamp, id, data.orEmpty())
+    }
+
+    @IgnoreExtraProperties
+    data class PlannerFields(
+        val boards: List<KairosBoard> = emptyList(),
+        val dayInsights: Map<String, String> = emptyMap(),
+        val scheduleEvents: List<KairosScheduleEvent> = emptyList(),
+        val userID: String = ""
+    )
+
+    private fun validateRecurringCompletions(before: Map<String, Any?>, after: Map<String, Any?>) {
+        fun tasks(plan: Map<String, Any?>): List<Map<*, *>> = (plan["boards"] as? List<*>).orEmpty()
+            .filterIsInstance<Map<*, *>>().flatMap { (it["sections"] as? List<*>).orEmpty() }
+            .filterIsInstance<Map<*, *>>().flatMap { (it["tasks"] as? List<*>).orEmpty() }.filterIsInstance<Map<*, *>>()
+        val old = tasks(before).associateBy { it["id"] }
+        tasks(after).forEach { task ->
+            val previous = old[task["id"]]
+            if ((previous?.get("recurrence") as? Map<*, *>)?.get("enabled") == true && previous["completed"] != task["completed"]) {
+                throw SharedDataConflict("Complete recurring occurrences on iOS or web until Android supports occurrence editing.")
+            }
+        }
     }
 }

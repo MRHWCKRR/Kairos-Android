@@ -183,12 +183,17 @@ fun KairosStateMessage(
 }
 
 @Composable
-fun KairosErrorFeedback(message: String, onDismiss: () -> Unit) {
+fun KairosErrorFeedback(message: String, onDismiss: () -> Unit, onRetry: (() -> Unit)? = null) {
     Snackbar(
         modifier = Modifier.padding(KairosMetrics.itemSpacing).semantics { liveRegion = LiveRegionMode.Polite },
         containerColor = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        action = { KairosTextButton(onClick = onDismiss) { Text("Dismiss", color = MaterialTheme.colorScheme.onErrorContainer) } }
+        action = {
+            Row {
+                if (onRetry != null) KairosTextButton(onClick = onRetry) { Text("Retry", color = MaterialTheme.colorScheme.onErrorContainer) }
+                KairosTextButton(onClick = onDismiss) { Text(if (onRetry != null) "Discard" else "Dismiss", color = MaterialTheme.colorScheme.onErrorContainer) }
+            }
+        }
     ) { Text(message) }
 }
 

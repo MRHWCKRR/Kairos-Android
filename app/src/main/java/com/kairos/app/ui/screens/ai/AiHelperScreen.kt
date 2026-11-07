@@ -45,7 +45,7 @@ fun AiHelperScreen(
     AiConversationContent(
         messages = chatMessages,
         draft = viewModel.userInput,
-        isLoading = viewModel.isLoading,
+        isLoading = viewModel.isLoading || viewModel.isSavingHistory || viewModel.historySaveError != null,
         showThinking = viewModel.isLoading && !viewModel.isGeneratingBoard && !viewModel.showConfirmationDialog,
         error = viewModel.errorMessage,
         onDraftChange = { viewModel.userInput = it },
@@ -58,7 +58,10 @@ fun AiHelperScreen(
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             viewModel.createPlanFromChat(plan)
         },
-        onDismissError = { viewModel.errorMessage = null }
+        onDismissError = { viewModel.errorMessage = null },
+        historySaveError = viewModel.historySaveError,
+        onRetryHistorySave = { viewModel.retryHistorySave() },
+        onReloadSavedChat = { viewModel.reloadSavedChat() }
     )
 
     // --- LOADING OVERLAY ---
@@ -83,7 +86,7 @@ fun AiHelperScreen(
             existingBoards = plan?.boards ?: emptyList(),
             onConfirm = {
                 val updatedPlan = viewModel.onConfirm(plan)
-                mainViewModel.updatePlan(updatedPlan)
+                updatedPlan?.let { mainViewModel.updatePlan(it) }
             }
         )
     }
@@ -102,7 +105,10 @@ fun AiConversationContent(
     onCreateBoard: () -> Unit,
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier,
-    showThinking: Boolean = isLoading
+    showThinking: Boolean = isLoading,
+    historySaveError: String? = null,
+    onRetryHistorySave: () -> Unit = {},
+    onReloadSavedChat: () -> Unit = {}
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(messages.size, showThinking) {
@@ -143,6 +149,21 @@ fun AiConversationContent(
             if (showThinking) item { TypingIndicator() }
         }
         error?.let { KairosErrorFeedback(it, onDismiss = onDismissError) }
+        historySaveError?.let {
+            // Keep the failed save visible until it succeeds or the account changes.
+            Snackbar(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                actionOnNewLine = true,
+                action = {
+                    Row {
+                        KairosTextButton(onClick = onRetryHistorySave) { Text("Retry") }
+                        KairosTextButton(onClick = onReloadSavedChat) { Text("Reload saved chat") }
+                    }
+                }
+            ) { Text(it) }
+        }
         Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp)) {
             ChatInputBar(draft, onDraftChange, onSend, isLoading)
         }

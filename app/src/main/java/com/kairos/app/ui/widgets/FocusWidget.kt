@@ -13,6 +13,7 @@ import androidx.glance.ButtonDefaults
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.action.actionParametersOf
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -37,9 +38,11 @@ class FocusWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
             val prefs = currentState<Preferences>()
-            val isRunning = prefs[WidgetManager.KEY_FOCUS_RUNNING] ?: false
-            val seconds = prefs[WidgetManager.KEY_FOCUS_SECONDS] ?: 0L
-            val accentHex = prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FF7D45F5"
+            val ownerUid = prefs[WidgetManager.KEY_OWNER_UID]
+            val matchesOwner = WidgetManager.isCurrentOwner(ownerUid)
+            val isRunning = matchesOwner && (prefs[WidgetManager.KEY_FOCUS_RUNNING] ?: false)
+            val seconds = if (matchesOwner) prefs[WidgetManager.KEY_FOCUS_SECONDS] ?: 0L else 0L
+            val accentHex = if (matchesOwner) prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FF7D45F5" else "#FF7D45F5"
             
             val accentColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFF7D45F5) }
             
@@ -61,14 +64,14 @@ class FocusWidget : GlanceAppWidget() {
             )
 
             GlanceTheme(colors = colorProviders) {
-                FocusWidgetContent(isRunning, seconds)
+                FocusWidgetContent(isRunning, seconds, ownerUid.orEmpty())
             }
         }
     }
 }
 
 @Composable
-fun FocusWidgetContent(isRunning: Boolean, seconds: Long) {
+fun FocusWidgetContent(isRunning: Boolean, seconds: Long, ownerUid: String = "") {
     val h = seconds / 3600
     val m = (seconds % 3600) / 60
     val s = seconds % 60
@@ -115,7 +118,7 @@ fun FocusWidgetContent(isRunning: Boolean, seconds: Long) {
         
         Button(
             text = if (isRunning) "PAUSE" else "START",
-            onClick = actionRunCallback<ToggleFocusAction>(),
+            onClick = actionRunCallback<ToggleFocusAction>(actionParametersOf(ToggleFocusAction.ownerUidKey to ownerUid)),
             colors = ButtonDefaults.buttonColors(
                 backgroundColor = GlanceTheme.colors.primary,
                 contentColor = GlanceTheme.colors.onPrimary
@@ -126,15 +129,22 @@ fun FocusWidgetContent(isRunning: Boolean, seconds: Long) {
 }
 
 class ToggleFocusAction : ActionCallback {
+    companion object {
+        val ownerUidKey = ActionParameters.Key<String>("owner_uid")
+    }
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
+        val ownerUid = parameters[ownerUidKey]?.takeIf { it.isNotBlank() } ?: return
+        if (!WidgetManager.isCurrentOwner(ownerUid)) return
         val intent = android.content.Intent(context, com.kairos.app.ui.navigation.MainActivity::class.java).apply {
             flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
             putExtra("action", "toggle_focus")
+            putExtra("owner_uid", ownerUid)
         }
+        if (!WidgetManager.isCurrentOwner(ownerUid)) return
         context.startActivity(intent)
     }
 }
