@@ -53,7 +53,8 @@ fun PlannerSearchDialog(
     onToggleTask: (String, Boolean) -> Unit,
     timezone: String,
     isLoading: Boolean = false,
-    errorMessage: String? = null
+    errorMessage: String? = null,
+    onOpenTask: ((String) -> Unit)? = null
 ) {
     // Sheet dialogs create their own composition; retain the app's accessibility scale.
     val inheritedDensity = LocalDensity.current
@@ -83,7 +84,9 @@ fun PlannerSearchDialog(
     val keyboard = LocalSoftwareKeyboardController.current
     val open: (PlannerSearchRow) -> Unit = { row ->
         keyboard?.hide()
-        if (row.isBoard) selectedBoard = row.target else selectedTask = row.target
+        if (row.isBoard) selectedBoard = row.target
+        else if (onOpenTask != null && row.target.taskId != null) onOpenTask(row.target.taskId)
+        else selectedTask = row.target
     }
     ModalBottomSheet(
         onDismissRequest = onDismiss,

@@ -40,7 +40,6 @@ fun TasksScreen(viewModel: MainViewModel = viewModel(), requestedTaskId: String?
     var showAddBoardDialog by remember { mutableStateOf(false) }
     var boardToRename by remember { mutableStateOf<KairosBoard?>(null) }
     var sectionToRename by remember { mutableStateOf<KairosSection?>(null) }
-    var taskToRename by remember { mutableStateOf<KairosTask?>(null) }
 
     var boardIdForNewSection by remember { mutableStateOf<String?>(null) }
     var sectionIdForNewTask by remember { mutableStateOf<String?>(null) }
@@ -49,7 +48,7 @@ fun TasksScreen(viewModel: MainViewModel = viewModel(), requestedTaskId: String?
     var showArchive by remember { mutableStateOf(false) }
     LaunchedEffect(requestedTaskId, plan) {
         if (requestedTaskId != null && plan != null) {
-            taskToRename = boards.flatMap { it.sections.filter { section -> !section.archived } }.flatMap { it.tasks }.firstOrNull { it.id == requestedTaskId && !it.archived }
+            viewModel.openTaskEditor(requestedTaskId)
             onTaskRequestConsumed()
         }
     }
@@ -111,7 +110,7 @@ fun TasksScreen(viewModel: MainViewModel = viewModel(), requestedTaskId: String?
                         onSectionArchive = { viewModel.archiveSection(it.id) },
                         onAddTask = { sectionIdForNewTask = it.id },
                         onTaskToggle = { taskId, completed -> viewModel.toggleTask(taskId, completed) },
-                        onTaskRename = { taskToRename = it },
+                        onTaskRename = { viewModel.openTaskEditor(it.id) },
                         onTaskArchive = { viewModel.archiveTask(it.id) },
                         showCompleted = showCompleted
                     )
@@ -182,17 +181,7 @@ fun TasksScreen(viewModel: MainViewModel = viewModel(), requestedTaskId: String?
         )
     }
 
-    taskToRename?.let { task ->
-        InputDialog(
-            title = "Rename Task",
-            initialValue = task.title,
-            onDismiss = { taskToRename = null },
-            onConfirm = { newTitle ->
-                viewModel.renameTask(task.id, newTitle)
-                taskToRename = null
-            }
-        )
-    }
+
 
 }
 
@@ -519,7 +508,7 @@ fun TaskItem(
         onOpen = onRename,
         trailing = {
             KairosOverflowMenu("Options for " + task.title) { dismiss ->
-                DropdownMenuItem(text = { Text("Rename task") }, onClick = { dismiss(); onRename() })
+                DropdownMenuItem(text = { Text("Task details") }, onClick = { dismiss(); onRename() })
                 DropdownMenuItem(text = { Text("Archive task") }, onClick = { dismiss(); onArchive() })
             }
         }
