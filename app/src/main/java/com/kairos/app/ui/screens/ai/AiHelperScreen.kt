@@ -45,7 +45,7 @@ fun AiHelperScreen(
     AiConversationContent(
         messages = chatMessages,
         draft = viewModel.userInput,
-        isLoading = viewModel.isLoading || viewModel.isSavingHistory || viewModel.historySaveError != null,
+        isLoading = viewModel.isLoading || viewModel.isSavingHistory || viewModel.historySaveError != null || viewModel.isHistoryBlocked,
         showThinking = viewModel.isLoading && !viewModel.isGeneratingBoard && !viewModel.showConfirmationDialog,
         error = viewModel.errorMessage,
         onDraftChange = { viewModel.userInput = it },
@@ -60,6 +60,8 @@ fun AiHelperScreen(
         },
         onDismissError = { viewModel.errorMessage = null },
         historySaveError = viewModel.historySaveError,
+        historyRecoveryMessage = viewModel.historyRecoveryMessage,
+        historyActionsEnabled = !viewModel.isSavingHistory && !viewModel.isJournalSaving,
         onRetryHistorySave = { viewModel.retryHistorySave() },
         onReloadSavedChat = { viewModel.reloadSavedChat() }
     )
@@ -74,7 +76,7 @@ fun AiHelperScreen(
                 ) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(20.dp))
-                    Text("Preparing plan…", style = MaterialTheme.typography.titleMedium)
+                    Text("Preparing plan.", style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
@@ -108,7 +110,9 @@ fun AiConversationContent(
     showThinking: Boolean = isLoading,
     historySaveError: String? = null,
     onRetryHistorySave: () -> Unit = {},
-    onReloadSavedChat: () -> Unit = {}
+    onReloadSavedChat: () -> Unit = {},
+    historyRecoveryMessage: String? = null,
+    historyActionsEnabled: Boolean = true
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(messages.size, showThinking) {
@@ -149,6 +153,9 @@ fun AiConversationContent(
             if (showThinking) item { TypingIndicator() }
         }
         error?.let { KairosErrorFeedback(it, onDismiss = onDismissError) }
+        historyRecoveryMessage?.let {
+            Text(it, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall)
+        }
         historySaveError?.let {
             // Keep the failed save visible until it succeeds or the account changes.
             Snackbar(
@@ -158,8 +165,8 @@ fun AiConversationContent(
                 actionOnNewLine = true,
                 action = {
                     Row {
-                        KairosTextButton(onClick = onRetryHistorySave) { Text("Retry") }
-                        KairosTextButton(onClick = onReloadSavedChat) { Text("Reload saved chat") }
+                        KairosTextButton(onClick = onRetryHistorySave, enabled = historyActionsEnabled) { Text("Retry") }
+                        KairosTextButton(onClick = onReloadSavedChat, enabled = historyActionsEnabled) { Text("Reload saved chat") }
                     }
                 }
             ) { Text(it) }
@@ -302,7 +309,7 @@ fun TypingIndicator() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             strokeWidth = 1.5.dp
         )
-        Text("Thinking…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Thinking.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
