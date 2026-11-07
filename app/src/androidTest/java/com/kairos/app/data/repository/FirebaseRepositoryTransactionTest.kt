@@ -12,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.Source
 import com.kairos.app.data.models.KairosPlan
 import com.kairos.app.data.models.KairosTask
+import com.kairos.app.data.models.KairosChecklistItem
 import com.kairos.app.data.models.ChatMessage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -549,6 +550,278 @@ class FirebaseRepositoryTransactionTest {
             assertTrue(repository.observePendingEdits(uid).first().isEmpty())
         }
     }
+
+    @Test
+    fun fullEditorSavePreservesExactRichDocumentAndFutureMetadata() = runBlocking {
+        bounded {
+            val original = editorRichPlan()
+            db.collection("study_plans").document(planId).set(original).await()
+            val before = loadPlan()
+            val task = editorTask(before)
+            val edited = task.copy(
+                title = "Edited details", taskDescription = "Updated description", notes = "Updated notes",
+                priority = "high", estimatedMinutes = 90, date = "2026-11-10",
+                startTime = "10:00", endTime = "11:30", dueDate = "2026-11-12", dueTime = "17:00",
+                reminderMinutes = 30, schedulingPreference = "afternoon", scheduleLocked = true,
+                checklist = task.checklist!!.map { if (it.id == "check-a") it.copy(title = "Review revised", completed = true) else it }
+            )
+            repository.updatePlan(uid, before, TaskEditContract.editedPlan(before, task.id, edited))
+            val expected = editRawTask(original) { raw ->
+                val checklist = raw["checklist"] as List<*>
+                raw + mapOf(
+                    "title" to edited.title, "taskDescription" to edited.taskDescription, "notes" to edited.notes,
+                    "priority" to edited.priority, "estimatedMinutes" to 90L, "date" to edited.date,
+                    "startTime" to edited.startTime, "endTime" to edited.endTime, "dueDate" to edited.dueDate,
+                    "dueTime" to edited.dueTime, "reminderMinutes" to 30L,
+                    "schedulingPreference" to edited.schedulingPreference, "scheduleLocked" to true,
+                    "checklist" to checklist.map { item ->
+                        val value = item as Map<*, *>
+                        if (value["id"] == "check-a") value + mapOf("title" to "Review revised", "completed" to true) else value
+                    }
+                )
+            }
+            assertEquals(expected, planData())
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+        }
+    }
+
+    @Test
+    fun staleChecklistEditorsMergeDifferentItemsWithoutLosingUnknownMetadata() = runBlocking {
+        bounded {
+            val original = editorRichPlan()
+            db.collection("study_plans").document(planId).set(original).await()
+            val first = loadPlan()
+            val second = loadPlan()
+            repository.updatePlan(uid, first, editorAfter(first) { task -> task.copy(checklist = task.checklist!!.map {
+                if (it.id == "check-a") it.copy(title = "First revision") else it
+            }) })
+            repository.updatePlan(uid, second, editorAfter(second) { task -> task.copy(checklist = task.checklist!!.map {
+                if (it.id == "check-b") it.copy(completed = true) else it
+            }) })
+            val expected = editRawTask(original) { raw -> raw + ("checklist" to (raw["checklist"] as List<*>).map {
+                val item = it as Map<*, *>
+                when (item["id"]) {
+                    "check-a" -> item + ("title" to "First revision")
+                    "check-b" -> item + ("completed" to true)
+                    else -> item
+                }
+            }) }
+            assertEquals(expected, planData())
+        }
+    }
+
+    @Test
+    fun staleChecklistSameFieldConflictRetainsOriginalPendingIntentAfterRestart() = runBlocking {
+        bounded {
+            db.collection("study_plans").document(planId).set(editorRichPlan()).await()
+            val first = loadPlan()
+            val stale = loadPlan()
+            fun rename(plan: KairosPlan, title: String) = editorAfter(plan) { task ->
+                task.copy(checklist = task.checklist!!.map { if (it.id == "check-a") it.copy(title = title) else it })
+            }
+            val original = planEdit(stale, rename(stale, "Pending checklist title"))
+            repository.updatePlan(uid, first, rename(first, "Remote checklist title"))
+            val winner = planData()
+            expectRejected { repository.updatePlan(uid, stale, rename(stale, "Pending checklist title"), original.id) }
+            restartRepository()
+            assertEquals(original, repository.observePendingEdits(uid).first().single())
+            expectRejected { repository.retryPendingEdit(uid, original.id) }
+            assertEquals(winner, planData())
+            assertEquals(original, repository.observePendingEdits(uid).first().single())
+        }
+    }
+
+    @Test
+    fun capturedEditorRejectsRemoteRemovalTaskSectionAndBoardArchivesAndTaskMove() = runBlocking {
+        bounded {
+            val original = editorRichPlan()
+            val changes: List<(Map<String, Any>) -> Map<String, Any>> = listOf(
+                { editRawSection(it) { section -> section + ("tasks" to emptyList<Any>()) } },
+                { editRawTask(it) { task -> task + ("archived" to true) } },
+                { editRawSection(it) { section -> section + ("archived" to true) } },
+                { document ->
+                    val board = (document["boards"] as List<*>).single() as Map<*, *>
+                    document + ("boards" to listOf(board + ("archived" to true)))
+                },
+                { document ->
+                    val board = (document["boards"] as List<*>).single() as Map<*, *>
+                    val section = (board["sections"] as List<*>).single() as Map<*, *>
+                    document + ("boards" to listOf(board + ("sections" to listOf(
+                        section + ("tasks" to emptyList<Any>()),
+                        mapOf("id" to "moved-section", "title" to "Moved", "tasks" to section["tasks"])
+                    ))))
+                }
+            )
+            changes.forEachIndexed { index, mutate ->
+                db.collection("study_plans").document(planId).set(original).await()
+                val before = loadPlan()
+                val after = editorAfter(before) { it.copy(notes = "Captured notes $index") }
+                val remote = mutate(original)
+                db.collection("study_plans").document(planId).set(remote).await()
+                val operation = planEdit(before, after)
+                expectRejected { repository.updatePlan(uid, before, after, operation.id) }
+                assertEquals(remote, planData())
+                assertEquals(operation, repository.observePendingEdits(uid).first().single { it.id == operation.id })
+                restartRepository()
+                expectRejected { repository.retryPendingEdit(uid, operation.id) }
+                assertEquals(remote, planData())
+                repository.discardPendingEdit(uid, operation.id)
+            }
+        }
+    }
+
+    @Test
+    fun capturedFalseLockCannotPretendToUnlockRemoteLockedSchedule() = runBlocking {
+        bounded {
+            val original = editorRichPlan()
+            db.collection("study_plans").document(planId).set(original).await()
+            val before = loadPlan()
+            val after = editorAfter(before) { it.copy(date = "2026-11-10", scheduleLocked = false) }
+            val remote = editRawTask(original) { it + ("scheduleLocked" to true) }
+            db.collection("study_plans").document(planId).set(remote).await()
+            val operation = planEdit(before, after)
+            expectRejected { repository.updatePlan(uid, before, after, operation.id) }
+            restartRepository()
+            expectRejected { repository.retryPendingEdit(uid, operation.id) }
+            assertEquals(remote, planData())
+            assertEquals(operation, repository.observePendingEdits(uid).first().single())
+        }
+    }
+
+    @Test
+    fun explicitCapturedUnlockAllowsScheduleEditAndAcknowledgementReplay() = runBlocking {
+        bounded {
+            val original = editRawTask(editorRichPlan()) { it + ("scheduleLocked" to true) }
+            db.collection("study_plans").document(planId).set(original).await()
+            val before = loadPlan()
+            val after = editorAfter(before) { it.copy(date = "2026-11-10", scheduleLocked = false) }
+            val operation = planEdit(before, after)
+            repository.updatePlan(uid, before, after, operation.id)
+            val expected = editRawTask(original) { it + mapOf("date" to "2026-11-10", "scheduleLocked" to false) }
+            assertEquals(expected, planData())
+            pendingStore.put(operation)
+            restartRepository()
+            repository.retryPendingEdit(uid, operation.id)
+            assertEquals(expected, planData())
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+        }
+    }
+
+    @Test
+    fun capturedExplicitUnlockIsIdempotentWhenRemoteAlreadyUnlocked() = runBlocking {
+        bounded {
+            val original = editRawTask(editorRichPlan()) { it + ("scheduleLocked" to true) }
+            db.collection("study_plans").document(planId).set(original).await()
+            val before = loadPlan()
+            val after = editorAfter(before) { it.copy(date = "2026-11-10", scheduleLocked = false) }
+            val remote = editRawTask(original) { it + ("scheduleLocked" to false) }
+            db.collection("study_plans").document(planId).set(remote).await()
+            repository.updatePlan(uid, before, after)
+            assertEquals(editRawTask(remote) { it + ("date" to "2026-11-10") }, planData())
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+        }
+    }
+
+    @Test
+    fun recurrenceActivatedAfterCaptureRejectsScheduleAndChecklistCompletionEdits() = runBlocking {
+        bounded {
+            val original = editorRichPlan()
+            val edits: List<(KairosTask) -> KairosTask> = listOf(
+                { it.copy(date = "2026-11-10") },
+                { task -> task.copy(checklist = task.checklist!!.map { if (it.id == "check-a") it.copy(completed = true) else it }) }
+            )
+            edits.forEach { edit ->
+                db.collection("study_plans").document(planId).set(original).await()
+                val before = loadPlan()
+                val after = editorAfter(before, edit)
+                val remote = editRawTask(original) { raw -> raw + ("recurrence" to ((raw["recurrence"] as Map<*, *>) + ("enabled" to true))) }
+                db.collection("study_plans").document(planId).set(remote).await()
+                val operation = planEdit(before, after)
+                expectRejected { repository.updatePlan(uid, before, after, operation.id) }
+                restartRepository()
+                expectRejected { repository.retryPendingEdit(uid, operation.id) }
+                assertEquals(remote, planData())
+                assertEquals(operation, repository.observePendingEdits(uid).first().single { it.id == operation.id })
+                repository.discardPendingEdit(uid, operation.id)
+            }
+        }
+    }
+
+    @Test
+    fun offlineRichEditorSaveRestartsRetriesWithoutDuplicatingChecklistIdentities() = runBlocking {
+        val original = editorRichPlan()
+        bounded { db.collection("study_plans").document(planId).set(original).await() }
+        val before = boundedPlan()
+        val added = KairosChecklistItem(id = "check-offline", title = "Created while offline")
+        val after = editorAfter(before) { it.copy(notes = "Offline notes", estimatedMinutes = 75, checklist = it.checklist!! + added) }
+        val operation = planEdit(before, after)
+        bounded { db.disableNetwork().await() }
+        try {
+            var failure: FirebaseFirestoreException? = null
+            try {
+                withTimeout(25_000) { repository.updatePlan(uid, before, after, operation.id) }
+            } catch (error: FirebaseFirestoreException) { failure = error }
+            assertNotNull("Offline transaction must retain a failed edit", failure)
+            assertEquals(FirebaseFirestoreException.Code.UNAVAILABLE, failure!!.code)
+            restartRepository()
+            assertEquals(operation, repository.observePendingEdits(uid).first().single())
+        } finally {
+            bounded { db.enableNetwork().await() }
+        }
+        bounded {
+            assertEquals(original, planData())
+            repository.retryPendingEdit(uid, operation.id)
+            val expected = editRawTask(original) { raw -> raw + mapOf(
+                "notes" to "Offline notes", "estimatedMinutes" to 75L,
+                "checklist" to ((raw["checklist"] as List<*>) + mapOf("id" to added.id, "title" to added.title, "completed" to false))
+            ) }
+            assertEquals(expected, planData())
+            pendingStore.put(operation)
+            restartRepository()
+            repository.retryPendingEdit(uid, operation.id)
+            repository.retryPendingEdit(uid, operation.id)
+            assertEquals(expected, planData())
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+            val checklist = taskData(planData())["checklist"] as List<*>
+            assertEquals(listOf("check-a", "check-b", "check-offline"), checklist.map { (it as Map<*, *>)["id"] })
+        }
+    }
+
+    private fun editorTask(plan: KairosPlan): KairosTask = plan.boards.single().sections.single().tasks.single()
+
+    private fun editorAfter(plan: KairosPlan, edit: (KairosTask) -> KairosTask): KairosPlan =
+        TaskEditContract.editedPlan(plan, "task", edit(editorTask(plan)))
+
+    @Suppress("UNCHECKED_CAST")
+    private fun editRawSection(document: Map<String, Any>, edit: (Map<String, Any?>) -> Map<String, Any?>): Map<String, Any> {
+        val board = (document["boards"] as List<*>).single() as Map<String, Any?>
+        val section = (board["sections"] as List<*>).single() as Map<String, Any?>
+        return document + ("boards" to listOf(board + ("sections" to listOf(edit(section)))))
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun editRawTask(document: Map<String, Any>, edit: (Map<String, Any?>) -> Map<String, Any?>): Map<String, Any> =
+        editRawSection(document) { section ->
+            val task = (section["tasks"] as List<*>).single() as Map<String, Any?>
+            section + ("tasks" to listOf(edit(task)))
+        }
+
+    private fun editorRichPlan(): Map<String, Any> = editRawTask(richPlan()) { task -> task + mapOf(
+        "taskDescription" to "iOS description", "priority" to "medium", "estimatedMinutes" to 45L,
+        "date" to "2026-11-09", "startTime" to "09:00", "endTime" to "09:45",
+        "dueDate" to "2026-11-11", "dueTime" to "18:00", "reminderMinutes" to 15L,
+        "scheduleLocked" to false, "schedulingPreference" to "morning",
+        "checklist" to listOf(
+            mapOf("id" to "check-a", "title" to "Review", "completed" to false,
+                "iosAttachment" to mapOf("asset" to "asset-a", "revision" to 4L)),
+            mapOf("id" to "check-b", "title" to "Practice", "completed" to false,
+                "futureMetadata" to listOf("opaque", "preserve"))
+        ),
+        "recurrence" to mapOf("enabled" to false, "rule" to mapOf("frequency" to "weekly", "interval" to 2L,
+            "weekdays" to listOf(1L, 3L), "timeZone" to "Europe/London"), "occurrenceIds" to listOf("occurrence"),
+            "futureMetadata" to mapOf("version" to 7L)),
+        "futureEditorMetadata" to mapOf("revision" to 9L, "nested" to listOf(mapOf("opaque" to true)))
+    ) }
 
     private fun restartRepository() {
         pendingStore = PendingEditStore(journalDirectory)

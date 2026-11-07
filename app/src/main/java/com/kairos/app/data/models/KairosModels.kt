@@ -10,8 +10,28 @@ data class KairosTask(
     val title: String = "",
     var completed: Boolean = false,
     val date: String? = null,
-    val archived: Boolean = false
+    val archived: Boolean = false,
+    val taskDescription: String? = null,
+    val notes: String? = null,
+    val priority: String? = null,
+    val estimatedMinutes: Int? = null,
+    val checklist: List<KairosChecklistItem>? = null,
+    val startTime: String? = null,
+    val endTime: String? = null,
+    val dueDate: String? = null,
+    val dueTime: String? = null,
+    val reminderMinutes: Int? = null,
+    val scheduleLocked: Boolean? = null,
+    val schedulingPreference: String? = null,
+    val parentTaskID: String? = null,
+    val recurrence: KairosRecurrenceMarker? = null
 )
+
+@IgnoreExtraProperties
+data class KairosChecklistItem(val id: String = "", val title: String = "", val completed: Boolean = false)
+
+@IgnoreExtraProperties
+data class KairosRecurrenceMarker(val enabled: Boolean = false)
 
 @IgnoreExtraProperties
 data class KairosSection(

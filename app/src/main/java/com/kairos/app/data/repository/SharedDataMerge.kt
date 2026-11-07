@@ -39,6 +39,7 @@ object SharedDataMerge {
         parent == "document" && key in setOf("boards", "scheduleEvents", "notifications") -> key
         parent == "boards" && key == "sections" -> key
         parent == "sections" && key == "tasks" -> key
+        parent == "tasks" && key == "checklist" -> key
         else -> null
     }
 
@@ -49,7 +50,7 @@ object SharedDataMerge {
                 val kind = collectionKind(parent, key) ?: continue
                 val records = records(value, "$path.$key")
                 for ((id, record) in records) {
-                    if (!seen.getValue(kind).add(id)) conflict("$path.$key[$id] (ambiguous global ID)")
+                    if (kind != "checklist" && !seen.getValue(kind).add(id)) conflict("$path.$key[$id] (ambiguous global ID)")
                     visit(record, "$path.$key[$id]", kind)
                 }
             }
@@ -84,7 +85,7 @@ object SharedDataMerge {
             val b = records(base, path)
             val e = records(edited, path)
             val r = records(remote, path)
-            if (same(base, edited)) return remote
+            if (same(base, edited) || (collection == "checklist" && b == e)) return remote
             return mergeRecords(b, e, r, raw, path, collection)
         }
         if (same(base, edited)) return remote
@@ -161,7 +162,7 @@ object SharedDataMerge {
     }
 
     private fun records(value: Any?, path: String): LinkedHashMap<String, Map<String, Any?>> {
-        if (value === Missing) return linkedMapOf()
+        if (value === Missing || (value == null && path.endsWith(".checklist"))) return linkedMapOf()
         if (value !is List<*>) conflict("$path (expected a collection)")
         val result = linkedMapOf<String, Map<String, Any?>>()
         for (item in value) {

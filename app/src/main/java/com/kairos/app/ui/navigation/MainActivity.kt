@@ -68,6 +68,7 @@ import com.kairos.app.ui.screens.plan.PlanScreen
 import com.kairos.app.ui.screens.settings.SettingsScreen
 import com.kairos.app.ui.screens.statistics.StatisticsScreen
 import com.kairos.app.ui.screens.tasks.TasksScreen
+import com.kairos.app.ui.screens.tasks.TaskEditorSheet
 import com.kairos.app.ui.screens.login.LoginScreen
 import com.kairos.app.ui.screens.onboarding.OnboardingScreen
 import com.kairos.app.ui.screens.splash.SplashScreen
@@ -158,7 +159,7 @@ class MainActivity : ComponentActivity() {
             }
 
             val plan by mainViewModel.plan.collectAsState()
-            LaunchedEffect(plan, mainViewModel.focusTimerRunning) {
+            LaunchedEffect(plan, profile.settings, mainViewModel.focusTimerRunning) {
                 mainViewModel.syncWidgets(context.applicationContext)
             }
 
@@ -275,11 +276,25 @@ fun KairosApp(viewModel: MainViewModel) {
                     onToggleTask = { id, completed -> viewModel.toggleTask(id, completed) },
                     timezone = profile.settings.profile.timezone,
                     isLoading = viewModel.isInitializing,
-                    errorMessage = if (plan == null) viewModel.errorMessage else null
+                    errorMessage = if (plan == null) viewModel.errorMessage else null,
+                    onOpenTask = { id -> showSearch = false; viewModel.openTaskEditor(id) }
                 )
             }
         }
     }
+    viewModel.taskEditorSession?.let { editor ->
+        key(editor.key) {
+            TaskEditorSheet(
+                original = editor.original, draftKey = editor.key,
+                isSaving = viewModel.isSaving,
+                error = viewModel.editorError,
+                available = viewModel.taskEditorAvailable,
+                onSave = viewModel::saveTaskEditor,
+                onDismiss = viewModel::closeTaskEditor
+            )
+        }
+    }
+
 }
 
 @Composable
