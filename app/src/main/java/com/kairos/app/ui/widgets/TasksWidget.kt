@@ -1,7 +1,6 @@
 package com.kairos.app.ui.widgets
 
 import android.content.Context
-import android.content.Intent
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -37,8 +36,10 @@ class TasksWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
             val prefs = currentState<Preferences>()
-            val tasksStr = prefs[WidgetManager.KEY_TOP_TASKS] ?: ""
-            val accentHex = prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FF7D45F5"
+            val ownerUid = prefs[WidgetManager.KEY_OWNER_UID]
+            val matchesOwner = WidgetManager.isCurrentOwner(ownerUid)
+            val tasksStr = if (matchesOwner) prefs[WidgetManager.KEY_TOP_TASKS].orEmpty() else ""
+            val accentHex = if (matchesOwner) prefs[WidgetManager.KEY_THEME_COLOR] ?: "#FF7D45F5" else "#FF7D45F5"
             
             val accentColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFF7D45F5) }
             
@@ -65,14 +66,14 @@ class TasksWidget : GlanceAppWidget() {
             }
 
             GlanceTheme(colors = colorProviders) {
-                TasksWidgetContent(tasks)
+                TasksWidgetContent(tasks, ownerUid.orEmpty())
             }
         }
     }
 }
 
 @Composable
-fun TasksWidgetContent(tasks: List<Pair<String, String>>) {
+fun TasksWidgetContent(tasks: List<Pair<String, String>>, ownerUid: String = "") {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -112,7 +113,7 @@ fun TasksWidgetContent(tasks: List<Pair<String, String>>) {
         } else {
             Column(modifier = GlanceModifier.fillMaxWidth()) {
                 tasks.forEach { (id, title) ->
-                    TaskItemRow(id, title)
+                    TaskItemRow(id, title, ownerUid)
                     Spacer(modifier = GlanceModifier.height(8.dp))
                 }
             }
@@ -121,7 +122,7 @@ fun TasksWidgetContent(tasks: List<Pair<String, String>>) {
 }
 
 @Composable
-fun TaskItemRow(id: String, title: String) {
+fun TaskItemRow(id: String, title: String, ownerUid: String = "") {
     Row(
         modifier = GlanceModifier
             .fillMaxWidth()
@@ -131,7 +132,7 @@ fun TaskItemRow(id: String, title: String) {
         CheckBox(
             checked = false,
             onCheckedChange = actionRunCallback<CompleteTaskAction>(
-                actionParametersOf(CompleteTaskAction.taskIdKey to id)
+                actionParametersOf(CompleteTaskAction.taskIdKey to id, CompleteTaskAction.ownerUidKey to ownerUid)
             )
         )
         Spacer(modifier = GlanceModifier.width(12.dp))
@@ -149,6 +150,7 @@ fun TaskItemRow(id: String, title: String) {
 
 class CompleteTaskAction : ActionCallback {
     companion object {
+        val ownerUidKey = ActionParameters.Key<String>("owner_uid")
         val taskIdKey = ActionParameters.Key<String>("task_id")
     }
     
@@ -160,12 +162,13 @@ class CompleteTaskAction : ActionCallback {
         val id = parameters[taskIdKey] ?: return
         
         // --- SILENT BACKGROUND UPDATE ---
-        val firebaseAuth = com.google.firebase.auth.FirebaseAuth.getInstance()
-        val userId = firebaseAuth.currentUser?.uid ?: return
+        val userId = parameters[ownerUidKey]?.takeIf { it.isNotBlank() } ?: return
+        if (!WidgetManager.isCurrentOwner(userId)) return
         val repository = com.kairos.app.data.repository.FirebaseRepository()
 
         // 1. Fetch current plan
         val plan = repository.getPlanOnce(userId)
+        if (!WidgetManager.isCurrentOwner(userId)) return
         if (plan != null) {
             // 2. Update task completion
             val updatedBoards = plan.boards.map { board ->
@@ -178,7 +181,8 @@ class CompleteTaskAction : ActionCallback {
             val updatedPlan = plan.copy(boards = updatedBoards)
             
             // 3. Save back to Firestore
-            repository.updatePlan(userId, updatedPlan)
+            if (!WidgetManager.isCurrentOwner(userId)) return
+            repository.updatePlan(userId, plan, updatedPlan)
             
             // 4. Update local widget state immediately
             val topTasks = updatedBoards
@@ -191,7 +195,8 @@ class CompleteTaskAction : ActionCallback {
                 .take(3)
                 .map { "${it.id}:${it.title}" }
             
-            WidgetManager.updateTasks(context, topTasks)
+            if (!WidgetManager.isCurrentOwner(userId)) return
+            WidgetManager.updateTasks(context, userId, topTasks)
         }
     }
 }

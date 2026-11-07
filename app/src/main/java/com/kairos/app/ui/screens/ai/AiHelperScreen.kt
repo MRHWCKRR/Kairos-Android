@@ -83,7 +83,7 @@ fun AiHelperScreen(
             existingBoards = plan?.boards ?: emptyList(),
             onConfirm = {
                 val updatedPlan = viewModel.onConfirm(plan)
-                mainViewModel.updatePlan(updatedPlan)
+                updatedPlan?.let { mainViewModel.updatePlan(it) }
             }
         )
     }

@@ -2,6 +2,7 @@ package com.kairos.app.data.models
 
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.IgnoreExtraProperties
+import com.google.firebase.firestore.Exclude
 
 @IgnoreExtraProperties
 data class KairosTask(
@@ -44,7 +45,9 @@ data class KairosPlan(
     val dayInsights: Map<String, String> = emptyMap(),
     val scheduleEvents: List<KairosScheduleEvent> = emptyList(),
     val userID: String = "",
-    val createdAt: Timestamp? = null
+    val createdAt: Timestamp? = null,
+    @get:Exclude val documentId: String = "",
+    @get:Exclude val sourceFields: Map<String, Any?> = emptyMap()
 )
 
 @IgnoreExtraProperties
@@ -127,7 +130,8 @@ data class KairosUserProfile(
     val achievements: KairosAchievementsData = KairosAchievementsData(),
     val focusData: KairosFocusData = KairosFocusData(),
     val aiChatHistory: List<ChatMessage> = emptyList(),
-    val onboardingCompleted: Boolean = false
+    val onboardingCompleted: Boolean = false,
+    @get:Exclude val sourceFields: Map<String, Any?> = emptyMap()
 )
 
 @IgnoreExtraProperties

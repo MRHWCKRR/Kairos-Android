@@ -80,6 +80,7 @@ class MainActivity : ComponentActivity() {
 
     private var incomingAction by mutableStateOf<String?>(null)
     private var incomingTaskId by mutableStateOf<String?>(null)
+    private var incomingOwnerUid by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Draw edge to edge; Compose reserves system-bar space in the shell.
@@ -129,11 +130,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            LaunchedEffect(incomingAction, incomingTaskId) {
+            LaunchedEffect(incomingAction, incomingTaskId, incomingOwnerUid) {
                 if (incomingAction != null) {
-                    mainViewModel.handleWidgetAction(incomingAction, incomingTaskId, context)
+                    mainViewModel.handleWidgetAction(incomingAction, incomingTaskId, context, incomingOwnerUid)
                     incomingAction = null
                     incomingTaskId = null
+                    incomingOwnerUid = null
                 }
             }
 
@@ -175,6 +177,7 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         incomingAction = intent?.getStringExtra("action")
         incomingTaskId = intent?.getStringExtra("task_id")
+        incomingOwnerUid = intent?.getStringExtra("owner_uid")
     }
 }
 
@@ -188,7 +191,8 @@ fun KairosApp(viewModel: MainViewModel) {
     val entry by navController.currentBackStackEntryAsState()
     val route = entry?.destination?.route ?: KairosDestination.Dashboard.route
     var showNotifications by remember { mutableStateOf(false) }
-    var showSearch by remember { mutableStateOf(false) }
+    var showSearch by remember(user?.uid) { mutableStateOf(false) }
+    LaunchedEffect(user?.uid) { showNotifications = false; navController.popBackStack(KairosDestination.Dashboard.route, false) }
     val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val navigate: (String) -> Unit = { destination ->
         navController.navigate(destination) { launchSingleTop = true }
@@ -237,7 +241,14 @@ fun KairosApp(viewModel: MainViewModel) {
                 bottomBar = {
                     if (!keyboardOpen) KairosBottomNav(navController, onSearch = { showSearch = true }, reduceMotion = profile.settings.accessibility.reduceMotion)
                 },
-                snackbar = { viewModel.errorMessage?.let { KairosErrorFeedback(it, onDismiss = { viewModel.clearError() }) } }
+                snackbar = {
+                    viewModel.errorMessage?.let {
+                        KairosErrorFeedback(it, onDismiss = { viewModel.clearError() },
+                            onRetry = if (viewModel.canRetrySave) ({ viewModel.retryFailedSave() }) else null)
+                    } ?: if (viewModel.isSaving) {
+                        Snackbar(Modifier.padding(12.dp)) { Text("Saving…") }
+                    } else Unit
+                }
             ) { padding ->
                 NavHost(
                     navController, startDestination = KairosDestination.Dashboard.route,

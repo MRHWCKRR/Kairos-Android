@@ -13,6 +13,8 @@ import com.kairos.app.data.models.*
 import com.kairos.app.data.repository.AuthRepository
 import com.kairos.app.data.repository.FirebaseRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,55 +83,80 @@ class MainViewModel @JvmOverloads constructor(
     private var planReady = false
     private var profileReady = false
     
-    // Stability Lock State
-    private var lastLocalUpdateTimestamp = 0L
+    private var session = 0L
+    private var planSaving by mutableStateOf(false)
+    private var profileSaves by mutableStateOf(0)
+    val isSaving: Boolean get() = planSaving || profileSaves > 0
+    private var retrySave by mutableStateOf<(() -> Unit)?>(null)
+    val canRetrySave: Boolean get() = retrySave != null
+    private val accountJobs = mutableSetOf<Job>()
+
+    private fun owns(uid: String, token: Long) = session == token &&
+        _user.value?.uid == uid && authRepository.currentUser?.uid == uid
+
+    private fun resetAccountState() {
+        session++
+        accountJobs.forEach { it.cancel() }
+        accountJobs.clear()
+        pauseFocusTimer()
+        focusSecondsActive = 0
+        _plan.value = null
+        _profile.value = KairosUserProfile()
+        planReady = false
+        profileReady = false
+        isInitialSync = true
+        newlyUnlockedAchievement = null
+        pendingWidgetAction = null
+        pendingWidgetTaskId = null
+        lastBedtimeFiredDate = ""
+        planSaving = false
+        profileSaves = 0
+        retrySave = null
+        errorMessage = null
+        settingsError = null
+        securityError = null
+        securitySuccess = null
+        isUploadingAvatar = false
+    }
+
 
     init {
         viewModelScope.launch {
             authRepository.getAuthState().collectLatest { firebaseUser ->
+                resetAccountState()
                 _user.value = firebaseUser
-                if (firebaseUser != null) {
+                val token = session
+                val uid = firebaseUser?.uid
+                isInitializing = uid != null
+                lastApplicationContext?.let { ctx ->
+                    WidgetManager.clearAccountState(ctx, uid) { session == token && authRepository.currentUser?.uid == uid }
+                }
+                if (uid != null) coroutineScope {
                     launch {
-                        firebaseRepository.getLatestPlan(firebaseUser.uid)
-                            .catch { e -> errorMessage = e.localizedMessage }
-                            .collect { 
+                        firebaseRepository.getLatestPlan(uid)
+                            .catch { if (owns(uid, token)) { errorMessage = it.localizedMessage; planReady = false } }
+                            .collect {
+                                if (!owns(uid, token)) return@collect
                                 _plan.value = it
-                                planReady = it != null
+                                planReady = true
                                 checkInitialAchievementSync()
                                 processPendingActions()
                             }
                     }
                     launch {
-                        firebaseRepository.getUserProfile(firebaseUser.uid)
-                            .catch { e -> 
-                                Log.e("MainViewModel", "Profile sync error", e)
+                        firebaseRepository.getUserProfile(uid)
+                            .catch { if (owns(uid, token)) { errorMessage = it.localizedMessage; isInitializing = false } }
+                            .collect {
+                                if (!owns(uid, token)) return@collect
+                                _profile.value = it ?: KairosUserProfile()
+                                profileReady = true
                                 isInitializing = false
-                            }
-                            .collect { 
-                                if (it != null) {
-                                    // STABILITY LOCK: Skip cloud update if we just made a local change
-                                    val now = System.currentTimeMillis()
-                                    if (now - lastLocalUpdateTimestamp > 2000) {
-                                        _profile.value = it
-                                        profileReady = true
-                                        checkInitialAchievementSync()
-                                    } else {
-                                        Log.d("MainViewModel", "Skipping cloud profile sync due to local stability lock")
-                                    }
-                                }
-                                isInitializing = false
+                                checkInitialAchievementSync()
                             }
                     }
                     launch {
-                        while (true) {
-                            checkBedtimeReminders()
-                            delay(60000L)
-                        }
+                        while (true) { checkBedtimeReminders(); delay(60000L) }
                     }
-                } else {
-                    _plan.value = null
-                    _profile.value = KairosUserProfile()
-                    isInitializing = false
                 }
             }
         }
@@ -137,9 +164,12 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun checkInitialAchievementSync() {
         if (planReady && profileReady && isInitialSync) {
-            viewModelScope.launch {
-                delay(2000) // Stabilize
-                isInitialSync = false // Toggle BEFORE checking background completions
+            val token = session
+            val uid = _user.value?.uid ?: return
+            isInitialSync = false
+            accountJobs += viewModelScope.launch {
+                delay(2000)
+                if (!owns(uid, token)) return@launch
                 
                 // MANDATORY RE-CHECK: Force evaluation of all thresholds against current stats
                 val currentProfile = _profile.value
@@ -164,8 +194,7 @@ class MainViewModel @JvmOverloads constructor(
                 })
             })
         }
-        updatePlanInternal(currentPlan.copy(boards = updatedBoards))
-
+        updatePlanInternal(currentPlan.copy(boards = updatedBoards)) {
         if (completed && !currentProfile.achievements.countedTaskIds.contains(taskId)) {
             val updatedAchievements = currentProfile.achievements.copy(
                 countedTaskIds = currentProfile.achievements.countedTaskIds + taskId,
@@ -185,6 +214,7 @@ class MainViewModel @JvmOverloads constructor(
             ))
             
             checkAchievements(updatedAchievements, updatedFocusData)
+        }
         }
     }
 
@@ -289,24 +319,13 @@ class MainViewModel @JvmOverloads constructor(
         val updatedUnlocked = currentProfile.achievements.unlocked.toMutableMap()
         updatedUnlocked[def.id] = System.currentTimeMillis()
         
-        // INSTANT FEEDBACK & LOCK
-        lastLocalUpdateTimestamp = System.currentTimeMillis()
-        _profile.value = currentProfile.copy(
-            achievements = currentProfile.achievements.copy(unlocked = updatedUnlocked)
-        )
-        
+
         if (!isInitialSync) {
             newlyUnlockedAchievement = def
             pushNotification("🎉 Achievement Unlocked!", "You earned the ${def.name} badge.")
         }
         
-        viewModelScope.launch {
-            try {
-                firebaseRepository.updateUserProfile(userId, mapOf("achievements.unlocked" to updatedUnlocked))
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to update unlocked achievements", e)
-            }
-        }
+        updateProfileInternal(mapOf("achievements.unlocked" to updatedUnlocked))
     }
 
     // --- Notifications ---
@@ -324,8 +343,9 @@ class MainViewModel @JvmOverloads constructor(
         updateProfileInternal(mapOf("notifications" to updatedNotifications))
         
         // Trigger system notification event
-        viewModelScope.launch {
-            _notificationEvents.emit(title to message)
+        val token = session
+        accountJobs += viewModelScope.launch {
+            if (owns(userId, token)) _notificationEvents.emit(title to message)
         }
     }
 
@@ -516,30 +536,58 @@ class MainViewModel @JvmOverloads constructor(
         updatePlanInternal(updatedPlan)
     }
 
-    private fun updatePlanInternal(updatedPlan: KairosPlan) {
-        val userId = _user.value?.uid ?: return
-        _plan.value = updatedPlan
-        // Aggressive Widget Update
-        syncWidgetsInternal(lastApplicationContext) 
-        viewModelScope.launch {
+    private fun updatePlanInternal(updatedPlan: KairosPlan, onSaved: () -> Unit = {}) {
+        val uid = _user.value?.uid ?: return
+        val token = session
+        if (!owns(uid, token) || !planReady) { errorMessage = "Wait for your planner to load before editing."; return }
+        if (planSaving) { errorMessage = "Wait for your current planner change to finish saving."; return }
+        val before = _plan.value ?: KairosPlan(userID = uid)
+        savePlan(uid, token, before, updatedPlan, onSaved)
+    }
+
+    private fun savePlan(uid: String, token: Long, before: KairosPlan, after: KairosPlan, onSaved: () -> Unit) {
+        if (!owns(uid, token) || planSaving) return
+        planSaving = true
+        retrySave = null
+        accountJobs += viewModelScope.launch {
             try {
-                firebaseRepository.updatePlan(userId, updatedPlan)
-            } catch (e: Exception) {
-                errorMessage = "Sync failed: ${e.localizedMessage}"
-            }
+                firebaseRepository.updatePlan(uid, before, after)
+                if (owns(uid, token)) { errorMessage = null; onSaved(); syncWidgetsInternal(lastApplicationContext) }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (owns(uid, token)) {
+                    errorMessage = "Change not saved: ${e.localizedMessage}. Your edit is retained for retry."
+                    retrySave = { savePlan(uid, token, before, after, onSaved) }
+                }
+            } finally { if (owns(uid, token)) planSaving = false }
         }
     }
 
     private fun updateProfileInternal(data: Map<String, Any>) {
-        val userId = _user.value?.uid ?: return
-        viewModelScope.launch {
+        val uid = _user.value?.uid ?: return
+        val token = session
+        if (!owns(uid, token) || !profileReady) { errorMessage = "Wait for your profile to load before editing."; return }
+        saveProfile(uid, token, _profile.value, data)
+    }
+
+    private fun saveProfile(uid: String, token: Long, before: KairosUserProfile, data: Map<String, Any>) {
+        if (!owns(uid, token)) return
+        profileSaves++
+        accountJobs += viewModelScope.launch {
             try {
-                firebaseRepository.updateUserProfile(userId, data)
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to update profile", e)
-            }
+                firebaseRepository.updateUserProfile(uid, before, data)
+                if (owns(uid, token)) syncWidgetsInternal(lastApplicationContext)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (owns(uid, token)) {
+                    errorMessage = "Change not saved: ${e.localizedMessage}"
+                    retrySave = { saveProfile(uid, token, before, data) }
+                }
+            } finally { if (owns(uid, token)) profileSaves-- }
         }
     }
+
+    fun retryFailedSave() { val retry = retrySave; retrySave = null; retry?.invoke() }
 
     fun updateDayInsight(dateKey: String, insight: String) {
         val currentPlan = _plan.value ?: return
@@ -549,7 +597,6 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun updateSettings(newSettings: KairosSettings) {
-        _profile.value = _profile.value.copy(settings = newSettings)
         updateProfileInternal(mapOf("settings" to newSettings))
         syncWidgetsInternal(lastApplicationContext) // Sync widgets on settings change
     }
@@ -566,20 +613,23 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun uploadAvatar(context: android.content.Context, uri: android.net.Uri) {
-        viewModelScope.launch {
+        val uid = _user.value?.uid ?: return
+        val token = session
+        accountJobs += viewModelScope.launch {
             isUploadingAvatar = true
             try {
                 // Encode to Base64 (Compressed to stay under Firestore limit)
                 val base64String = com.kairos.app.utils.ImageUtils.convertToBase64(context, uri)
                     ?: throw Exception("Could not process image")
                 
+                if (!owns(uid, token)) return@launch
                 updateAvatar(base64String)
                 settingsError = null
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Avatar encoding failed", e)
-                settingsError = "Failed to process image: ${e.localizedMessage}"
+                if (owns(uid, token)) settingsError = "Failed to process image: ${e.localizedMessage}"
             } finally {
-                isUploadingAvatar = false
+                if (owns(uid, token)) isUploadingAvatar = false
             }
         }
     }
@@ -656,8 +706,14 @@ class MainViewModel @JvmOverloads constructor(
             return
         }
         
+        val uid = _user.value?.uid
+        val token = session
+        val appearance = _profile.value.settings.appearance
+        val running = focusTimerRunning
+        val seconds = focusSecondsActive
+        val currentPlan = _plan.value
         viewModelScope.launch {
-            val appearance = _profile.value.settings.appearance
+            if (session != token || authRepository.currentUser?.uid != uid) return@launch
             val isDark = appearance.mode == "dark"
             val accentHex = when (appearance.theme) {
                 "fairyfloss" -> "#FFFF8FC9"
@@ -670,10 +726,10 @@ class MainViewModel @JvmOverloads constructor(
                 "red" -> "#FFEB3D47"
                 else -> "#FF7D45F5"
             }
-            WidgetManager.updateTheme(ctx, accentHex, isDark)
+            WidgetManager.updateTheme(ctx, uid, accentHex, isDark) { session == token && authRepository.currentUser?.uid == uid }
             
-            WidgetManager.updateFocusState(ctx, focusTimerRunning, focusSecondsActive)
-            val topTasks = _plan.value?.boards
+            WidgetManager.updateFocusState(ctx, uid, running, seconds) { session == token && authRepository.currentUser?.uid == uid }
+            val topTasks = currentPlan?.boards
                 ?.filter { !it.archived }
                 ?.flatMap { it.sections }
                 ?.filter { !it.archived }
@@ -682,14 +738,14 @@ class MainViewModel @JvmOverloads constructor(
                 ?.distinctBy { it.id }
                 ?.take(3)
                 ?.map { "${it.id}:${it.title}" } ?: emptyList()
-            WidgetManager.updateTasks(ctx, topTasks)
+            WidgetManager.updateTasks(ctx, uid, topTasks) { session == token && authRepository.currentUser?.uid == uid }
         }
     }
 
-    fun handleWidgetAction(action: String?, taskId: String?, context: Context) {
+    fun handleWidgetAction(action: String?, taskId: String?, context: Context, ownerUid: String? = null) {
         lastApplicationContext = context.applicationContext
-        if (action == null) return
-        
+        if (action == null || ownerUid == null || ownerUid != _user.value?.uid || ownerUid != authRepository.currentUser?.uid) return
+
         if (_plan.value == null) {
             pendingWidgetAction = action
             pendingWidgetTaskId = taskId
@@ -721,7 +777,10 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun signOut() {
+        resetAccountState()
+        _user.value = null
         authRepository.signOut()
+        syncWidgetsInternal(lastApplicationContext)
     }
 
     fun deleteAccount() {
@@ -740,6 +799,7 @@ class MainViewModel @JvmOverloads constructor(
 
     fun clearError() {
         errorMessage = null
+        retrySave = null
     }
 
     fun completeOnboarding(displayName: String, birthday: String, country: String, language: String, timezone: String) {
@@ -755,11 +815,6 @@ class MainViewModel @JvmOverloads constructor(
             accessibility = currentProfile.settings.accessibility.copy(
                 language = language
             )
-        )
-        
-        _profile.value = currentProfile.copy(
-            settings = newSettings,
-            onboardingCompleted = true
         )
         
         updateProfileInternal(mapOf(
@@ -780,20 +835,6 @@ class MainViewModel @JvmOverloads constructor(
         }
         currentGoals[index] = achievementId
         
-        // INSTANT UI FEEDBACK & STABILITY LOCK
-        lastLocalUpdateTimestamp = System.currentTimeMillis()
-        _profile.value = currentProfile.copy(
-            achievements = achievements.copy(goals = currentGoals)
-        )
-        
-        Log.d("MainViewModel", "Setting goal at index $index to $achievementId. New list: $currentGoals")
-        
-        viewModelScope.launch {
-            try {
-                firebaseRepository.updateUserProfile(userId, mapOf("achievements.goals" to currentGoals))
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to set goal", e)
-            }
-        }
+        updateProfileInternal(mapOf("achievements.goals" to currentGoals))
     }
 }
