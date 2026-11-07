@@ -85,6 +85,63 @@ class TaskEditContractTest {
         val remote = before.copy(checklist = before.checklist!! + KairosChecklistItem("theirs", "Theirs"))
         rejected { guard(before, after, remote) }
     }
+    @Test fun retainedDeletesAreIdempotentAfterLostAcknowledgement() {
+        val before = plan()
+        val board = before.boards.single()
+        val section = board.sections.single()
+        val deletions = listOf(
+            before.copy(boards = emptyList()),
+            before.copy(boards = listOf(board.copy(sections = emptyList()))),
+            before.copy(boards = listOf(board.copy(sections = listOf(section.copy(tasks = emptyList())))))
+        )
+        for (after in deletions) {
+            val base = before.sharedFields()
+            val edited = after.sharedFields()
+            val raw = rawPlan(task)
+            val remote = SharedDataMerge.merge(base, edited, raw, raw)
+            val replay = SharedDataMerge.merge(base, edited, remote, raw)
+            TaskEditContract.validateMutation(base, edited, raw, remote, replay)
+            assertEquals(remote, replay)
+        }
+    }
+    @Test fun retainedTaskSectionAndBoardArchivesAreIdempotentAfterLostAcknowledgement() {
+        val before = plan()
+        val board = before.boards.single()
+        val section = board.sections.single()
+        val archives = listOf(
+            plan(task.copy(archived = true)),
+            before.copy(boards = listOf(board.copy(archived = true))),
+            before.copy(boards = listOf(board.copy(sections = listOf(section.copy(archived = true)))))
+        )
+        for (after in archives) {
+            val base = before.sharedFields()
+            val edited = after.sharedFields()
+            val raw = rawPlan(task)
+            val remote = SharedDataMerge.merge(base, edited, raw, raw)
+            val replay = SharedDataMerge.merge(base, edited, remote, raw)
+            TaskEditContract.validateMutation(base, edited, raw, remote, replay)
+            assertEquals(remote, replay)
+            val notes = plan(task.copy(notes = "Pending draft")).sharedFields()
+            rejected { TaskEditContract.validateMutation(base, notes, raw, remote,
+                SharedDataMerge.merge(base, notes, remote, raw)) }
+        }
+    }
+    @Test fun archiveIntentCannotHidePendingDetailsOrDifferentParentArchive() {
+        val before = plan()
+        val board = before.boards.single()
+        val section = board.sections.single()
+        val base = before.sharedFields()
+        val raw = rawPlan(task)
+        val edited = plan(task.copy(archived = true, notes = "Pending draft")).sharedFields()
+        val remote = SharedDataMerge.merge(base, plan(task.copy(archived = true)).sharedFields(), raw, raw)
+        rejected { TaskEditContract.validateMutation(base, edited, raw, remote,
+            SharedDataMerge.merge(base, edited, remote, raw)) }
+        val boardArchive = before.copy(boards = listOf(board.copy(archived = true))).sharedFields()
+        val sectionArchive = before.copy(boards = listOf(board.copy(sections = listOf(section.copy(archived = true))))).sharedFields()
+        val sectionRemote = SharedDataMerge.merge(base, sectionArchive, raw, raw)
+        rejected { TaskEditContract.validateMutation(base, boardArchive, raw, sectionRemote,
+            SharedDataMerge.merge(base, boardArchive, sectionRemote, raw)) }
+    }
     @Test fun recurrenceIsReadOnlyAndOmittedFromProjection() {
         val recurrence = KairosRecurrenceMarker(true)
         assertFalse(plan(task.copy(recurrence = recurrence)).sharedFields().toString().contains("recurrence"))

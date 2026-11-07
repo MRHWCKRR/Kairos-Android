@@ -11,7 +11,9 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Density
-import androidx.test.espresso.Espresso
+import android.view.KeyEvent
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kairos.app.data.models.AppearanceSettings
 import com.kairos.app.data.models.KairosChecklistItem
@@ -67,16 +69,16 @@ class TaskEditorUiTest {
     private fun field(name: String) = compose.onNodeWithTag("task-editor-$name")
     private fun edit(name: String, value: String) {
         field(name).performScrollTo().performTextReplacement(value)
-        Espresso.closeSoftKeyboard()
+        hideKeyboard()
     }
     private fun click(name: String) { field(name).performScrollTo().performClick() }
     private fun save() {
-        Espresso.closeSoftKeyboard()
+        hideKeyboard()
         field("save").assertIsDisplayed().performClick()
         compose.waitForIdle()
     }
     private fun capture(name: String) {
-        Espresso.closeSoftKeyboard()
+        hideKeyboard()
         compose.waitForIdle()
         val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "visual-parity")
         check(directory.isDirectory || directory.mkdirs())
@@ -178,10 +180,10 @@ class TaskEditorUiTest {
     @Test fun systemBackRequiresDiscardForDirtyDraft() {
         show()
         edit("title", "Unsaved from back")
-        Espresso.pressBack()
+        pressBack()
         field("keep-editing").assertIsDisplayed().performClick()
         field("title").assertTextContains("Unsaved from back")
-        Espresso.pressBack()
+        pressBack()
         field("discard-confirm").performClick()
         compose.runOnIdle { assertEquals(1, dismissals); assertNull(captured) }
     }
@@ -277,4 +279,19 @@ class TaskEditorUiTest {
         field("lock").performScrollTo().assertIsDisplayed()
         capture("task-editor-narrow-planning")
     }
+    private fun hideKeyboard() {
+        compose.waitForIdle()
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val info = automation.serviceInfo
+        info.flags = info.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        automation.serviceInfo = info
+        runCatching { automation.waitForIdle(100, 1000) }
+        if (automation.windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }) pressBack()
+    }
+
+    private fun pressBack() {
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        compose.waitForIdle()
+    }
+
 }

@@ -53,14 +53,31 @@ object TaskEditContract {
         for ((id, previous) in old) {
             val next = desired[id]
             if (next == previous) continue
-            val fresh = current[id] ?: conflict("This task was removed. Reopen its details.")
+            val fresh = current[id]
+            // A retained delete may be replayed after the server committed it but its acknowledgement was lost.
+            if (next == null && fresh == null && result[id] == null) continue
+            if (fresh == null) conflict("This task was removed. Reopen its details.")
             if (next != null && (previous.board != next.board || previous.section != next.section)) {
                 conflict("Task details cannot move a task between sections.")
             }
             if (fresh.board != previous.board || fresh.section != previous.section) conflict("This task moved. Reopen its details.")
             val baseline = original[id] ?: previous
-            if ((!baseline.archived && fresh.archived) || (!baseline.parentArchived && fresh.parentArchived)) {
-                conflict("This task or its section was archived. Reopen its details.")
+            val finalLocation = result[id]
+            val newlyArchived = (!baseline.archived && fresh.archived) ||
+                (!baseline.boardArchived && fresh.boardArchived) || (!baseline.sectionArchived && fresh.sectionArchived)
+            if (newlyArchived) {
+                // Only an already-applied, explicitly intended archive can bypass fresh availability.
+                // Pending details edits still fail when another device archives the task or a parent.
+                val archiveMatchesIntent = next != null && finalLocation != null &&
+                    next.archived == fresh.archived && finalLocation.archived == fresh.archived &&
+                    next.boardArchived == fresh.boardArchived && finalLocation.boardArchived == fresh.boardArchived &&
+                    next.sectionArchived == fresh.sectionArchived && finalLocation.sectionArchived == fresh.sectionArchived
+                val taskChangesAlreadyApplied = next != null && (previous.task.keys + next.task.keys).all { key ->
+                    previous.task[key] == next.task[key] || next.task[key] == fresh.task[key]
+                }
+                if (!archiveMatchesIntent || !taskChangesAlreadyApplied) {
+                    conflict("This task or its section was archived. Reopen its details.")
+                }
             }
             if (next == null) continue
             validateChanged(previous.task, next.task)
@@ -125,14 +142,17 @@ object TaskEditContract {
         }
     }
 
-    private data class Location(val board: String, val section: String, val archived: Boolean, val parentArchived: Boolean, val task: Map<String, Any?>)
+    private data class Location(
+        val board: String, val section: String, val archived: Boolean,
+        val boardArchived: Boolean, val sectionArchived: Boolean, val task: Map<String, Any?>
+    )
     private fun locations(document: Map<String, Any?>): Map<String, Location> {
         val result = mutableMapOf<String, Location>()
         maps(document["boards"]).forEach { board -> maps(board["sections"]).forEach { section -> maps(section["tasks"]).forEach { task ->
             val id = task["id"] as? String ?: conflict("Task identity is missing.")
             if (result.containsKey(id)) conflict("Task identity is ambiguous.")
             result[id] = Location(board["id"] as? String ?: "", section["id"] as? String ?: "", task["archived"] == true,
-                board["archived"] == true || section["archived"] == true, task)
+                board["archived"] == true, section["archived"] == true, task)
         } } }
         return result
     }

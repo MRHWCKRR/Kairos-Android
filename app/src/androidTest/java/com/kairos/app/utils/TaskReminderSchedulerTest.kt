@@ -30,7 +30,7 @@ class TaskReminderSchedulerTest {
     private fun seed(): String {
         val value = JSONObject().put("owner", owner).put("reminders", JSONArray().put(
             JSONObject().put("id", taskId).put("title", "Private title").put("when", System.currentTimeMillis() + 3_600_000L)
-        )).toString()
+        )).put("armed", false).toString()
         assertTrue(prefs.edit().putString("config", value).commit())
         val pending = PendingIntent.getBroadcast(context, 0, alarmIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).setAndAllowWhileIdle(
@@ -56,6 +56,23 @@ class TaskReminderSchedulerTest {
             TaskReminderScheduler.sync(context, null, null, "UTC", enabled = true)
             assertNull(cachedAlarm())
             assertEquals("", JSONObject(prefs.getString("config", "{}")!!).getString("owner"))
+            assertTrue(JSONObject(prefs.getString("config", "{}")!!).getBoolean("armed"))
+        } finally { cleanup() }
+    }
+
+    @Test fun interruptedIdenticalConfigurationIsRepairedAndLegacyStateDefaultsUnarmed() = runBlocking {
+        assumeTrue(FirebaseAuth.getInstance().currentUser == null)
+        try {
+            // With no signed-in user the owned desired batch is empty. These matching
+            // configs must still complete registration rather than taking equality's exit.
+            listOf("{\"owner\":\"\",\"reminders\":[],\"armed\":false}",
+                "{\"owner\":\"\",\"reminders\":[]}").forEach { interrupted ->
+                assertTrue(prefs.edit().putString("config", interrupted).commit())
+                TaskReminderScheduler.sync(context, null, null, "UTC", enabled = true)
+                val repaired = JSONObject(prefs.getString("config", "{}")!!)
+                assertTrue(repaired.getBoolean("armed"))
+                assertEquals(0, repaired.getJSONArray("reminders").length())
+            }
         } finally { cleanup() }
     }
 
