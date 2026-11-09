@@ -118,7 +118,8 @@ private fun AppearanceSettings.fields(): Map<String, Any?> = mapOf(
     "mode" to mode, "theme" to theme, "textColor" to textColor, "font" to font,
     "background" to background, "customBackground" to customBackground, "cursor" to cursor,
     "ambientSound" to ambientSound, "ambientVolume" to ambientVolume,
-    "customAmbientYoutubeUrl" to customAmbientYoutubeUrl, "confetti" to confetti
+    "customAmbientYoutubeUrl" to customAmbientYoutubeUrl, "confetti" to confetti,
+    "timerType" to timerType, "timerTheme" to timerTheme, "timerBorder" to timerBorder
 )
 
 private fun NotificationSettings.fields(): Map<String, Any?> = mapOf(

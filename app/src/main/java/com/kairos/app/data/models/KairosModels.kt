@@ -95,8 +95,15 @@ data class AppearanceSettings(
     val ambientSound: String = "none",
     val ambientVolume: Int = 35,
     val customAmbientYoutubeUrl: String = "",
-    val confetti: Boolean = true
-)
+    val confetti: Boolean = true,
+    val timerType: String = "digital",
+    val timerTheme: String = "violet",
+    val timerBorder: String = "glow"
+) {
+    val resolvedTimerType: String get() = timerType.takeIf { it in setOf("watch", "digital", "nuclear") } ?: "digital"
+    val resolvedTimerTheme: String get() = timerTheme.takeIf { it in setOf("violet", "cyan", "green", "amber", "rose") } ?: "violet"
+    val resolvedTimerBorder: String get() = timerBorder.takeIf { it in setOf("none", "glow", "neon", "hazard") } ?: "glow"
+}
 
 @IgnoreExtraProperties
 data class NotificationSettings(

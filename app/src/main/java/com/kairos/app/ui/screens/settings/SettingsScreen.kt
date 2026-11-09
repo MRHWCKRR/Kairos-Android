@@ -597,6 +597,54 @@ fun AppearanceTabContent(profile: KairosUserProfile, viewModel: MainViewModel) {
             }
         }
 
+        Column {
+            Text(text = "Focus Timer Type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                listOf("watch", "digital", "nuclear").forEach { type ->
+                    BunkerOptionButton(type, settings.appearance.resolvedTimerType == type, {
+                        viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(timerType = type)), profile)
+                    }, Modifier.weight(1f))
+                    if (type != "nuclear") Spacer(modifier = Modifier.width(8.dp))
+                }
+            }
+        }
+
+        Column {
+            Text(text = "Timer Theme", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(Modifier.horizontalScroll(rememberScrollState())) {
+                listOf(
+                    "violet" to Color(0xFF7D45F5), "cyan" to Color(0xFF00B8D9),
+                    "green" to Color(0xFF22A06B), "amber" to Color(0xFFFFA000), "rose" to Color(0xFFE5487B)
+                ).forEach { (theme, color) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier.size(44.dp).clip(CircleShape).background(color)
+                                .border(2.dp, if (settings.appearance.resolvedTimerTheme == theme) MaterialTheme.colorScheme.onBackground else Color.Transparent, CircleShape)
+                                .clickable { viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(timerTheme = theme)), profile) }
+                        )
+                        Text(theme.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 5.dp))
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                }
+            }
+        }
+
+        Column {
+            Text(text = "Timer Border", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Text(text = "Decorate the timer card like a profile frame.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth().height(48.dp).horizontalScroll(rememberScrollState())) {
+                listOf("none", "glow", "neon", "hazard").forEach { border ->
+                    BunkerOptionButton(border, settings.appearance.resolvedTimerBorder == border, {
+                        viewModel.updateSettings(settings.copy(appearance = settings.appearance.copy(timerBorder = border)), profile)
+                    }, Modifier.width(88.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+            }
+        }
+
         // Background Style
         Column {
             Text(text = "Background Style", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))

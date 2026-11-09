@@ -48,13 +48,15 @@ fun KairosPageHeader(title: String, trailing: @Composable () -> Unit = {}) {
 fun KairosCard(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(KairosMetrics.pageHorizontal),
+    color: Color = MaterialTheme.colorScheme.surface,
+    border: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     content: @Composable ColumnScope.() -> Unit
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        color = color,
+        border = border
     ) { Column(Modifier.padding(contentPadding), content = content) }
 }
 
