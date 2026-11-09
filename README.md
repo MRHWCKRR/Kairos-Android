@@ -17,15 +17,15 @@ A smart, personalised and practical solution to school/work stress and last minu
 
 *   **AI Powered automatic scheduling:** Saves you time and will maximise your time management.
   
-*   **Latest Gemini 3.5 Flash AI:** Latest generation AI for the accurate answers and less malfunctions. 
+*   **AI assistance:** Planning and chat use the authenticated Kairos Cloudflare API, backed by OpenRouter.
   
-*   **Completely open source:** Zero paywalls and full privacy. All source code is hosted here on GitHub, and all data can be requested at the click of a button.
+*   **Open source:** Shares the Kairos planner and backend-owned Free/Plus AI allowances with the web and iOS clients.
 ---
 
 ## What its Made Of
 
 *   Kotlin
-*   **AI Coordination:** Google AI Studio SDK / Fetch API API integration
+*   **AI Coordination:** Firebase Auth and App Check tokens sent to the Kairos Cloudflare API. No provider key or shared relay secret is bundled in the app.
 
 ---
 
@@ -38,7 +38,7 @@ https://github.com/MRHWCKRR/Kairos.git
 ```
 ### 2. Use the Website
 
-https://kairos-xi-two.vercel.app/app.html
+[Open Kairos](https://kairos-web.kirosapp.workers.dev/app.html)
 
 ### 3. Get the Android App
 
@@ -50,6 +50,9 @@ Coming Soon!
 
 ## Notes:
 
+- Release builds use Firebase App Check with Play Integrity; register the app and its release SHA-256 certificate before release. Debug builds use the debug provider; register the generated device token privately in Firebase App Check. Do not commit debug tokens. See [Firebase setup](https://firebase.google.com/docs/app-check/android/play-integrity-provider) and [debug setup](https://firebase.google.com/docs/app-check/android/debug-provider).
+- The backend must allow the registered Android App Check identity before using this build. Deploy the companion web backend change first. There is no fallback to the old relay.
+- Shared planner edits preserve unknown web/iOS fields through transactions. Android's recurrence UI still has less functionality than the web client.
 - Bugs will likely exist, please create and issue to let me know :)
 
 [contributors-shield]: https://img.shields.io/github/contributors/MRHWCKRR/Kairos-Android.svg?style=for-the-badge

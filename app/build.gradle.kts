@@ -5,18 +5,6 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
-val localPropertiesFile = rootProject.file("local.properties")
-val relaySecret = if (localPropertiesFile.exists()) {
-    val lines = localPropertiesFile.readLines()
-    lines.firstOrNull { it.startsWith("KAIROS_RELAY_SECRET=") }
-        ?.substringAfter("KAIROS_RELAY_SECRET=")
-        ?.trim()
-        ?.removeSurrounding("\"")
-        ?: ""
-} else {
-    ""
-}
-
 android {
     namespace = "com.kairos.app"
     compileSdk = 34
@@ -29,7 +17,6 @@ android {
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "KAIROS_RELAY_SECRET", "\"$relaySecret\"")
     }
 
     buildFeatures {
@@ -49,6 +36,8 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
+    releaseImplementation("com.google.firebase:firebase-appcheck-playintegrity")
+    debugImplementation("com.google.firebase:firebase-appcheck-debug")
     implementation(libs.play.services.auth)
     implementation(libs.kotlinx.serialization.json)
 

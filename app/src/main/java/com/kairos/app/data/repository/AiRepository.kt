@@ -1,6 +1,10 @@
 package com.kairos.app.data.repository
 
-import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.appcheck.FirebaseAppCheck
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.tasks.await
 import com.kairos.app.data.models.KairosScheduleEvent
 import com.kairos.app.data.models.KairosSection
 import com.kairos.app.data.models.KairosTask
@@ -48,14 +52,11 @@ class AiRepository {
         
         val rawResponse = sendChatRequest(messages)
         val text = rawResponse.replace("```json", "").replace("```", "").trim()
-        
-        Log.d("AiRepository", "AI Raw Response: $text")
 
         val json = Json { ignoreUnknownKeys = true }
         val root = try {
             json.parseToJsonElement(text).jsonObject
         } catch (e: Exception) {
-            Log.e("AiRepository", "JSON Parse Error", e)
             throw Exception("AI response was not valid JSON: ${e.message}")
         }
 
@@ -88,54 +89,37 @@ class AiRepository {
         return sendChatRequest(messages)
     }
 
-    /**
-     * Chatbot: Calls the Kairos Relay (Hack Club AI Proxy).
-     */
     suspend fun sendChatRequest(messages: List<com.kairos.app.data.models.ChatMessage>): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val url = java.net.URL("https://kairos.kirosapp.workers.dev")
-        val connection = url.openConnection() as java.net.HttpURLConnection
+        val body = AiContract.body(messages)
+        val auth = FirebaseAuth.getInstance()
+        val user = auth.currentUser ?: throw Exception("Sign in to use Kairos AI.")
+        val identity = user.getIdToken(false).await()
+        check(identity.claims["email_verified"] == true) { "Verify your email before using Kairos AI." }
+        val idToken = identity.token
+        val appToken = FirebaseAppCheck.getInstance().getAppCheckToken(false).await().token
+        check(!idToken.isNullOrBlank() && appToken.isNotBlank()) { "Kairos could not verify this app session. Sign in again and retry." }
+        val context = currentCoroutineContext()
+        fun requireOwner() {
+            context.ensureActive()
+            check(auth.currentUser?.uid == user.uid) { "Your account changed. Sign in again and retry." }
+        }
+        requireOwner()
+        val connection = java.net.URL(AiContract.URL).openConnection() as java.net.HttpURLConnection
         try {
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
-            // This secret is injected from local.properties during build
-            connection.setRequestProperty("X-Kairos-Auth", com.kairos.app.BuildConfig.KAIROS_RELAY_SECRET) 
+            connection.setRequestProperty("Authorization", "Bearer $idToken")
+            connection.setRequestProperty("X-Firebase-AppCheck", appToken)
+            connection.instanceFollowRedirects = false
             connection.doOutput = true
-            connection.connectTimeout = 60000 // 60 seconds for complex board generation
-            connection.readTimeout = 60000
-
-            // Safely build the JSON body using kotlinx.serialization
-            val serializer = Json { ignoreUnknownKeys = true }
-            val bodyObj = buildJsonObject {
-                put("messages", buildJsonArray {
-                    messages.forEach { msg ->
-                        addJsonObject {
-                            put("role", msg.role)
-                            // Truncate to 4000 characters to match proxy limit
-                            val safeContent = if (msg.content.length > 4000) {
-                                msg.content.take(3997) + "..."
-                            } else {
-                                msg.content
-                            }
-                            put("content", safeContent)
-                        }
-                    }
-                })
-            }
-            val body = serializer.encodeToString(JsonObject.serializer(), bodyObj)
-
-            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-
-            if (connection.responseCode != 200) {
-                val error = connection.errorStream?.bufferedReader()?.readText() ?: "No error body"
-                Log.e("AiRepository", "Chat proxy error ${connection.responseCode}: $error")
-                throw Exception("Chat proxy error ${connection.responseCode}")
-            }
-
-            val response = connection.inputStream.bufferedReader().readText()
-            val json = Json { ignoreUnknownKeys = true }
-            val root = json.parseToJsonElement(response).jsonObject
-            root["choices"]?.jsonArray?.get(0)?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content
-                ?: throw Exception("Malformed AI response")
+            connection.connectTimeout = 60000
+            connection.readTimeout = 100000
+            connection.outputStream.use { it.write(body) }
+            val status = connection.responseCode
+            val stream = if (status == 200) connection.inputStream else connection.errorStream
+            val response = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            requireOwner()
+            AiContract.response(response, status)
         } finally {
             connection.disconnect()
         }
