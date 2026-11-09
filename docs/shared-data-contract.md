@@ -18,7 +18,7 @@ Missing Firestore fields decode to model defaults. An unchanged default must not
 | --- | --- |
 | Plan | `boards`, `dayInsights`, `scheduleEvents` |
 | Board / section | Existing identity, title, archived flag and nested sections/tasks |
-| Task | `id`, `title`, `completed`, `date`, `archived` |
+| Task | `id`, `title`, `completed`, `archived`, `date`, `taskDescription`, `notes`, `priority`, `estimatedMinutes`, `checklist`, `startTime`, `endTime`, `dueDate`, `dueTime`, `reminderMinutes`, `scheduleLocked`, `schedulingPreference`, `parentTaskID` |
 | Schedule event | `id`, `title`, `category`, `day`, `start`, `end` |
 | User | `settings`, `notifications`, `achievements`, `focusData`, `aiChatHistory`, `onboardingCompleted` |
 
@@ -67,3 +67,11 @@ Firestore transactions still require connectivity. Restored edits are never repl
 Each auth transition resets planner/profile/readiness, focus timers, achievements, pending widget actions and in-memory retry state; listener children and account jobs are cancelled. Captured UID and session generations fence late results. AI history keeps a stable journal operation ID, blocks conflicting new chat while a retained chat operation needs review, and reconciles global retry/discard before releasing its local draft. Widget state and click intents carry an owner UID and reject mismatches. Settings editors keep the complete original profile/raw baseline so remotely deleted fields cannot be mistaken for originally absent defaults.
 
 Recurring series completion is rejected until Android supports occurrence commands. A single task completion must not mark an entire recurring series complete.
+
+## Rich task editor (Android)
+
+The full editor uses the existing iOS/web field names and nullable values. A no-op edit preserves absent optional fields; notes use the legacy description only for display, and do not materialize a duplicate notes field unless edited. Unknown priorities/preferences remain unchanged unless replaced explicitly. The original whole-plan raw baseline and account/session/document/task context stay fixed while the form is open. Remote snapshots never replace the form draft; activity recreation restores primitive fields and stable checklist IDs. Dirty Back/Cancel requires explicit discard; a failed save keeps the editor open and journals the submitted intent.
+
+Checklists merge by item identity within each task, preserving unknown item metadata. TaskEditContract validates changed values and rechecks the final merged checklist count. The transaction boundary rejects task removal, moves, fresh archive/lock/recurrence changes and invalid scheduling writes, including retained replay after restart. Schedule locks only permit editing when genuinely unlocked from an originally locked snapshot.
+
+One-shot Android reminders use the scheduled `date` and `startTime` in the saved profile timezone, separate from deadline fields. Native inexact alarms need no exact-alarm permission and can be delayed by Android idle restrictions. Completed, archived, disabled or foreign-account reminders are cancelled; persisted identities and boot restoration avoid duplicates. Recurring occurrence generation and rule editing remain a separate feature.

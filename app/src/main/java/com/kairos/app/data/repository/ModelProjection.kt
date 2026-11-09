@@ -80,7 +80,13 @@ private fun stringFields(value: Map<*, *>): Map<String, Any?> {
 }
 
 private fun KairosTask.fields(): Map<String, Any?> = mapOf(
-    "id" to id, "title" to title, "completed" to completed, "date" to date, "archived" to archived
+    "id" to id, "title" to title, "completed" to completed, "date" to date, "archived" to archived,
+    "taskDescription" to taskDescription, "notes" to notes, "priority" to priority,
+    "estimatedMinutes" to estimatedMinutes,
+    "checklist" to checklist?.map { mapOf("id" to it.id, "title" to it.title, "completed" to it.completed) },
+    "startTime" to startTime, "endTime" to endTime, "dueDate" to dueDate, "dueTime" to dueTime,
+    "reminderMinutes" to reminderMinutes, "scheduleLocked" to scheduleLocked,
+    "schedulingPreference" to schedulingPreference, "parentTaskID" to parentTaskID
 )
 
 private fun KairosSection.fields(): Map<String, Any?> = mapOf(

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.getValue
 import com.kairos.app.utils.WidgetManager
+import com.kairos.app.utils.TaskReminderScheduler
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -13,6 +14,7 @@ import com.kairos.app.data.models.*
 import com.kairos.app.data.repository.AuthRepository
 import com.kairos.app.data.repository.FirebaseRepository
 import com.kairos.app.data.repository.PendingEdit
+import com.kairos.app.data.repository.TaskEditContract
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
@@ -85,6 +87,34 @@ class MainViewModel @JvmOverloads constructor(
     private var profileReady = false
 
     private var session = 0L
+    data class TaskEditorSession(
+        val key: String,
+        val before: KairosPlan,
+        val boardId: String,
+        val sectionId: String,
+        val original: KairosTask
+    )
+    var taskEditorSession by mutableStateOf<TaskEditorSession?>(null)
+        private set
+    var isEditorSaving by mutableStateOf(false)
+        private set
+    var editorError by mutableStateOf<String?>(null)
+        private set
+    private var editorAttemptId: String? = null
+    private var editorAttemptTask: KairosTask? = null
+
+    val taskEditorAvailable: Boolean get() {
+        val snapshot = taskEditorSession ?: return false
+        val uid = _user.value?.uid ?: return false
+        if (!owns(uid, session) || _plan.value?.documentId != snapshot.before.documentId) return false
+        val matches = _plan.value?.boards.orEmpty().flatMap { b -> b.sections.flatMap { s ->
+            s.tasks.filter { it.id == snapshot.original.id }.map { Triple(b, s, it) }
+        } }
+        return matches.size == 1 && matches.single().let { (b, s, t) ->
+            b.id == snapshot.boardId && s.id == snapshot.sectionId && !b.archived && !s.archived && !t.archived &&
+                _plan.value?.boards?.count { it.id == b.id } == 1 && b.sections.count { it.id == s.id } == 1
+        }
+    }
     private var planSaving by mutableStateOf(false)
     private var profileSaves by mutableStateOf(0)
     private var journalBusy by mutableStateOf(false)
@@ -93,7 +123,7 @@ class MainViewModel @JvmOverloads constructor(
         private set
     var retentionError by mutableStateOf<String?>(null)
         private set
-    val isSaving: Boolean get() = planSaving || profileSaves > 0 || journalBusy || replaying
+    val isSaving: Boolean get() = planSaving || profileSaves > 0 || journalBusy || replaying || isEditorSaving
     private data class FailedSave(val id: String, val message: String, val retry: () -> Unit)
     private var failedSaves by mutableStateOf<List<FailedSave>>(emptyList())
     val canRetrySave: Boolean get() = retainedEdits.isNotEmpty() || failedSaves.isNotEmpty()
@@ -104,6 +134,11 @@ class MainViewModel @JvmOverloads constructor(
 
     private fun resetAccountState() {
         session++
+        taskEditorSession = null
+        isEditorSaving = false
+        editorError = null
+        editorAttemptId = null
+        editorAttemptTask = null
         accountJobs.forEach { it.cancel() }
         accountJobs.clear()
         pauseFocusTimer()
@@ -142,6 +177,9 @@ class MainViewModel @JvmOverloads constructor(
                 isInitializing = uid != null
                 lastApplicationContext?.let { ctx ->
                     WidgetManager.clearAccountState(ctx, uid) { session == token && authRepository.currentUser?.uid == uid }
+                    TaskReminderScheduler.sync(ctx, uid, null, "UTC", false) {
+                        session == token && authRepository.currentUser?.uid == uid
+                    }
                 }
                 if (uid != null) coroutineScope {
                     launch {
@@ -205,6 +243,90 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     // --- Task Management ---
+
+    fun openTaskEditor(taskId: String) {
+        val uid = _user.value?.uid ?: return
+        if (!owns(uid, session) || !planReady || isEditorSaving) return
+        val before = _plan.value ?: return
+        val matches = before.boards.flatMap { b -> b.sections.flatMap { s ->
+            s.tasks.filter { it.id == taskId }.map { Triple(b, s, it) }
+        } }
+        if (matches.size != 1) { errorMessage = "This task is no longer available."; return }
+        val (board, section, task) = matches.single()
+        try { TaskEditContract.editedPlan(before, taskId, task) }
+        catch (e: IllegalArgumentException) { errorMessage = "This task is no longer available."; return }
+        taskEditorSession = TaskEditorSession("$uid:$session:${before.documentId}:$taskId", before, board.id, section.id, task)
+        editorError = null
+        editorAttemptId = null
+        editorAttemptTask = null
+    }
+
+    fun closeTaskEditor() {
+        if (isEditorSaving) return
+        val snapshot = taskEditorSession ?: return
+        val uid = _user.value?.uid ?: return
+        val token = session
+        val pendingId = editorAttemptId
+        if (pendingId == null) { finishClosingTaskEditor(); return }
+        isEditorSaving = true
+        accountJobs.removeAll { it.isCompleted }
+        accountJobs += viewModelScope.launch {
+            try {
+                firebaseRepository.discardPendingEdit(uid, pendingId)
+                if (owns(uid, token) && taskEditorSession === snapshot) finishClosingTaskEditor()
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (owns(uid, token) && taskEditorSession === snapshot) {
+                    finishClosingTaskEditor()
+                    errorMessage = "Retained edits could not be discarded. Review the recovery banner before retrying."
+                }
+            } finally { if (owns(uid, token)) isEditorSaving = false }
+        }
+    }
+
+    private fun finishClosingTaskEditor() {
+        taskEditorSession = null
+        editorError = null
+        editorAttemptId = null
+        editorAttemptTask = null
+    }
+
+    fun saveTaskEditor(edited: KairosTask) {
+        val snapshot = taskEditorSession ?: return
+        val uid = _user.value?.uid ?: return
+        val token = session
+        if (!owns(uid, token) || isSaving || isEditorSaving || !taskEditorAvailable) return
+        val changed = try { TaskEditContract.editedPlan(snapshot.before, snapshot.original.id, edited) }
+        catch (e: IllegalArgumentException) { editorError = e.localizedMessage; return }
+        isEditorSaving = true
+        editorError = null
+        accountJobs.removeAll { it.isCompleted }
+        accountJobs += viewModelScope.launch {
+            try {
+                // A user who changes a failed draft is replacing its previous local intent.
+                // Keep the original server baseline so a lost acknowledgement cannot overwrite
+                // subsequent changes on another device.
+                if (editorAttemptId != null && editorAttemptTask != edited) {
+                    firebaseRepository.discardPendingEdit(uid, editorAttemptId!!)
+                    editorAttemptId = null
+                }
+                val operationId = editorAttemptId ?: java.util.UUID.randomUUID().toString().also { editorAttemptId = it }
+                editorAttemptTask = edited
+                firebaseRepository.updatePlan(uid, snapshot.before, changed, operationId)
+                if (!owns(uid, token) || taskEditorSession !== snapshot) return@launch
+                taskEditorSession = null
+                editorAttemptId = null
+                editorAttemptTask = null
+                syncWidgetsInternal(lastApplicationContext)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (owns(uid, token) && taskEditorSession === snapshot) {
+                    Log.w("MainViewModel", "Task details save failed", e)
+                    editorError = "Could not save these details. Your draft is still here. Retry saving, or discard these changes to close."
+                }
+            } finally { if (owns(uid, token)) isEditorSaving = false }
+        }
+    }
 
     fun toggleTask(taskId: String, completed: Boolean) {
         val currentPlan = _plan.value ?: return
@@ -814,8 +936,13 @@ class MainViewModel @JvmOverloads constructor(
         val running = focusTimerRunning
         val seconds = focusSecondsActive
         val currentPlan = _plan.value
+        val reminderTimezone = _profile.value.settings.profile.timezone
+        val remindersEnabled = _profile.value.settings.notifications.enabled
         viewModelScope.launch {
             if (session != token || authRepository.currentUser?.uid != uid) return@launch
+            TaskReminderScheduler.sync(ctx, uid, currentPlan, reminderTimezone, remindersEnabled) {
+                session == token && authRepository.currentUser?.uid == uid
+            }
             val isDark = appearance.mode == "dark"
             val accentHex = when (appearance.theme) {
                 "fairyfloss" -> "#FFFF8FC9"

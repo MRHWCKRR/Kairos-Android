@@ -167,7 +167,10 @@ class FirebaseRepository(
             if (edit.kind == "plan" && snapshot.exists() && remote["userID"] != userId) throw SharedDataConflict("Planner ownership changed.")
             if (edit.kind == "plan" && remote["sections"] != null && remote["boards"] == null) throw SharedDataConflict("Open this legacy planner on the web before editing on Android.")
             val merged = SharedDataMerge.merge(edit.base, edit.edited, remote, edit.rawBaseline)
-            if (edit.kind == "plan") validateRecurringCompletions(remote, merged)
+            if (edit.kind == "plan") {
+                TaskEditContract.validateMutation(edit.base, edit.edited, edit.rawBaseline, remote, merged)
+                validateRecurringCompletions(remote, merged)
+            }
             requireOwner(userId)
             if (edit.kind == "plan") {
                 val fields = merged.filterKeys { it in setOf("boards", "dayInsights", "scheduleEvents") }
