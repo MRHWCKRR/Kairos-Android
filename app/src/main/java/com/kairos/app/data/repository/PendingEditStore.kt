@@ -26,7 +26,7 @@ class PendingEditStore(
 
     fun put(edit: PendingEdit) = synchronized(state) {
         require(edit.userId.isNotBlank() && edit.id.isNotBlank() && edit.documentId.isNotBlank()) { "Pending edit identity must not be blank" }
-        require(edit.kind == "plan" || edit.kind == "profile") { "Unsupported pending edit kind" }
+        require(edit.kind in setOf("plan", "profile", "ai")) { "Unsupported pending edit kind" }
         val payload = codec.encode(edit)
         val bytes = buildJsonObject {
             put("version", 1)
@@ -116,7 +116,7 @@ class PendingEditStore(
         require(envelope.getValue("checksum").jsonPrimitive.content == hash(payload)) { "Pending edit checksum mismatch" }
         codec.decode(payload).also { edit ->
             require(edit.userId == userId && file.name == "${hash(edit.id)}.json") { "Pending edit identity mismatch" }
-            require(edit.kind == "plan" || edit.kind == "profile") { "Unsupported pending edit kind" }
+            require(edit.kind in setOf("plan", "profile", "ai")) { "Unsupported pending edit kind" }
         }
     } catch (error: Exception) {
         throw IOException("Cannot read pending edit ${file.name}: ${error.message}", error)

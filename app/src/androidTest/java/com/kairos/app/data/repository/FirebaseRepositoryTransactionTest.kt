@@ -550,6 +550,83 @@ class FirebaseRepositoryTransactionTest {
         }
     }
 
+    private fun aiCommand(command: com.kairos.app.data.repository.AiWorkspace.Command) = mapOf<String, Any?>(
+        "operation" to "workspace", "createdAt" to System.currentTimeMillis(),
+        "command" to com.kairos.app.data.repository.AiWorkspace.encodeCommand(command))
+
+    @Test fun aiWorkspaceFreshCommandsPreserveOtherChatsAndMetadata() = runBlocking {
+        bounded {
+            val reference = db.collection("users").document(uid)
+            reference.update("aiWorkspace", mapOf("version" to 2, "webMetadata" to "keep", "projects" to emptyList<Any>(),
+                "chats" to listOf(mapOf("id" to "first", "messages" to emptyList<Any>(), "summary" to "Memory"),
+                    mapOf("id" to "second", "messages" to emptyList<Any>())))).await()
+            val append = aiCommand(com.kairos.app.data.repository.AiWorkspace.Command.Append("first", listOf(
+                com.kairos.app.data.repository.AiWorkspace.Message("one", "user", "First message", 1L))))
+            repository.saveAiOperation(uid, append, "first-append")
+            repository.saveAiOperation(uid, aiCommand(com.kairos.app.data.repository.AiWorkspace.Command.Append("second", listOf(
+                com.kairos.app.data.repository.AiWorkspace.Message("two", "user", "Other message", 2L)))), "second-append")
+            repository.saveAiOperation(uid, append, "first-append") // lost acknowledgement replay
+            val user = repository.getAiUserOnce(uid)
+            val workspace = com.kairos.app.data.repository.AiWorkspace.read(user, uid)
+            assertEquals(1, workspace.chats.first { it.id == "first" }.messages.size)
+            assertEquals("Other message", workspace.chats.first { it.id == "second" }.messages.single().content)
+            assertEquals("Memory", workspace.chats.first { it.id == "first" }.summary)
+            assertEquals("keep", (user["aiWorkspace"] as Map<*, *>)["webMetadata"])
+            assertEquals(richProfile()["settings"], user["settings"])
+            assertTrue(repository.observePendingEdits(uid).first().isEmpty())
+        }
+    }
+
+    @Test fun aiWorkspaceOfflineJournalRestartsAndDiscardDoesNotResurrect() = runBlocking {
+        bounded {
+            db.disableNetwork().await()
+            val command = aiCommand(com.kairos.app.data.repository.AiWorkspace.Command.RenameChat("legacy-$uid", "Recovered chat"))
+            try { repository.saveAiOperation(uid, command, "offline-ai"); fail("Offline save must remain retained") }
+            catch (_: FirebaseFirestoreException) { }
+            assertEquals("ai", pendingStore.list(uid).single().kind)
+            db.enableNetwork().await()
+            restartRepository()
+            repository.retryPendingEdit(uid, "offline-ai")
+            assertEquals("Recovered chat", com.kairos.app.data.repository.AiWorkspace.read(repository.getAiUserOnce(uid), uid).chats.single().title)
+            val discarded = PendingEdit("discarded-ai", uid, "ai", uid, true, emptyMap(),
+                aiCommand(com.kairos.app.data.repository.AiWorkspace.Command.DeleteChat("legacy-$uid")), emptyMap())
+            pendingStore.put(discarded)
+            repository.discardPendingEdit(uid, discarded.id)
+            repository.retryPendingEdit(uid, discarded.id)
+            assertEquals(1, com.kairos.app.data.repository.AiWorkspace.read(repository.getAiUserOnce(uid), uid).chats.size)
+        }
+    }
+
+    @Test fun aiPreviewAppliesAtomicallyOnceAndRetiresSavedReview() = runBlocking {
+        bounded {
+            val source = richPlan() + ("scheduleEvents" to emptyList<Any>())
+            db.collection("study_plans").document(planId).set(source).await()
+            val proposal = com.kairos.app.data.repository.AiActions.make(listOf(
+                com.kairos.app.data.repository.AiActions.Action("complete_task", mapOf("taskId" to "task"))),
+                source, uid, "legacy-$uid", planId, "UTC", "Complete Original")
+            val reply = mapOf<String, Any?>("operation" to "reply", "createdAt" to System.currentTimeMillis(),
+                "proposal" to com.kairos.app.data.repository.AiActions.toMap(proposal),
+                "command" to com.kairos.app.data.repository.AiWorkspace.encodeCommand(com.kairos.app.data.repository.AiWorkspace.Command.Append("legacy-$uid",
+                    listOf(com.kairos.app.data.repository.AiWorkspace.Message("saved-reply", "assistant", "Review this change.")))))
+            repository.saveAiOperation(uid, reply, "reply-op")
+            assertEquals(false, taskData(planData())["completed"])
+            val apply = mapOf<String, Any?>("operation" to "apply", "createdAt" to System.currentTimeMillis(), "planId" to planId,
+                "proposal" to com.kairos.app.data.repository.AiActions.toMap(proposal))
+            repository.saveAiOperation(uid, apply, "apply-op")
+            repository.saveAiOperation(uid, apply, "apply-op")
+            val changed = planData()
+            assertEquals(true, taskData(changed)["completed"])
+            assertEquals("ios-plan", changed["iosOnly"])
+            assertEquals("Retain the complete iOS notes", taskData(changed)["notes"])
+            val profile = repository.getAiUserOnce(uid)
+            assertTrue((profile["aiNativeProposals"] as Map<*, *>).isEmpty())
+            assertEquals(18L, (profile["achievements"] as Map<*, *>)["lifetimeTasksCompleted"])
+            assertEquals(1, (changed["aiNativeActionReceipts"] as List<*>).size)
+            repository.saveAiOperation(uid, reply, "late-reply-new-op")
+            assertTrue((repository.getAiUserOnce(uid)["aiNativeProposals"] as Map<*, *>).isEmpty())
+        }
+    }
+
     private fun restartRepository() {
         pendingStore = PendingEditStore(journalDirectory)
         repository = FirebaseRepository(db, { owner }, pendingStore)

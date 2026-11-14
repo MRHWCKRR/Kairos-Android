@@ -15,6 +15,8 @@ A smart, personalised and practical solution to school/work stress and last minu
 
 ## Key Features
 
+*   **Shared AI workspace:** Multiple chats and projects, per-chat drafts and replies, shared context, and reviewed task/schedule changes. See [workspace behavior and verification](docs/android-ai-workspace.md).
+
 *   **AI Powered automatic scheduling:** Saves you time and will maximise your time management.
   
 *   **AI assistance:** Planning and chat use the authenticated Kairos Cloudflare API, backed by OpenRouter.

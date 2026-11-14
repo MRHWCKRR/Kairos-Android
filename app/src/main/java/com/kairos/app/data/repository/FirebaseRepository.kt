@@ -90,6 +90,18 @@ class FirebaseRepository(
             before.sharedFields(), profilePatch(before, data), before.sourceFields))
     }
 
+    suspend fun getAiUserOnce(userId: String): Map<String, Any?> {
+        requireOwner(userId)
+        val snapshot = usersCollection.document(userId).get(Source.SERVER).await()
+        requireOwner(userId)
+        return snapshot.data.orEmpty()
+    }
+
+    suspend fun saveAiOperation(userId: String, operation: Map<String, Any?>, operationId: String = UUID.randomUUID().toString()) {
+        requireOwner(userId)
+        savePending(PendingEdit(operationId, userId, "ai", userId, true, emptyMap(), operation, emptyMap()))
+    }
+
     data class PendingEditsStatus(val edits: List<PendingEdit> = emptyList(), val error: String? = null, val isSaving: Boolean = false)
 
     fun observePendingEditStatus(userId: String): Flow<PendingEditsStatus> = combine(pendingStore.changes, activeOwners) { _, active ->
@@ -152,8 +164,13 @@ class FirebaseRepository(
         val userId = edit.userId
         requireOwner(userId)
         require(edit.documentId.isNotBlank() && '/' !in edit.documentId) { "Invalid retained document." }
-        require(edit.kind in setOf("plan", "profile")) { "Unsupported retained edit." }
+        require(edit.kind in setOf("plan", "profile", "ai")) { "Unsupported retained edit." }
         require(edit.kind != "profile" || edit.documentId == userId) { "Profile belongs to a different account." }
+        if (edit.kind == "ai") {
+            AiPersistence.commit(db, edit) { requireOwner(userId) }
+            withContext(Dispatchers.IO) { pendingStore.remove(userId, edit.id) }
+            return
+        }
         val reference = (if (edit.kind == "plan") plansCollection else usersCollection).document(edit.documentId)
         // The emulator regression shows transaction RPCs can bypass disableNetwork.
         // Require a server read so explicitly offline clients do not start a cached edit.

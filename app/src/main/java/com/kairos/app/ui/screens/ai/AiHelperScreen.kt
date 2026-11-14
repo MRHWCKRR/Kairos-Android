@@ -25,6 +25,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.foundation.text.ClickableText
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairos.app.data.models.ChatMessage
 import com.kairos.app.ui.components.PremiumCard
@@ -38,59 +43,27 @@ fun AiHelperScreen(
     mainViewModel: MainViewModel,
     viewModel: AiHelperViewModel = viewModel()
 ) {
-    val chatMessages by viewModel.chatMessages.collectAsState()
     val plan by mainViewModel.plan.collectAsState()
-    val haptics = LocalHapticFeedback.current
-
-    AiConversationContent(
-        messages = chatMessages,
-        draft = viewModel.userInput,
-        isLoading = viewModel.isLoading || viewModel.isSavingHistory || viewModel.historySaveError != null || viewModel.isHistoryBlocked,
-        showThinking = viewModel.isLoading && !viewModel.isGeneratingBoard && !viewModel.showConfirmationDialog,
-        error = viewModel.errorMessage,
-        onDraftChange = { viewModel.userInput = it },
-        onSend = {
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            viewModel.handleSend()
-        },
-        onClear = { viewModel.clearChat() },
-        onCreateBoard = {
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-            viewModel.createPlanFromChat(plan)
-        },
-        onDismissError = { viewModel.errorMessage = null },
-        historySaveError = viewModel.historySaveError,
-        historyRecoveryMessage = viewModel.historyRecoveryMessage,
-        historyActionsEnabled = !viewModel.isSavingHistory && !viewModel.isJournalSaving,
-        onRetryHistorySave = { viewModel.retryHistorySave() },
-        onReloadSavedChat = { viewModel.reloadSavedChat() }
-    )
-
-    // --- LOADING OVERLAY ---
-    if (viewModel.isGeneratingBoard) {
-        Dialog(onDismissRequest = {}) {
-            PremiumCard {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Text("Preparing plan.", style = MaterialTheme.typography.titleMedium)
-                }
+    key(viewModel.ownerId) {
+        AiWorkspaceScreen(viewModel.uiState, AiWorkspaceUiActions(
+            newChat = viewModel::newChat, selectChat = viewModel::selectChat,
+            selectProject = viewModel::selectProject, allChats = viewModel::allChats,
+            edit = viewModel::editWorkspace, draft = viewModel::setDraft,
+            send = viewModel::handleSend, retry = viewModel::retryReply,
+            reload = viewModel::reloadWorkspace, createPlan = { viewModel.createPlanFromChat(plan) },
+            apply = viewModel::applyProposal, discard = viewModel::discardProposal, undo = viewModel::undo
+        ))
+        if (viewModel.isGeneratingBoard) {
+            Dialog(onDismissRequest = {}) {
+                PremiumCard { Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Text("Preparing plan…", Modifier.padding(top = 16.dp))
+                } }
             }
         }
-    }
-
-    if (viewModel.showConfirmationDialog) {
-        AiPlanConfirmationDialog(
-            viewModel = viewModel,
-            existingBoards = plan?.boards ?: emptyList(),
-            onConfirm = {
-                val updatedPlan = viewModel.onConfirm(plan)
-                updatedPlan?.let { mainViewModel.updatePlan(it) }
-            }
-        )
+        if (viewModel.showConfirmationDialog) {
+            AiPlanConfirmationDialog(viewModel, plan?.boards.orEmpty(), viewModel::applyGeneratedPlan)
+        }
     }
 }
 
@@ -200,11 +173,7 @@ fun ChatBubble(message: ChatMessage) {
                         )
                     }
                 } else {
-                    Text(
-                        text = MarkdownUtils.parseMarkdown(message.content),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp)
-                    )
+                    AiMarkdownContent(message.content)
                 }
             }
             Text(
@@ -237,7 +206,8 @@ fun ChatInputBar(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f).padding(start = 8.dp, top = 10.dp, bottom = 10.dp),
+                modifier = Modifier.weight(1f).padding(start = 8.dp, top = 10.dp, bottom = 10.dp)
+                    .semantics { contentDescription = "Message Kairos" },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                 minLines = 1,
                 maxLines = 6,
@@ -392,6 +362,7 @@ fun AiPlanConfirmationDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                viewModel.errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 // --- TASK PREVIEW ---
                 Text(
                     text = "BOARD PREVIEW",
@@ -417,7 +388,7 @@ fun AiPlanConfirmationDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onConfirm) {
+            Button(onClick = onConfirm, enabled = !viewModel.saving) {
                 Text("Add to Boards")
             }
         },
@@ -430,3 +401,25 @@ fun AiPlanConfirmationDialog(
 }
 
 
+
+@Composable
+private fun AiMarkdownContent(content: String) {
+    val uriHandler = LocalUriHandler.current
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        content.split("```").forEachIndexed { index, piece ->
+            if (index % 2 == 1) {
+                Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = RoundedCornerShape(10.dp)) {
+                    Text(piece.trim(), Modifier.horizontalScroll(rememberScrollState()).padding(12.dp),
+                        fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+                }
+            } else if (piece.isNotEmpty()) {
+                val text = MarkdownUtils.parseMarkdown(piece)
+                ClickableText(text, style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface, lineHeight = 26.sp)) { offset ->
+                    text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let { link ->
+                        runCatching { uriHandler.openUri(link.item) }
+                    }
+                }
+            }
+        }
+    }
+}

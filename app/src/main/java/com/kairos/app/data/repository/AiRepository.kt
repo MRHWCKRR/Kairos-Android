@@ -10,7 +10,7 @@ import com.kairos.app.data.models.KairosSection
 import com.kairos.app.data.models.KairosTask
 import kotlinx.serialization.json.*
 
-class AiRepository {
+open class AiRepository {
 
     suspend fun generatePlan(
         input: String,
@@ -36,8 +36,12 @@ class AiRepository {
                     { "title": "Read and highlight sources" }
                   ]
                 }
+              ],
+              "recurringEvents": [
+                { "title": "Weekly commitment", "category": "other", "day": 1, "start": "16:00", "end": "17:00" }
               ]
             }
+            Only include explicitly requested weekly commitments; otherwise recurringEvents is empty. day is 0=Sunday through 6=Saturday. Times use HH:MM; categories are sleep,class,tutoring,training,other.
             $scheduleSummary
             $userContext
             
@@ -50,35 +54,42 @@ class AiRepository {
             com.kairos.app.data.models.ChatMessage(role = "user", content = systemPrompt.take(4000))
         )
         
-        val rawResponse = sendChatRequest(messages)
-        val text = rawResponse.replace("```json", "").replace("```", "").trim()
+        return parsePlan(sendChatRequest(messages))
+    }
 
-        val json = Json { ignoreUnknownKeys = true }
-        val root = try {
-            json.parseToJsonElement(text).jsonObject
-        } catch (e: Exception) {
-            throw Exception("AI response was not valid JSON: ${e.message}")
+    companion object {
+        internal fun parsePlan(raw: String): AiResponse {
+            val clean = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+            val root = Json.parseToJsonElement(clean).jsonObject
+            val identity = java.util.UUID.randomUUID().toString()
+            fun title(value: JsonElement?): String {
+                val text = (value as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim().orEmpty()
+                require(text.isNotEmpty() && text.length <= 180) { "Kairos returned an invalid plan title. Request a shorter plan." }
+                return text
+            }
+            val sections = (root["sections"] as? JsonArray ?: error("Kairos did not return plan sections.")).mapIndexed { sectionIndex, value ->
+                val section = value.jsonObject
+                val tasks = (section["tasks"] as? JsonArray ?: error("Kairos did not return tasks.")).mapIndexed { taskIndex, task ->
+                    KairosTask(id = "ai-task-$identity-$sectionIndex-$taskIndex", title = title(task.jsonObject["title"]))
+                }
+                KairosSection(id = "ai-section-$identity-$sectionIndex", title = title(section["title"]), tasks = tasks)
+            }
+            require(sections.any { it.tasks.isNotEmpty() }) { "Kairos did not return a usable plan." }
+            val eventValues = root["recurringEvents"]
+            require(eventValues == null || eventValues is JsonArray) { "Kairos returned invalid recurring events." }
+            val events = (eventValues as? JsonArray).orEmpty().mapIndexed { index, value ->
+                val event = value.jsonObject
+                val day = event["day"]?.jsonPrimitive?.intOrNull
+                val start = event["start"]?.jsonPrimitive?.content.orEmpty()
+                val end = event["end"]?.jsonPrimitive?.content.orEmpty()
+                val category = event["category"]?.jsonPrimitive?.content ?: "other"
+                val time = Regex("(?:[01][0-9]|2[0-3]):[0-5][0-9]")
+                require(day != null && day in 0..6 && time.matches(start) && time.matches(end) && start < end &&
+                    category in setOf("sleep", "class", "tutoring", "training", "other")) { "Kairos returned an invalid recurring event. Review the times and ask again." }
+                KairosScheduleEvent(id = "ai-event-$identity-$index", title = title(event["title"]), category = category, day = day, start = start, end = end)
+            }
+            return AiResponse(sections, events)
         }
-
-        val uniqueId = System.currentTimeMillis()
-        
-        val sections = root["sections"]?.jsonArray?.mapIndexed { sIndex, secElement ->
-            val secObj = secElement.jsonObject
-            com.kairos.app.data.models.KairosSection(
-                id = "ai-sec-$uniqueId-$sIndex",
-                title = secObj["title"]?.jsonPrimitive?.content ?: "Untitled Section",
-                tasks = secObj["tasks"]?.jsonArray?.mapIndexed { tIndex, taskElement ->
-                    val taskObj = taskElement.jsonObject
-                    com.kairos.app.data.models.KairosTask(
-                        id = "ai-task-$uniqueId-$sIndex-$tIndex",
-                        title = taskObj["title"]?.jsonPrimitive?.content ?: "Untitled Task",
-                        completed = false
-                    )
-                } ?: emptyList()
-            )
-        } ?: emptyList()
-
-        return AiResponse(sections, emptyList()) // Simplified for now
     }
 
     suspend fun generateText(prompt: String): String {
@@ -89,7 +100,7 @@ class AiRepository {
         return sendChatRequest(messages)
     }
 
-    suspend fun sendChatRequest(messages: List<com.kairos.app.data.models.ChatMessage>): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    open suspend fun sendChatRequest(messages: List<com.kairos.app.data.models.ChatMessage>): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val body = AiContract.body(messages)
         val auth = FirebaseAuth.getInstance()
         val user = auth.currentUser ?: throw Exception("Sign in to use Kairos AI.")

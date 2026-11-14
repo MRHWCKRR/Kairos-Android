@@ -8,8 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
-class AuthRepository {
-    private val auth = FirebaseAuth.getInstance()
+class AuthRepository(private val auth: FirebaseAuth = FirebaseAuth.getInstance()) {
 
     val currentUser: FirebaseUser?
         get() = auth.currentUser

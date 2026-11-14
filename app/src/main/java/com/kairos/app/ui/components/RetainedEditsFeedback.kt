@@ -120,6 +120,7 @@ fun RetainedEditsFeedback(
 
 private fun PendingEdit.reviewLabel(): String = when {
     kind == "plan" -> "Planner edit"
+    kind == "ai" -> "AI workspace edit"
     base["aiChatHistory"] != edited["aiChatHistory"] -> "AI chat edit"
     else -> "Settings and progress edit"
 }
